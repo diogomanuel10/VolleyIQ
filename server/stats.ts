@@ -2,7 +2,10 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import { actions, matches, players } from "@shared/schema";
 import type { Action, Match, Player } from "@shared/schema";
-import type { PatternDetectionInput } from "@shared/types";
+import type {
+  PatternDetectionInput,
+  TrainingRecommendationInput,
+} from "@shared/types";
 
 /**
  * Agregação de KPIs para o Dashboard a partir da tabela `actions`.
@@ -424,6 +427,98 @@ export async function buildPostMatch(
     },
     players: lines,
     highlights,
+  };
+}
+
+// ── Player training input ──────────────────────────────────────────────
+export interface PlayerSummary {
+  player: Player;
+  actions: number;
+  kpis: TrainingRecommendationInput["kpis"];
+  weaknesses: string[];
+}
+
+export async function buildPlayerSummary(
+  teamId: string,
+  playerId: string,
+): Promise<PlayerSummary | null> {
+  const player = await db
+    .select()
+    .from(players)
+    .where(and(eq(players.teamId, teamId), eq(players.id, playerId)))
+    .get();
+  if (!player) return null;
+
+  // Acções recentes em todos os jogos da equipa (últimos 6).
+  const recentMatches = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(eq(matches.teamId, teamId))
+    .orderBy(desc(matches.date))
+    .limit(RECENT_LIMIT);
+  const matchIds = new Set(recentMatches.map((m) => m.id));
+  const all = await db
+    .select()
+    .from(actions)
+    .where(eq(actions.playerId, playerId));
+  const recent = all.filter((a) => matchIds.has(a.matchId));
+
+  const attacks = recent.filter((a) => a.type === "attack");
+  const kills = attacks.filter((a) => a.result === "kill").length;
+  const attackErr = attacks.filter(
+    (a) => a.result === "error" || a.result === "blocked",
+  ).length;
+  const recs = recent.filter((a) => a.type === "reception");
+  const recPts = recs.reduce((acc, a) => {
+    if (a.result === "perfect") return acc + 3;
+    if (a.result === "good") return acc + 2;
+    if (a.result === "poor") return acc + 1;
+    return acc;
+  }, 0);
+  const serves = recent.filter((a) => a.type === "serve");
+  const aces = serves.filter((a) => a.result === "ace").length;
+  const blocks = recent.filter(
+    (a) => a.type === "block" && a.result === "stuff",
+  ).length;
+  const digs = recent.filter(
+    (a) => a.type === "dig" && (a.result === "perfect" || a.result === "good"),
+  ).length;
+
+  const killPct = attacks.length ? (kills / attacks.length) * 100 : 0;
+  const eff = attacks.length ? (kills - attackErr) / attacks.length : 0;
+  const passRating = recs.length ? recPts / recs.length : 0;
+  const serveAcePct = serves.length ? (aces / serves.length) * 100 : 0;
+
+  const weaknesses: string[] = [];
+  if (attacks.length >= 5 && killPct < 35) {
+    weaknesses.push(
+      `Kill% baixo (${round1(killPct)}%) sobre ${attacks.length} ataques.`,
+    );
+  }
+  if (recs.length >= 5 && passRating < 2) {
+    weaknesses.push(
+      `Pass rating ${round2(passRating)} em ${recs.length} recepções — margem clara.`,
+    );
+  }
+  if (serves.length >= 8 && serveAcePct < 4) {
+    weaknesses.push(`Serviço pouco agressivo (ace% ${round1(serveAcePct)}).`);
+  }
+  if (player.position === "MB" && blocks === 0 && recent.length > 20) {
+    weaknesses.push("Nenhum stuff block registado nos últimos jogos.");
+  }
+
+  return {
+    player,
+    actions: recent.length,
+    kpis: {
+      killPct: round1(killPct),
+      attackEff: round3(eff),
+      passRating: round2(passRating),
+      serveAcePct: round1(serveAcePct),
+      blocks,
+      digs,
+    },
+    weaknesses,
   };
 }
 

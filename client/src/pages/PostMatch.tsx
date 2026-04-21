@@ -11,6 +11,7 @@ import {
   Swords,
   Sparkles,
   ChevronRight,
+  Printer,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
@@ -192,7 +193,7 @@ function Summary({
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-5">
-      <Button variant="ghost" size="sm" onClick={onBack}>
+      <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Button>
 
@@ -207,9 +208,19 @@ function Summary({
             com acções.
           </p>
         </div>
-        <Badge variant={win ? "success" : "secondary"} className="text-base">
-          {s.setsWon}–{s.setsLost} {win ? "Vitória" : "Derrota"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={win ? "success" : "secondary"} className="text-base">
+            {s.setsWon}–{s.setsLost} {win ? "Vitória" : "Derrota"}
+          </Badge>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.print()}
+            className="print-hide"
+          >
+            <Printer className="h-4 w-4" /> Exportar PDF
+          </Button>
+        </div>
       </header>
 
       {/* KPIs da equipa */}

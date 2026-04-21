@@ -14,3 +14,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+// PWA: regista o service worker só em produção para não interferir com HMR.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Silencioso — falha de registo não bloqueia o app.
+    });
+  });
+}

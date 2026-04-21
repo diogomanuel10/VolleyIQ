@@ -11,6 +11,7 @@ import {
   RotateCw,
   User,
   Hand,
+  Printer,
 } from "lucide-react";
 import {
   BarChart,
@@ -176,7 +177,7 @@ function Report({
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-5">
-      <Button variant="ghost" size="sm" onClick={onBack}>
+      <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Button>
 
@@ -190,13 +191,25 @@ function Report({
             Relatório baseado em todas as acções registadas contra este adversário.
           </p>
         </div>
-        {reportQuery.data && (
-          <Badge variant="secondary" className="gap-1">
-            <TrendingUp className="h-3 w-3" />
-            {reportQuery.data.sampleMatches} jogo(s) ·{" "}
-            {reportQuery.data.input.sampleSize} acções
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {reportQuery.data && (
+            <Badge variant="secondary" className="gap-1">
+              <TrendingUp className="h-3 w-3" />
+              {reportQuery.data.sampleMatches} jogo(s) ·{" "}
+              {reportQuery.data.input.sampleSize} acções
+            </Badge>
+          )}
+          {reportQuery.data && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.print()}
+              className="print-hide"
+            >
+              <Printer className="h-4 w-4" /> Exportar PDF
+            </Button>
+          )}
+        </div>
       </header>
 
       {reportQuery.isLoading ? (
@@ -225,6 +238,7 @@ function Report({
                   patternsMutation.mutate(reportQuery.data.input)
                 }
                 disabled={patternsMutation.isPending}
+                className="print-hide"
               >
                 {patternsMutation.isPending ? "A analisar…" : "Reanalisar"}
               </Button>

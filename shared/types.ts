@@ -151,3 +151,40 @@ export interface DetectedPattern {
   evidence: string;
   recommendation: string;
 }
+
+/** Input para recomendações de treino por jogadora. */
+export interface TrainingRecommendationInput {
+  playerId: string;
+  firstName: string;
+  lastName: string;
+  position: Position;
+  sampleActions: number;
+  kpis: {
+    killPct: number;
+    attackEff: number;
+    passRating: number;
+    serveAcePct: number;
+    blocks: number;
+    digs: number;
+  };
+  weaknesses: string[]; // lista de áreas fracas detectadas
+}
+
+export const TRAINING_FOCI = [
+  "serve",
+  "attack",
+  "reception",
+  "block",
+  "defense",
+  "setting",
+] as const;
+export type TrainingFocus = (typeof TRAINING_FOCI)[number];
+
+/** Forma final (cacheada em `training_logs.recJson`). */
+export interface TrainingRecommendation {
+  title: string;
+  focus: TrainingFocus;
+  priority: TrainingPriority;
+  rationale: string;
+  drills: Array<{ name: string; durationMin: number; description: string }>;
+}

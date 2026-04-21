@@ -9,7 +9,13 @@ import {
   insertActionSchema,
 } from "@shared/schema";
 import { detectPatterns } from "./ai/patterns";
-import { buildDashboard, buildPostMatch, buildScoutingReport } from "./stats";
+import { recommendTraining } from "./ai/training";
+import {
+  buildDashboard,
+  buildPlayerSummary,
+  buildPostMatch,
+  buildScoutingReport,
+} from "./stats";
 import type { PatternDetectionInput } from "@shared/types";
 
 export const router = Router();
@@ -244,5 +250,56 @@ router.get(
     const summary = await buildPostMatch(req.teamId, req.params.matchId);
     if (!summary) return res.status(404).json({ error: "not found" });
     res.json(summary);
+  },
+);
+
+// ── Player summary + training recommendations ───────────────────────────
+router.get(
+  "/players/:id/summary",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const summary = await buildPlayerSummary(req.teamId, req.params.id);
+    if (!summary) return res.status(404).json({ error: "not found" });
+    res.json(summary);
+  },
+);
+
+router.get(
+  "/training/:playerId",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const player = await storage.getPlayer(req.teamId, req.params.playerId);
+    if (!player) return res.status(404).json({ error: "not found" });
+    res.json(await storage.listTrainingLogs(req.params.playerId));
+  },
+);
+
+router.post(
+  "/ai/training/:playerId",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const summary = await buildPlayerSummary(req.teamId, req.params.playerId);
+    if (!summary) return res.status(404).json({ error: "not found" });
+    try {
+      const recs = await recommendTraining({
+        playerId: summary.player.id,
+        firstName: summary.player.firstName,
+        lastName: summary.player.lastName,
+        position: summary.player.position,
+        sampleActions: summary.actions,
+        kpis: summary.kpis,
+        weaknesses: summary.weaknesses,
+      });
+      const saved = [];
+      for (const r of recs) {
+        saved.push(
+          await storage.createTrainingLog(summary.player.id, r, r.priority),
+        );
+      }
+      res.json({ recommendations: recs, saved });
+    } catch (err) {
+      console.error("AI training error", err);
+      res.status(500).json({ error: "ai_failed" });
+    }
   },
 );

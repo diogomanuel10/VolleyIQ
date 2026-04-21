@@ -8,11 +8,16 @@ import {
   matches,
   actions,
   checklistItems,
+  trainingLogs,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
   type InsertAction,
 } from "@shared/schema";
+import type {
+  TrainingPriority,
+  TrainingRecommendation,
+} from "@shared/types";
 
 /**
  * Camada fina de acesso a dados. Cada função respeita `teamId` como
@@ -237,4 +242,33 @@ export async function listChecklist(matchId: string) {
 
 export async function toggleChecklistItem(id: string, done: boolean) {
   await db.update(checklistItems).set({ done }).where(eq(checklistItems.id, id));
+}
+
+// ── Training logs (IA) ───────────────────────────────────────────────────
+export async function listTrainingLogs(playerId: string) {
+  const rows = await db
+    .select()
+    .from(trainingLogs)
+    .where(eq(trainingLogs.playerId, playerId))
+    .orderBy(desc(trainingLogs.createdAt));
+  return rows.map((r) => ({
+    ...r,
+    rec: JSON.parse(r.recJson) as TrainingRecommendation,
+  }));
+}
+
+export async function createTrainingLog(
+  playerId: string,
+  rec: TrainingRecommendation,
+  priority: TrainingPriority,
+) {
+  const id = newId();
+  await db.insert(trainingLogs).values({
+    id,
+    playerId,
+    recJson: JSON.stringify(rec),
+    priority,
+    status: "pending",
+  });
+  return { id, rec };
 }
