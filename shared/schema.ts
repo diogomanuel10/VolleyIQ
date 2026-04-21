@@ -1,0 +1,268 @@
+import { sql, type InferSelectModel } from "drizzle-orm";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+import {
+  ACTION_RESULTS,
+  ACTION_TYPES,
+  CHECKLIST_CATEGORIES,
+  PLANS,
+  POSITIONS,
+  TRAINING_PRIORITIES,
+} from "./types";
+
+/**
+ * Todas as tabelas carregam `teamId` quando aplicável. Esse campo é a
+ * fronteira de tenancy — o middleware `tenantGuard` do server garante que
+ * nenhum endpoint devolve linhas de outra equipa.
+ */
+
+// ── Users ↔ Teams (membership) ────────────────────────────────────────────
+export const teams = sqliteTable("teams", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  plan: text("plan", { enum: PLANS }).notNull().default("basic"),
+  ownerUid: text("owner_uid").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const memberships = sqliteTable(
+  "memberships",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    uid: text("uid").notNull(),
+    role: text("role", { enum: ["owner", "coach", "analyst", "viewer"] })
+      .notNull()
+      .default("coach"),
+  },
+  (t) => ({
+    byTeam: index("memberships_team_idx").on(t.teamId),
+    byUid: index("memberships_uid_idx").on(t.uid),
+  }),
+);
+
+// ── Players ──────────────────────────────────────────────────────────────
+export const players = sqliteTable(
+  "players",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    number: integer("number").notNull(),
+    position: text("position", { enum: POSITIONS }).notNull(),
+    heightCm: integer("height_cm"),
+    dominantHand: text("dominant_hand", { enum: ["left", "right"] }),
+    birthDate: text("birth_date"),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({ byTeam: index("players_team_idx").on(t.teamId) }),
+);
+
+// ── Matches ──────────────────────────────────────────────────────────────
+export const matches = sqliteTable(
+  "matches",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    opponent: text("opponent").notNull(),
+    date: integer("date", { mode: "timestamp" }).notNull(),
+    venue: text("venue", { enum: ["home", "away", "neutral"] })
+      .notNull()
+      .default("home"),
+    competition: text("competition"),
+    setsWon: integer("sets_won").notNull().default(0),
+    setsLost: integer("sets_lost").notNull().default(0),
+    status: text("status", {
+      enum: ["scheduled", "live", "finished", "cancelled"],
+    })
+      .notNull()
+      .default("scheduled"),
+    notes: text("notes"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({ byTeam: index("matches_team_idx").on(t.teamId) }),
+);
+
+export const sets = sqliteTable(
+  "sets",
+  {
+    id: text("id").primaryKey(),
+    matchId: text("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    homeScore: integer("home_score").notNull().default(0),
+    awayScore: integer("away_score").notNull().default(0),
+    startedAt: integer("started_at", { mode: "timestamp" }),
+    finishedAt: integer("finished_at", { mode: "timestamp" }),
+  },
+  (t) => ({ byMatch: index("sets_match_idx").on(t.matchId) }),
+);
+
+// ── Lineups (p1..p6 por rotação inicial de cada set) ─────────────────────
+export const lineups = sqliteTable(
+  "lineups",
+  {
+    id: text("id").primaryKey(),
+    matchId: text("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    setNumber: integer("set_number").notNull(),
+    rotation: integer("rotation").notNull().default(1), // 1..6
+    p1: text("p1").references(() => players.id),
+    p2: text("p2").references(() => players.id),
+    p3: text("p3").references(() => players.id),
+    p4: text("p4").references(() => players.id),
+    p5: text("p5").references(() => players.id),
+    p6: text("p6").references(() => players.id),
+  },
+  (t) => ({ byMatch: index("lineups_match_idx").on(t.matchId) }),
+);
+
+// ── Actions (grão fino — ~500 linhas / jogo) ─────────────────────────────
+export const actions = sqliteTable(
+  "actions",
+  {
+    id: text("id").primaryKey(),
+    matchId: text("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    setId: text("set_id").references(() => sets.id, { onDelete: "cascade" }),
+    playerId: text("player_id").references(() => players.id),
+    type: text("type", { enum: ACTION_TYPES }).notNull(),
+    result: text("result", { enum: ACTION_RESULTS }).notNull(),
+    zoneFrom: integer("zone_from"),
+    zoneTo: integer("zone_to"),
+    rallyId: text("rally_id"),
+    rotation: integer("rotation"),
+    // Contexto opcional (jogador adversário em ataque, setter visível, etc.)
+    opponentPlayer: integer("opponent_player"),
+    timestamp: integer("timestamp", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    byMatch: index("actions_match_idx").on(t.matchId),
+    byPlayer: index("actions_player_idx").on(t.playerId),
+    byType: index("actions_type_idx").on(t.type),
+  }),
+);
+
+// ── Match day checklist ──────────────────────────────────────────────────
+export const checklistItems = sqliteTable(
+  "checklist_items",
+  {
+    id: text("id").primaryKey(),
+    matchId: text("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    category: text("category", { enum: CHECKLIST_CATEGORIES }).notNull(),
+    label: text("label").notNull(),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    order: integer("order").notNull().default(0),
+  },
+  (t) => ({ byMatch: index("checklist_match_idx").on(t.matchId) }),
+);
+
+// ── Scouting reports (JSON de padrões gerado pela IA) ────────────────────
+export const scoutingReports = sqliteTable(
+  "scouting_reports",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    opponent: text("opponent").notNull(),
+    matchIds: text("match_ids").notNull(), // JSON string[]
+    patternsJson: text("patterns_json").notNull(), // DetectedPattern[]
+    summaryMd: text("summary_md"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({ byTeam: index("reports_team_idx").on(t.teamId) }),
+);
+
+// ── Training logs (recomendações IA por atleta) ──────────────────────────
+export const trainingLogs = sqliteTable(
+  "training_logs",
+  {
+    id: text("id").primaryKey(),
+    playerId: text("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    recJson: text("rec_json").notNull(), // { title, focus, drills[] }
+    priority: text("priority", { enum: TRAINING_PRIORITIES })
+      .notNull()
+      .default("medium"),
+    status: text("status", {
+      enum: ["pending", "in_progress", "done", "skipped"],
+    })
+      .notNull()
+      .default("pending"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({ byPlayer: index("training_player_idx").on(t.playerId) }),
+);
+
+// ── Zod inserts + inferred select types ──────────────────────────────────
+// Select types via `InferSelectModel` (Drizzle); insert schemas via drizzle-zod
+// para validação de payloads que chegam dos clients.
+
+export const insertTeamSchema = createInsertSchema(teams).omit({
+  id: true,
+  createdAt: true,
+});
+export type Team = InferSelectModel<typeof teams>;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+
+export const insertPlayerSchema = createInsertSchema(players).omit({
+  id: true,
+  createdAt: true,
+});
+export type Player = InferSelectModel<typeof players>;
+export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
+
+export const insertMatchSchema = createInsertSchema(matches)
+  .omit({ id: true, createdAt: true })
+  .extend({ date: z.coerce.date() });
+export type Match = InferSelectModel<typeof matches>;
+export type InsertMatch = z.infer<typeof insertMatchSchema>;
+
+export const insertActionSchema = createInsertSchema(actions).omit({
+  id: true,
+  timestamp: true,
+});
+export type Action = InferSelectModel<typeof actions>;
+export type InsertAction = z.infer<typeof insertActionSchema>;
+
+export const insertChecklistItemSchema = createInsertSchema(checklistItems).omit({
+  id: true,
+});
+export type ChecklistItem = InferSelectModel<typeof checklistItems>;
+
+export const insertLineupSchema = createInsertSchema(lineups).omit({ id: true });
+export type Lineup = InferSelectModel<typeof lineups>;
+
+export const insertSetSchema = createInsertSchema(sets).omit({ id: true });
+export type GameSet = InferSelectModel<typeof sets>;
+
+export type ScoutingReport = InferSelectModel<typeof scoutingReports>;
+export type TrainingLog = InferSelectModel<typeof trainingLogs>;
