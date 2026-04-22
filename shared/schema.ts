@@ -91,6 +91,7 @@ export const matches = sqliteTable(
       .notNull()
       .default("scheduled"),
     notes: text("notes"),
+    videoUrl: text("video_url"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -152,6 +153,7 @@ export const actions = sqliteTable(
     rotation: integer("rotation"),
     // Contexto opcional (jogador adversário em ataque, setter visível, etc.)
     opponentPlayer: integer("opponent_player"),
+    videoTimeSec: integer("video_time_sec"),
     timestamp: integer("timestamp", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),

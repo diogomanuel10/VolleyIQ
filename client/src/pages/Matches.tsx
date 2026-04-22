@@ -223,6 +223,7 @@ function NewMatchDialog({
   const [venue, setVenue] = useState<Match["venue"]>("home");
   const [competition, setCompetition] = useState("");
   const [notes, setNotes] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -233,6 +234,7 @@ function NewMatchDialog({
         venue,
         competition: competition || null,
         notes: notes || null,
+        videoUrl: videoUrl.trim() || null,
         setsWon: 0,
         setsLost: 0,
         status: "scheduled",
@@ -300,6 +302,15 @@ function NewMatchDialog({
             value={competition}
             onChange={(e) => setCompetition(e.target.value)}
             placeholder="Liga, Taça, Amigável…"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="videoUrl">Vídeo (YouTube, opcional)</Label>
+          <Input
+            id="videoUrl"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=…"
           />
         </div>
         <div className="space-y-1.5">

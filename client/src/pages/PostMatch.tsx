@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -12,6 +13,8 @@ import {
   Sparkles,
   ChevronRight,
   Printer,
+  Video,
+  PlayCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
@@ -21,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatPct, cn } from "@/lib/utils";
+import { VideoPanel, type VideoPanelHandle } from "@/components/scout/VideoPanel";
 import type { Match } from "@shared/schema";
 
 interface PlayerLine {
@@ -42,12 +46,22 @@ interface PlayerLine {
   rating: number;
 }
 
+interface TaggedMoment {
+  actionId: string;
+  videoTimeSec: number;
+  playerName: string | null;
+  playerNumber: number | null;
+  type: string;
+  result: string;
+}
+
 interface PostMatchSummary {
   matchId: string;
   opponent: string;
   setsWon: number;
   setsLost: number;
   totalActions: number;
+  videoUrl: string | null;
   teamKpis: {
     killPct: number;
     sideOutPct: number;
@@ -58,6 +72,36 @@ interface PostMatchSummary {
   };
   players: PlayerLine[];
   highlights: Array<{ playerId: string; title: string; subtitle: string }>;
+  taggedMoments: TaggedMoment[];
+}
+
+const ACTION_SHORT: Record<string, string> = {
+  serve: "Serv",
+  reception: "Rec",
+  set: "Dist",
+  attack: "Atk",
+  block: "Blk",
+  dig: "Dig",
+};
+const RESULT_SHORT: Record<string, string> = {
+  kill: "Kill",
+  error: "Err",
+  ace: "Ace",
+  tooled: "Tooled",
+  in_play: "In",
+  perfect: "Perf",
+  good: "Bom",
+  poor: "Fraco",
+  blocked: "Blk",
+  stuff: "Stuff",
+  touch: "Tq",
+};
+
+function fmtTime(sec: number) {
+  const s = Math.max(0, Math.floor(sec));
+  const m = Math.floor(s / 60);
+  const rest = s % 60;
+  return `${m}:${String(rest).padStart(2, "0")}`;
 }
 
 export default function PostMatch() {
@@ -148,6 +192,7 @@ function Summary({
   teamId: string;
   onBack: () => void;
 }) {
+  const videoRef = useRef<VideoPanelHandle>(null);
   const summaryQuery = useQuery({
     queryKey: ["summary", matchId],
     queryFn: () =>
@@ -295,6 +340,60 @@ function Summary({
             </motion.div>
           ))}
         </section>
+      )}
+
+      {/* Vídeo + momentos taggados */}
+      {s.videoUrl && (
+        <Card className="print-hide">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Video className="h-4 w-4 text-primary" /> Replay com tags
+              {s.taggedMoments.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {s.taggedMoments.length} momento(s)
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <VideoPanel ref={videoRef} url={s.videoUrl} />
+            {s.taggedMoments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Ainda sem acções taggadas com vídeo. Regista acções no Live
+                Scout enquanto o vídeo está a correr para as ver aqui.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {s.taggedMoments.map((m) => (
+                  <button
+                    key={m.actionId}
+                    onClick={() => videoRef.current?.seekTo(m.videoTimeSec)}
+                    className="text-left rounded-md border bg-card p-2 hover:bg-accent transition-colors flex items-center gap-2"
+                  >
+                    <PlayCircle className="h-4 w-4 text-primary shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-muted-foreground font-mono">
+                        {fmtTime(m.videoTimeSec)}
+                      </div>
+                      <div className="text-sm truncate">
+                        {m.playerNumber != null && (
+                          <span className="font-semibold">
+                            #{m.playerNumber}{" "}
+                          </span>
+                        )}
+                        {m.playerName ?? "—"}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0">
+                      {ACTION_SHORT[m.type] ?? m.type} ·{" "}
+                      {RESULT_SHORT[m.result] ?? m.result}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Tabela de jogadoras */}

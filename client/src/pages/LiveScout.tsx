@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Radio, SkipForward } from "lucide-react";
+import { ArrowLeft, Monitor, Radio, SkipForward, Video } from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
 import { useScoutState, type LoggedAction } from "@/hooks/useScoutState";
@@ -15,6 +15,7 @@ import { ActionBar } from "@/components/scout/ActionBar";
 import { ResultBar } from "@/components/scout/ResultBar";
 import { ScorePanel } from "@/components/scout/ScorePanel";
 import { ActionLog } from "@/components/scout/ActionLog";
+import { VideoPanel, type VideoPanelHandle } from "@/components/scout/VideoPanel";
 import type { Match, Player, Action as DbAction } from "@shared/schema";
 import { ACTION_LABEL, type ActionType, type Zone } from "@shared/types";
 
@@ -153,6 +154,8 @@ function Scout({
     hydratedRef.current = true;
   }, [actionsQuery.data, dispatch]);
 
+  const videoRef = useRef<VideoPanelHandle>(null);
+
   const createAction = useMutation({
     mutationFn: (a: LoggedAction) =>
       api.post<DbAction>("/api/actions", {
@@ -163,6 +166,7 @@ function Scout({
         zoneTo: a.zoneTo,
         rallyId: a.rallyId,
         rotation: a.rotation,
+        videoTimeSec: videoRef.current?.getCurrentTime() ?? null,
       }),
     onError: (err: any) =>
       toast.error(err.message ?? "Falha a guardar acção"),
@@ -269,6 +273,11 @@ function Scout({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild size="sm" variant="ghost">
+            <Link href={`/second-screen/${matchId}`}>
+              <Monitor className="h-4 w-4" /> Segunda écran
+            </Link>
+          </Button>
           {match.status !== "live" && (
             <Button
               size="sm"
@@ -365,19 +374,33 @@ function Scout({
           </div>
         </div>
 
-        {/* Log lateral */}
-        <aside className="rounded-xl border bg-card p-3 md:p-4 max-h-[70vh] lg:max-h-[80vh] min-h-[280px] flex flex-col">
-          <ActionLog
-            log={state.log}
-            players={activePlayers}
-            onUndo={() => {
-              const last = state.log[state.log.length - 1];
-              if (!last) return;
-              dispatch({ kind: "undo" });
-              syncedIds.current.delete(last.id);
-              deleteAction.mutate(last.id);
-            }}
-          />
+        {/* Log lateral + vídeo (opcional) */}
+        <aside className="space-y-3 min-w-0">
+          {match.videoUrl && (
+            <div className="rounded-xl border bg-card p-3 md:p-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Video className="h-3.5 w-3.5" /> Vídeo
+              </div>
+              <VideoPanel ref={videoRef} url={match.videoUrl} />
+              <p className="text-[11px] text-muted-foreground">
+                As acções registadas vão ser marcadas com o tempo actual do
+                vídeo.
+              </p>
+            </div>
+          )}
+          <div className="rounded-xl border bg-card p-3 md:p-4 max-h-[60vh] lg:max-h-[70vh] min-h-[280px] flex flex-col">
+            <ActionLog
+              log={state.log}
+              players={activePlayers}
+              onUndo={() => {
+                const last = state.log[state.log.length - 1];
+                if (!last) return;
+                dispatch({ kind: "undo" });
+                syncedIds.current.delete(last.id);
+                deleteAction.mutate(last.id);
+              }}
+            />
+          </div>
         </aside>
       </div>
     </div>

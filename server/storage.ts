@@ -18,6 +18,11 @@ import type {
   TrainingPriority,
   TrainingRecommendation,
 } from "@shared/types";
+import {
+  mirrorAction,
+  mirrorChecklistItem,
+  mirrorDeleteAction,
+} from "./firestore";
 
 /**
  * Camada fina de acesso a dados. Cada função respeita `teamId` como
@@ -56,6 +61,14 @@ export async function userBelongsToTeam(uid: string, teamId: string) {
     .where(and(eq(memberships.uid, uid), eq(memberships.teamId, teamId)))
     .get();
   return !!row;
+}
+
+export async function updateTeamPlan(
+  teamId: string,
+  plan: "basic" | "pro" | "club",
+) {
+  await db.update(teams).set({ plan }).where(eq(teams.id, teamId));
+  return db.select().from(teams).where(eq(teams.id, teamId)).get();
 }
 
 /**
@@ -190,11 +203,15 @@ export async function listActions(matchId: string) {
 export async function createAction(data: InsertAction) {
   const id = newId();
   await db.insert(actions).values({ ...data, id });
-  return db.select().from(actions).where(eq(actions.id, id)).get();
+  const row = await db.select().from(actions).where(eq(actions.id, id)).get();
+  if (row) void mirrorAction(row);
+  return row;
 }
 
 export async function deleteAction(id: string) {
+  const row = await db.select().from(actions).where(eq(actions.id, id)).get();
   await db.delete(actions).where(eq(actions.id, id));
+  if (row) void mirrorDeleteAction(row.matchId, id);
 }
 
 // ── Checklist ────────────────────────────────────────────────────────────
@@ -242,6 +259,12 @@ export async function listChecklist(matchId: string) {
 
 export async function toggleChecklistItem(id: string, done: boolean) {
   await db.update(checklistItems).set({ done }).where(eq(checklistItems.id, id));
+  const row = await db
+    .select()
+    .from(checklistItems)
+    .where(eq(checklistItems.id, id))
+    .get();
+  if (row) void mirrorChecklistItem(row);
 }
 
 // ── Training logs (IA) ───────────────────────────────────────────────────

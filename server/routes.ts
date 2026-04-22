@@ -10,6 +10,7 @@ import {
 } from "@shared/schema";
 import { detectPatterns } from "./ai/patterns";
 import { recommendTraining } from "./ai/training";
+import { mirrorStatus } from "./firestore";
 import {
   buildDashboard,
   buildPlayerSummary,
@@ -22,6 +23,10 @@ export const router = Router();
 
 // Todas as rotas exigem auth (dev bypass em desenvolvimento).
 router.use(requireAuth);
+
+router.get("/config", (_req, res) => {
+  res.json({ mirror: mirrorStatus() });
+});
 
 // ── Teams ────────────────────────────────────────────────────────────────
 router.get("/teams", async (req, res) => {
@@ -49,6 +54,17 @@ router.post("/teams", async (req, res) => {
   }
   const team = await storage.createTeam(req.user!.uid, parsed.data);
   res.status(201).json(team);
+});
+
+const updatePlanSchema = z.object({ plan: z.enum(["basic", "pro", "club"]) });
+router.patch("/teams/:id/plan", async (req, res) => {
+  const parsed = updatePlanSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const team = await storage.updateTeamPlan(req.params.id, parsed.data.plan);
+  if (!team) return res.status(404).json({ error: "not found" });
+  res.json(team);
 });
 
 // Middleware para garantir que o utilizador pertence à equipa pedida.

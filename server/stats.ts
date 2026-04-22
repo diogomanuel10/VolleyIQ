@@ -308,12 +308,22 @@ export interface PlayerMatchLine {
   rating: number; // 0-100
 }
 
+export interface TaggedMoment {
+  actionId: string;
+  videoTimeSec: number;
+  playerName: string | null;
+  playerNumber: number | null;
+  type: string;
+  result: string;
+}
+
 export interface PostMatchSummary {
   matchId: string;
   opponent: string;
   setsWon: number;
   setsLost: number;
   totalActions: number;
+  videoUrl: string | null;
   teamKpis: DashboardStats["kpis"];
   players: PlayerMatchLine[];
   highlights: Array<{
@@ -321,6 +331,7 @@ export interface PostMatchSummary {
     title: string;
     subtitle: string;
   }>;
+  taggedMoments: TaggedMoment[];
 }
 
 export async function buildPostMatch(
@@ -411,12 +422,29 @@ export async function buildPostMatch(
     subtitle: `${l.kills} kills · ${l.aces} aces · ${l.blocks} blocks · rating ${l.rating}`,
   }));
 
+  const rosterById = new Map(roster.map((p) => [p.id, p]));
+  const taggedMoments: TaggedMoment[] = rows
+    .filter((a) => a.videoTimeSec != null)
+    .sort((a, b) => (a.videoTimeSec ?? 0) - (b.videoTimeSec ?? 0))
+    .map((a) => {
+      const p = a.playerId ? rosterById.get(a.playerId) : null;
+      return {
+        actionId: a.id,
+        videoTimeSec: a.videoTimeSec!,
+        playerName: p ? `${p.firstName} ${p.lastName}` : null,
+        playerNumber: p?.number ?? null,
+        type: a.type,
+        result: a.result,
+      };
+    });
+
   return {
     matchId,
     opponent: match.opponent,
     setsWon: match.setsWon,
     setsLost: match.setsLost,
     totalActions: rows.length,
+    videoUrl: match.videoUrl ?? null,
     teamKpis: {
       killPct: killPct(rows),
       sideOutPct: sideOutPct(rows),
@@ -427,6 +455,7 @@ export async function buildPostMatch(
     },
     players: lines,
     highlights,
+    taggedMoments,
   };
 }
 

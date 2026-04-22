@@ -12,6 +12,7 @@ import ScoutingReport from "@/pages/ScoutingReport";
 import Scenario from "@/pages/Scenario";
 import PostMatch from "@/pages/PostMatch";
 import Pricing from "@/pages/Pricing";
+import SecondScreen from "@/pages/SecondScreen";
 import Login from "@/pages/Login";
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/reports/:opponent?" component={ScoutingReport} />
           <Route path="/scenario" component={Scenario} />
           <Route path="/post-match/:matchId?" component={PostMatch} />
+          <Route path="/second-screen/:matchId" component={SecondScreen} />
           <Route path="/pricing" component={Pricing} />
           <Route>
             <div className="p-8 text-muted-foreground">Página não encontrada.</div>
