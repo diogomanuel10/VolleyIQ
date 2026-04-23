@@ -29,6 +29,7 @@ const DEV_USER: DevUser = {
 };
 
 let app: FirebaseApp | null = null;
+let authReady: Promise<User | null> | null = null;
 
 function getApp() {
   if (app || USE_DEV) return app;
@@ -38,8 +39,33 @@ function getApp() {
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
   };
+  if (!cfg.apiKey || !cfg.projectId || !cfg.appId) {
+    throw new Error(
+      "Firebase web config is missing. Set VITE_FIREBASE_API_KEY, " +
+        "VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID and " +
+        "VITE_FIREBASE_APP_ID on the frontend host (e.g. Vercel).",
+    );
+  }
   app = initializeApp(cfg);
   return app;
+}
+
+/**
+ * Resolve-once promise that fires when Firebase restored (or confirmed the
+ * absence of) a persisted session. Lets `getIdToken` wait on initial load
+ * instead of returning a premature null.
+ */
+function ensureAuthReady(): Promise<User | null> {
+  if (authReady) return authReady;
+  getApp();
+  const auth = getAuth();
+  authReady = new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      unsub();
+      resolve(u);
+    });
+  });
+  return authReady;
 }
 
 export function subscribeAuth(cb: (user: User | DevUser | null) => void) {
@@ -87,6 +113,7 @@ export async function logout() {
 
 export async function getIdToken(): Promise<string | null> {
   if (USE_DEV) return "dev-token";
+  await ensureAuthReady();
   const user = getAuth().currentUser;
   return user ? user.getIdToken() : null;
 }
