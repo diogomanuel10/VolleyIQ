@@ -1,5 +1,6 @@
 import { LogOut, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { logout } from "@/lib/firebase";
 
@@ -20,6 +21,7 @@ export function TopBar() {
             {user?.displayName ?? user?.email ?? "Utilizador"}
           </span>
         </div>
+        <ThemeToggle />
         <Button
           variant="ghost"
           size="sm"

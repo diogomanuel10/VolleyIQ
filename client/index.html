@@ -8,6 +8,22 @@
     <title>VolleyIQ — Volleyball Analytics</title>
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <script>
+      // Aplica o tema antes do React montar para evitar flash do tema errado.
+      // Mantido em sync com client/src/lib/theme.ts (chave + classe).
+      (function () {
+        try {
+          var stored = localStorage.getItem("volleyiq:theme");
+          var system = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+          var theme = stored === "light" || stored === "dark" ? stored : system;
+          if (theme === "dark") document.documentElement.classList.add("dark");
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = theme === "dark" ? "#0f172a" : "#ffffff";
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
