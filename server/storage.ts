@@ -9,10 +9,16 @@ import {
   actions,
   checklistItems,
   trainingLogs,
+  opponentTeams,
+  opponentPlayers,
+  opponentCoaches,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
   type InsertAction,
+  type InsertOpponentTeam,
+  type InsertOpponentPlayer,
+  type InsertOpponentCoach,
 } from "@shared/schema";
 import type {
   TrainingPriority,
@@ -157,13 +163,27 @@ export async function createMatch(data: InsertMatch) {
  * Bulk insert de jogos (calendário da época). Devolve os registos criados
  * ordenados por data descendente. Sem deduplicação no servidor — a UI
  * avisa sobre colisões antes do submit.
+ *
+ * Auto-link: se um jogo chegou sem `opponentTeamId` mas o texto `opponent`
+ * bate certo (case-insensitive) com o nome de uma equipa no catálogo,
+ * associamos automaticamente. Útil quando o utilizador já tem adversários
+ * catalogados e importa o calendário por CSV.
  */
 export async function bulkCreateMatches(
   teamId: string,
   payload: Array<Omit<InsertMatch, "teamId">>,
 ) {
   if (payload.length === 0) return [];
-  const rows = payload.map((m) => ({ ...m, teamId, id: newId() }));
+  const catalogue = await listOpponentTeams(teamId);
+  const byName = new Map<string, string>();
+  for (const o of catalogue) {
+    byName.set(o.name.trim().toLowerCase(), o.id);
+  }
+  const rows = payload.map((m) => {
+    const oppId =
+      m.opponentTeamId ?? byName.get(m.opponent.trim().toLowerCase()) ?? null;
+    return { ...m, teamId, id: newId(), opponentTeamId: oppId };
+  });
   await db.insert(matches).values(rows);
   const ids = rows.map((r) => r.id);
   return db
@@ -293,4 +313,210 @@ export async function createTrainingLog(
     status: "pending",
   });
   return { id, rec };
+}
+
+// ── Opponent teams ──────────────────────────────────────────────────────
+export async function listOpponentTeams(teamId: string) {
+  return db
+    .select()
+    .from(opponentTeams)
+    .where(eq(opponentTeams.teamId, teamId))
+    .orderBy(opponentTeams.name);
+}
+
+export async function getOpponentTeam(teamId: string, id: string) {
+  const [row] = await db
+    .select()
+    .from(opponentTeams)
+    .where(
+      and(eq(opponentTeams.teamId, teamId), eq(opponentTeams.id, id)),
+    );
+  return row;
+}
+
+export async function createOpponentTeam(data: InsertOpponentTeam) {
+  const id = newId();
+  await db.insert(opponentTeams).values({ ...data, id });
+  const [row] = await db
+    .select()
+    .from(opponentTeams)
+    .where(eq(opponentTeams.id, id));
+  return row;
+}
+
+export async function updateOpponentTeam(
+  teamId: string,
+  id: string,
+  data: Partial<InsertOpponentTeam>,
+) {
+  await db
+    .update(opponentTeams)
+    .set(data)
+    .where(
+      and(eq(opponentTeams.teamId, teamId), eq(opponentTeams.id, id)),
+    );
+  return getOpponentTeam(teamId, id);
+}
+
+export async function deleteOpponentTeam(teamId: string, id: string) {
+  await db
+    .delete(opponentTeams)
+    .where(
+      and(eq(opponentTeams.teamId, teamId), eq(opponentTeams.id, id)),
+    );
+}
+
+/**
+ * Faz match case-insensitive entre `opponent` (texto livre nos matches)
+ * e o nome de uma equipa adversária catalogada. Usado pelo bulk import de
+ * jogos para auto-associar o `opponentTeamId`.
+ */
+export async function findOpponentTeamByName(teamId: string, name: string) {
+  const all = await listOpponentTeams(teamId);
+  const norm = name.trim().toLowerCase();
+  return all.find((o) => o.name.trim().toLowerCase() === norm) ?? null;
+}
+
+// ── Opponent players ────────────────────────────────────────────────────
+export async function listOpponentPlayers(opponentTeamId: string) {
+  return db
+    .select()
+    .from(opponentPlayers)
+    .where(eq(opponentPlayers.opponentTeamId, opponentTeamId))
+    .orderBy(opponentPlayers.number, opponentPlayers.lastName);
+}
+
+export async function createOpponentPlayer(data: InsertOpponentPlayer) {
+  const id = newId();
+  await db.insert(opponentPlayers).values({ ...data, id });
+  const [row] = await db
+    .select()
+    .from(opponentPlayers)
+    .where(eq(opponentPlayers.id, id));
+  return row;
+}
+
+export async function bulkCreateOpponentPlayers(
+  opponentTeamId: string,
+  payload: Array<Omit<InsertOpponentPlayer, "opponentTeamId">>,
+) {
+  if (payload.length === 0) return [];
+  const rows = payload.map((p) => ({ ...p, opponentTeamId, id: newId() }));
+  await db.insert(opponentPlayers).values(rows);
+  const ids = rows.map((r) => r.id);
+  return db
+    .select()
+    .from(opponentPlayers)
+    .where(
+      and(
+        eq(opponentPlayers.opponentTeamId, opponentTeamId),
+        inArray(opponentPlayers.id, ids),
+      ),
+    );
+}
+
+export async function updateOpponentPlayer(
+  opponentTeamId: string,
+  id: string,
+  data: Partial<InsertOpponentPlayer>,
+) {
+  await db
+    .update(opponentPlayers)
+    .set(data)
+    .where(
+      and(
+        eq(opponentPlayers.opponentTeamId, opponentTeamId),
+        eq(opponentPlayers.id, id),
+      ),
+    );
+  const [row] = await db
+    .select()
+    .from(opponentPlayers)
+    .where(eq(opponentPlayers.id, id));
+  return row;
+}
+
+export async function deleteOpponentPlayer(
+  opponentTeamId: string,
+  id: string,
+) {
+  await db
+    .delete(opponentPlayers)
+    .where(
+      and(
+        eq(opponentPlayers.opponentTeamId, opponentTeamId),
+        eq(opponentPlayers.id, id),
+      ),
+    );
+}
+
+// ── Opponent coaches ────────────────────────────────────────────────────
+export async function listOpponentCoaches(opponentTeamId: string) {
+  return db
+    .select()
+    .from(opponentCoaches)
+    .where(eq(opponentCoaches.opponentTeamId, opponentTeamId))
+    .orderBy(opponentCoaches.name);
+}
+
+export async function createOpponentCoach(data: InsertOpponentCoach) {
+  const id = newId();
+  await db.insert(opponentCoaches).values({ ...data, id });
+  const [row] = await db
+    .select()
+    .from(opponentCoaches)
+    .where(eq(opponentCoaches.id, id));
+  return row;
+}
+
+export async function updateOpponentCoach(
+  opponentTeamId: string,
+  id: string,
+  data: Partial<InsertOpponentCoach>,
+) {
+  await db
+    .update(opponentCoaches)
+    .set(data)
+    .where(
+      and(
+        eq(opponentCoaches.opponentTeamId, opponentTeamId),
+        eq(opponentCoaches.id, id),
+      ),
+    );
+  const [row] = await db
+    .select()
+    .from(opponentCoaches)
+    .where(eq(opponentCoaches.id, id));
+  return row;
+}
+
+export async function deleteOpponentCoach(
+  opponentTeamId: string,
+  id: string,
+) {
+  await db
+    .delete(opponentCoaches)
+    .where(
+      and(
+        eq(opponentCoaches.opponentTeamId, opponentTeamId),
+        eq(opponentCoaches.id, id),
+      ),
+    );
+}
+
+// ── History: matches vs. a specific opponent team ───────────────────────
+export async function listMatchesVsOpponent(
+  teamId: string,
+  opponentTeamId: string,
+) {
+  return db
+    .select()
+    .from(matches)
+    .where(
+      and(
+        eq(matches.teamId, teamId),
+        eq(matches.opponentTeamId, opponentTeamId),
+      ),
+    )
+    .orderBy(desc(matches.date));
 }

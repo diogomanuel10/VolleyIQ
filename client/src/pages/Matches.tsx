@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { Match } from "@shared/schema";
+import type { Match, OpponentTeam } from "@shared/schema";
 import { MatchImportDialog } from "@/components/MatchImportDialog";
 
 type Status = Match["status"];
@@ -231,6 +231,7 @@ function NewMatchDialog({
   teamId: string;
   onCreated: () => void;
 }) {
+  const [opponentTeamId, setOpponentTeamId] = useState<string>("");
   const [opponent, setOpponent] = useState("");
   const [date, setDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -240,11 +241,26 @@ function NewMatchDialog({
   const [notes, setNotes] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
 
+  const opponentsQuery = useQuery({
+    queryKey: ["opponents", teamId],
+    queryFn: () => api.get<OpponentTeam[]>(`/api/opponents?teamId=${teamId}`),
+  });
+  const opponentOptions = opponentsQuery.data ?? [];
+
+  function pickOpponentTeam(id: string) {
+    setOpponentTeamId(id);
+    if (id) {
+      const hit = opponentOptions.find((o) => o.id === id);
+      if (hit) setOpponent(hit.name);
+    }
+  }
+
   const createMutation = useMutation({
     mutationFn: () =>
       api.post<Match>("/api/matches", {
         teamId,
         opponent,
+        opponentTeamId: opponentTeamId || null,
         date: new Date(date).toISOString(),
         venue,
         competition: competition || null,
@@ -276,12 +292,38 @@ function NewMatchDialog({
           createMutation.mutate();
         }}
       >
+        {opponentOptions.length > 0 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="opp-team">Equipa adversária (catálogo)</Label>
+            <Select
+              id="opp-team"
+              value={opponentTeamId}
+              onChange={(e) => pickOpponentTeam(e.target.value)}
+            >
+              <option value="">— usar texto livre abaixo —</option>
+              {opponentOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                  {o.club ? ` · ${o.club}` : ""}
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Escolher daqui associa o jogo à ficha do adversário (plantel,
+              equipa técnica, histórico).
+            </p>
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="opponent">Adversário</Label>
           <Input
             id="opponent"
             value={opponent}
-            onChange={(e) => setOpponent(e.target.value)}
+            onChange={(e) => {
+              setOpponent(e.target.value);
+              // Editar manualmente quebra a associação ao catálogo.
+              if (opponentTeamId) setOpponentTeamId("");
+            }}
             required
             placeholder="Porto VC"
           />

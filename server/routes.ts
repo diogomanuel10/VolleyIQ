@@ -7,6 +7,9 @@ import {
   insertPlayerSchema,
   insertMatchSchema,
   insertActionSchema,
+  insertOpponentTeamSchema,
+  insertOpponentPlayerSchema,
+  insertOpponentCoachSchema,
 } from "@shared/schema";
 import { detectPatterns } from "./ai/patterns";
 import { recommendTraining } from "./ai/training";
@@ -354,5 +357,193 @@ router.post(
       console.error("AI training error", err);
       res.status(500).json({ error: "ai_failed" });
     }
+  },
+);
+
+// ── Opponent teams ──────────────────────────────────────────────────────
+router.get("/opponents", requireTeamAccess, async (req: any, res) => {
+  res.json(await storage.listOpponentTeams(req.teamId));
+});
+
+router.post("/opponents", async (req, res) => {
+  const parsed = insertOpponentTeamSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const row = await storage.createOpponentTeam(parsed.data);
+  res.status(201).json(row);
+});
+
+// Middleware que valida acesso a uma opponent team específica via :id.
+async function requireOpponentAccess(req: any, res: any, next: any) {
+  const teamId = (req.query.teamId ?? req.params.teamId) as string | undefined;
+  if (!teamId) return res.status(400).json({ error: "teamId required" });
+  const ok = await storage.userBelongsToTeam(req.user.uid, teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const opp = await storage.getOpponentTeam(teamId, req.params.id);
+  if (!opp) return res.status(404).json({ error: "not found" });
+  req.teamId = teamId;
+  req.opponent = opp;
+  next();
+}
+
+router.get("/opponents/:id", requireOpponentAccess, async (req: any, res) => {
+  res.json(req.opponent);
+});
+
+const updateOpponentTeamSchema = insertOpponentTeamSchema.partial();
+
+router.patch(
+  "/opponents/:id",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    const parsed = updateOpponentTeamSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const row = await storage.updateOpponentTeam(
+      req.teamId,
+      req.params.id,
+      parsed.data,
+    );
+    res.json(row);
+  },
+);
+
+router.delete(
+  "/opponents/:id",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    await storage.deleteOpponentTeam(req.teamId, req.params.id);
+    res.status(204).end();
+  },
+);
+
+// ── Opponent players (roster) ───────────────────────────────────────────
+router.get(
+  "/opponents/:id/players",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    res.json(await storage.listOpponentPlayers(req.params.id));
+  },
+);
+
+router.post(
+  "/opponents/:id/players",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    const parsed = insertOpponentPlayerSchema.safeParse({
+      ...req.body,
+      opponentTeamId: req.params.id,
+    });
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const row = await storage.createOpponentPlayer(parsed.data);
+    res.status(201).json(row);
+  },
+);
+
+const bulkOpponentPlayersSchema = z.object({
+  players: z
+    .array(insertOpponentPlayerSchema.omit({ opponentTeamId: true }))
+    .min(1)
+    .max(200),
+});
+
+router.post(
+  "/opponents/:id/players/bulk",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    const parsed = bulkOpponentPlayersSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const rows = await storage.bulkCreateOpponentPlayers(
+      req.params.id,
+      parsed.data.players,
+    );
+    res.status(201).json({ inserted: rows.length, players: rows });
+  },
+);
+
+router.patch(
+  "/opponents/:id/players/:playerId",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    const parsed = insertOpponentPlayerSchema
+      .partial()
+      .safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const row = await storage.updateOpponentPlayer(
+      req.params.id,
+      req.params.playerId,
+      parsed.data,
+    );
+    if (!row) return res.status(404).json({ error: "not found" });
+    res.json(row);
+  },
+);
+
+router.delete(
+  "/opponents/:id/players/:playerId",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    await storage.deleteOpponentPlayer(req.params.id, req.params.playerId);
+    res.status(204).end();
+  },
+);
+
+// ── Opponent coaches ────────────────────────────────────────────────────
+router.get(
+  "/opponents/:id/coaches",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    res.json(await storage.listOpponentCoaches(req.params.id));
+  },
+);
+
+router.post(
+  "/opponents/:id/coaches",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    const parsed = insertOpponentCoachSchema.safeParse({
+      ...req.body,
+      opponentTeamId: req.params.id,
+    });
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const row = await storage.createOpponentCoach(parsed.data);
+    res.status(201).json(row);
+  },
+);
+
+router.patch(
+  "/opponents/:id/coaches/:coachId",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    const parsed = insertOpponentCoachSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const row = await storage.updateOpponentCoach(
+      req.params.id,
+      req.params.coachId,
+      parsed.data,
+    );
+    if (!row) return res.status(404).json({ error: "not found" });
+    res.json(row);
+  },
+);
+
+router.delete(
+  "/opponents/:id/coaches/:coachId",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    await storage.deleteOpponentCoach(req.params.id, req.params.coachId);
+    res.status(204).end();
+  },
+);
+
+// ── Opponent history (matches vs this opponent) ─────────────────────────
+router.get(
+  "/opponents/:id/matches",
+  requireOpponentAccess,
+  async (req: any, res) => {
+    res.json(await storage.listMatchesVsOpponent(req.teamId, req.params.id));
   },
 );

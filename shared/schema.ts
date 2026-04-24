@@ -79,6 +79,62 @@ export const players = pgTable(
   (t) => ({ byTeam: index("players_team_idx").on(t.teamId) }),
 );
 
+// ── Opponent teams (catálogo de adversários de cada equipa) ──────────────
+export const opponentTeams = pgTable(
+  "opponent_teams",
+  {
+    id: text("id").primaryKey(),
+    // `teamId` é a minha equipa — tenancy. Cada equipa tem o seu catálogo.
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    club: text("club"),
+    // Texto livre, pode ser diferente do escalão da minha equipa.
+    category: text("category"),
+    division: text("division"),
+    primaryColor: text("primary_color"), // hex `#rrggbb`
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({ byTeam: index("opponent_teams_team_idx").on(t.teamId) }),
+);
+
+export const opponentPlayers = pgTable(
+  "opponent_players",
+  {
+    id: text("id").primaryKey(),
+    opponentTeamId: text("opponent_team_id")
+      .notNull()
+      .references(() => opponentTeams.id, { onDelete: "cascade" }),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    // Número e posição são opcionais — nem sempre temos roster completo.
+    number: integer("number"),
+    position: text("position", { enum: POSITIONS }),
+    heightCm: integer("height_cm"),
+    dominantHand: text("dominant_hand", { enum: ["left", "right"] }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({ byOpponent: index("opponent_players_team_idx").on(t.opponentTeamId) }),
+);
+
+export const opponentCoaches = pgTable(
+  "opponent_coaches",
+  {
+    id: text("id").primaryKey(),
+    opponentTeamId: text("opponent_team_id")
+      .notNull()
+      .references(() => opponentTeams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    role: text("role"), // ex: "head", "assistant", "preparador físico"
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({ byOpponent: index("opponent_coaches_team_idx").on(t.opponentTeamId) }),
+);
+
 // ── Matches ──────────────────────────────────────────────────────────────
 export const matches = pgTable(
   "matches",
@@ -88,6 +144,10 @@ export const matches = pgTable(
       .notNull()
       .references(() => teams.id, { onDelete: "cascade" }),
     opponent: text("opponent").notNull(),
+    opponentTeamId: text("opponent_team_id").references(
+      () => opponentTeams.id,
+      { onDelete: "set null" },
+    ),
     date: timestamp("date").notNull(),
     venue: text("venue", { enum: ["home", "away", "neutral"] })
       .notNull()
@@ -104,7 +164,10 @@ export const matches = pgTable(
     videoUrl: text("video_url"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => ({ byTeam: index("matches_team_idx").on(t.teamId) }),
+  (t) => ({
+    byTeam: index("matches_team_idx").on(t.teamId),
+    byOpponentTeam: index("matches_opponent_team_idx").on(t.opponentTeamId),
+  }),
 );
 
 export const sets = pgTable(
@@ -270,3 +333,22 @@ export type GameSet = InferSelectModel<typeof sets>;
 
 export type ScoutingReport = InferSelectModel<typeof scoutingReports>;
 export type TrainingLog = InferSelectModel<typeof trainingLogs>;
+
+export const insertOpponentTeamSchema = createInsertSchema(opponentTeams).omit({
+  id: true,
+  createdAt: true,
+});
+export type OpponentTeam = InferSelectModel<typeof opponentTeams>;
+export type InsertOpponentTeam = z.infer<typeof insertOpponentTeamSchema>;
+
+export const insertOpponentPlayerSchema = createInsertSchema(
+  opponentPlayers,
+).omit({ id: true, createdAt: true });
+export type OpponentPlayer = InferSelectModel<typeof opponentPlayers>;
+export type InsertOpponentPlayer = z.infer<typeof insertOpponentPlayerSchema>;
+
+export const insertOpponentCoachSchema = createInsertSchema(
+  opponentCoaches,
+).omit({ id: true, createdAt: true });
+export type OpponentCoach = InferSelectModel<typeof opponentCoaches>;
+export type InsertOpponentCoach = z.infer<typeof insertOpponentCoachSchema>;

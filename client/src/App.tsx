@@ -16,6 +16,8 @@ import Pricing from "@/pages/Pricing";
 import SecondScreen from "@/pages/SecondScreen";
 import Login from "@/pages/Login";
 import Onboarding from "@/pages/Onboarding";
+import Opponents from "@/pages/Opponents";
+import OpponentDetail from "@/pages/OpponentDetail";
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
@@ -55,6 +57,8 @@ function AuthedApp() {
           <Route path="/matches" component={Matches} />
           <Route path="/players" component={Players} />
           <Route path="/players/:id" component={PlayerDetail} />
+          <Route path="/opponents" component={Opponents} />
+          <Route path="/opponents/:id" component={OpponentDetail} />
           <Route path="/matchday/:matchId?" component={MatchDay} />
           <Route path="/reports/:opponent?" component={ScoutingReport} />
           <Route path="/scenario" component={Scenario} />
