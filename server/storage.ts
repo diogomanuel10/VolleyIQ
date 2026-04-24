@@ -153,6 +153,26 @@ export async function createMatch(data: InsertMatch) {
   return row;
 }
 
+/**
+ * Bulk insert de jogos (calendário da época). Devolve os registos criados
+ * ordenados por data descendente. Sem deduplicação no servidor — a UI
+ * avisa sobre colisões antes do submit.
+ */
+export async function bulkCreateMatches(
+  teamId: string,
+  payload: Array<Omit<InsertMatch, "teamId">>,
+) {
+  if (payload.length === 0) return [];
+  const rows = payload.map((m) => ({ ...m, teamId, id: newId() }));
+  await db.insert(matches).values(rows);
+  const ids = rows.map((r) => r.id);
+  return db
+    .select()
+    .from(matches)
+    .where(and(eq(matches.teamId, teamId), inArray(matches.id, ids)))
+    .orderBy(desc(matches.date));
+}
+
 export async function updateMatch(
   teamId: string,
   id: string,

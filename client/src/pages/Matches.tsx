@@ -9,6 +9,7 @@ import {
   Radio,
   ClipboardCheck,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
@@ -32,6 +33,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { Match } from "@shared/schema";
+import { MatchImportDialog } from "@/components/MatchImportDialog";
 
 type Status = Match["status"];
 
@@ -53,6 +55,7 @@ export default function Matches() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const matchesQuery = useQuery({
     queryKey: ["matches", team?.id],
@@ -88,21 +91,33 @@ export default function Matches() {
             Calendário e histórico de {team.name}.
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4" /> Novo jogo
-            </Button>
-          </DialogTrigger>
-          <NewMatchDialog
-            teamId={team.id}
-            onCreated={() => {
-              setDialogOpen(false);
-              qc.invalidateQueries({ queryKey: ["matches", team.id] });
-            }}
-          />
-        </Dialog>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" /> Importar
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4" /> Novo jogo
+              </Button>
+            </DialogTrigger>
+            <NewMatchDialog
+              teamId={team.id}
+              onCreated={() => {
+                setDialogOpen(false);
+                qc.invalidateQueries({ queryKey: ["matches", team.id] });
+              }}
+            />
+          </Dialog>
+        </div>
       </header>
+
+      <MatchImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        teamId={team.id}
+        existingMatches={matchesQuery.data ?? []}
+      />
 
       <div className="flex flex-wrap gap-2 text-sm">
         {(["all", "scheduled", "live", "finished", "cancelled"] as const).map(

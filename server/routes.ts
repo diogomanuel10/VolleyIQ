@@ -165,6 +165,29 @@ router.post("/matches", async (req, res) => {
   res.status(201).json(match);
 });
 
+const bulkMatchesSchema = z.object({
+  teamId: z.string().min(1),
+  matches: z
+    .array(insertMatchSchema.omit({ teamId: true }))
+    .min(1)
+    .max(500),
+});
+
+router.post("/matches/bulk", async (req, res) => {
+  const parsed = bulkMatchesSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const created = await storage.bulkCreateMatches(
+    parsed.data.teamId,
+    parsed.data.matches,
+  );
+  res.status(201).json({ inserted: created.length, matches: created });
+});
+
 const updateMatchSchema = insertMatchSchema.partial();
 
 router.patch(
