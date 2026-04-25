@@ -1,11 +1,26 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Monitor, Radio, SkipForward, Video } from "lucide-react";
+import {
+  ArrowLeft,
+  Crown,
+  Monitor,
+  Radio,
+  SkipForward,
+  Video,
+  Zap,
+  Gauge,
+} from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
-import { useScoutState, type LoggedAction } from "@/hooks/useScoutState";
+import {
+  deriveSuggestion,
+  useScoutState,
+  type LoggedAction,
+} from "@/hooks/useScoutState";
+import { useScoutMode, type ScoutMode } from "@/lib/scoutMode";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +31,7 @@ import { ResultBar } from "@/components/scout/ResultBar";
 import { ScorePanel } from "@/components/scout/ScorePanel";
 import { ActionLog } from "@/components/scout/ActionLog";
 import { VideoPanel, type VideoPanelHandle } from "@/components/scout/VideoPanel";
-import type { Match, Player, Action as DbAction } from "@shared/schema";
+import type { Match, Player, Action as DbAction, Team } from "@shared/schema";
 import { ACTION_LABEL, type ActionType, type Zone } from "@shared/types";
 
 export default function LiveScout() {
@@ -31,7 +46,7 @@ export default function LiveScout() {
     <Scout
       key={params.matchId}
       matchId={params.matchId}
-      teamId={team.id}
+      team={team}
       onBack={() => navigate("/matches")}
     />
   );
@@ -108,14 +123,34 @@ function MatchPicker({ teamId }: { teamId: string }) {
 // ── Scout propriamente dito ──────────────────────────────────────────────
 function Scout({
   matchId,
-  teamId,
+  team,
   onBack,
 }: {
   matchId: string;
-  teamId: string;
+  team: Team;
   onBack: () => void;
 }) {
-  const [state, dispatch] = useScoutState();
+  const teamId = team.id;
+  const { mode, canUseComplete, set: setMode } = useScoutMode(
+    teamId,
+    team.plan,
+  );
+  const [state, dispatch] = useScoutState(mode);
+
+  // Side em que o utilizador clicou (não persiste; só para desenhar a seta).
+  const [zoneFromSide, setZoneFromSide] = useState<"opponent" | "ours" | null>(
+    null,
+  );
+  const [zoneToSide, setZoneToSide] = useState<"opponent" | "ours" | null>(
+    null,
+  );
+
+  // Sincroniza o reducer com a preferência guardada quando esta muda.
+  useEffect(() => {
+    dispatch({ kind: "setMode", mode });
+    setZoneFromSide(null);
+    setZoneToSide(null);
+  }, [mode, dispatch]);
 
   const matchQuery = useQuery({
     queryKey: ["matches", teamId],
@@ -143,6 +178,7 @@ function Scout({
       id: a.id,
       playerId: a.playerId ?? "",
       type: a.type as ActionType,
+      zoneFrom: (a.zoneFrom as Zone | null) ?? null,
       zoneTo: (a.zoneTo as Zone | null) ?? null,
       result: a.result,
       rallyId: a.rallyId ?? "",
@@ -163,6 +199,7 @@ function Scout({
         playerId: a.playerId,
         type: a.type,
         result: a.result,
+        zoneFrom: a.zoneFrom,
         zoneTo: a.zoneTo,
         rallyId: a.rallyId,
         rotation: a.rotation,
@@ -245,6 +282,36 @@ function Scout({
   }
 
   const step = state.step;
+  const suggested = useMemo(() => deriveSuggestion(state.log), [state.log]);
+
+  const totalSteps = mode === "complete" ? 5 : 4;
+  const stepNumber =
+    step === "idle" || step === "player"
+      ? 1
+      : step === "action"
+        ? 2
+        : step === "zoneFrom"
+          ? 3
+          : step === "zone" || step === "zoneTo"
+            ? mode === "complete"
+              ? 4
+              : 3
+            : mode === "complete"
+              ? 5
+              : 4;
+  const stepLabel =
+    step === "idle" || step === "player"
+      ? "jogadora"
+      : step === "action"
+        ? "acção"
+        : step === "zoneFrom"
+          ? "origem"
+          : step === "zone" || step === "zoneTo"
+            ? mode === "complete"
+              ? "destino"
+              : "zona"
+            : "resultado";
+
   const hint =
     step === "idle" || step === "player"
       ? "Toca numa jogadora para começar."
@@ -252,9 +319,36 @@ function Scout({
         ? selectedPlayer
           ? `Escolhe acção para #${selectedPlayer.number} ${selectedPlayer.firstName}`
           : "Escolhe o tipo de acção."
-        : step === "zone"
-          ? "Escolhe a zona onde a bola caiu (ou salta o passo)."
-          : "Regista o resultado da acção.";
+        : step === "zoneFrom"
+          ? "Toca onde a bola foi contactada (origem)."
+          : step === "zoneTo"
+            ? "Toca onde a bola caiu / chegou (destino)."
+            : step === "zone"
+              ? "Escolhe a zona onde a bola caiu (ou salta o passo)."
+              : "Regista o resultado da acção.";
+
+  function handleZoneFromSelect(zone: Zone, side: "opponent" | "ours") {
+    setZoneFromSide(side);
+    dispatch({ kind: "selectZoneFrom", zone });
+  }
+  function handleZoneToSelect(zone: Zone, side: "opponent" | "ours") {
+    setZoneToSide(side);
+    if (mode === "complete") dispatch({ kind: "selectZoneTo", zone });
+    else dispatch({ kind: "selectZone", zone });
+  }
+  function handleModeChange(next: ScoutMode) {
+    if (next === "complete" && !canUseComplete) {
+      toast.message("Modo Completo requer plano Pro ou Club", {
+        description: "Vê os planos em /pricing.",
+        action: {
+          label: "Ver planos",
+          onClick: () => (window.location.hash = "/pricing"),
+        },
+      });
+      return;
+    }
+    setMode(next);
+  }
 
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-3 md:space-y-4">
@@ -273,6 +367,11 @@ function Scout({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ModeSwitch
+            mode={mode}
+            canUseComplete={canUseComplete}
+            onChange={handleModeChange}
+          />
           <Button asChild size="sm" variant="ghost">
             <Link href={`/second-screen/${matchId}`}>
               <Monitor className="h-4 w-4" /> Segunda écran
@@ -312,25 +411,35 @@ function Scout({
                 Campo
               </div>
               <Badge variant="outline" className="text-[10px]">
-                {step === "idle"
-                  ? "1 / 4 · jogadora"
-                  : step === "action"
-                    ? "2 / 4 · acção"
-                    : step === "zone"
-                      ? "3 / 4 · zona"
-                      : "4 / 4 · resultado"}
+                {stepNumber} / {totalSteps} · {stepLabel}
               </Badge>
             </div>
             <Court
               selectedZone={state.zoneTo}
-              onZoneSelect={(z) => dispatch({ kind: "selectZone", zone: z })}
+              selectedZoneFrom={state.zoneFrom}
+              selectedZoneSide={zoneToSide}
+              selectedZoneFromSide={zoneFromSide}
+              pickTarget={
+                step === "zoneFrom"
+                  ? "from"
+                  : step === "zoneTo" || step === "zone"
+                    ? "to"
+                    : null
+              }
+              onZoneSelect={handleZoneToSelect}
+              onZoneFromSelect={handleZoneFromSelect}
               lineup={lineup}
               selectedPlayerId={state.playerId}
               onPlayerSelect={(id) =>
                 dispatch({ kind: "selectPlayer", playerId: id })
               }
               rotation={state.rotation}
-              zonesDisabled={step !== "zone"}
+              playersDisabled={
+                step !== "idle" && step !== "player"
+              }
+              zonesDisabled={
+                step !== "zone" && step !== "zoneFrom" && step !== "zoneTo"
+              }
             />
             <p className="text-xs text-muted-foreground text-center mt-1">
               {hint}
@@ -339,11 +448,20 @@ function Scout({
 
           {/* Fluxo — aparece consoante o step actual */}
           <div className="space-y-2">
-            {(step === "action" || step === "zone" || step === "result") && (
+            {(step === "action" ||
+              step === "zone" ||
+              step === "zoneFrom" ||
+              step === "zoneTo" ||
+              step === "result") && (
               <ActionBar
                 value={state.actionType}
-                onChange={(t) => dispatch({ kind: "selectAction", actionType: t })}
+                onChange={(t) =>
+                  dispatch({ kind: "selectAction", actionType: t })
+                }
                 disabled={step === "result"}
+                suggested={
+                  step === "action" && mode === "complete" ? suggested : null
+                }
               />
             )}
             {step === "zone" && (
@@ -361,7 +479,11 @@ function Scout({
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground">
                   Resultado de {ACTION_LABEL[state.actionType].toLowerCase()}
-                  {state.zoneTo ? ` em Z${state.zoneTo}` : ""}
+                  {state.zoneFrom != null
+                    ? ` (Z${state.zoneFrom} → Z${state.zoneTo})`
+                    : state.zoneTo != null
+                      ? ` em Z${state.zoneTo}`
+                      : ""}
                 </div>
                 <ResultBar
                   actionType={state.actionType}
@@ -403,6 +525,60 @@ function Scout({
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+// ── Mode switch (Lite vs Completo) ───────────────────────────────────────
+function ModeSwitch({
+  mode,
+  canUseComplete,
+  onChange,
+}: {
+  mode: ScoutMode;
+  canUseComplete: boolean;
+  onChange: (m: ScoutMode) => void;
+}) {
+  const Btn = ({
+    target,
+    icon: Icon,
+    label,
+  }: {
+    target: ScoutMode;
+    icon: typeof Zap;
+    label: string;
+  }) => {
+    const active = mode === target;
+    const locked = target === "complete" && !canUseComplete;
+    return (
+      <button
+        onClick={() => onChange(target)}
+        title={
+          locked
+            ? "Plano Pro/Club desbloqueia o modo Completo"
+            : `Modo ${label}`
+        }
+        className={cn(
+          "inline-flex items-center gap-1 px-2.5 h-8 text-xs font-medium transition-colors",
+          active
+            ? "bg-primary text-primary-foreground"
+            : locked
+              ? "text-muted-foreground"
+              : "hover:bg-accent",
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+        {locked && <Crown className="h-3 w-3 opacity-70" />}
+      </button>
+    );
+  };
+
+  return (
+    <div className="hidden sm:inline-flex items-stretch rounded-md border overflow-hidden">
+      <Btn target="lite" icon={Zap} label="Lite" />
+      <div className="w-px bg-border" aria-hidden />
+      <Btn target="complete" icon={Gauge} label="Completo" />
     </div>
   );
 }

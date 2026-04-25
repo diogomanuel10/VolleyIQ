@@ -1,25 +1,25 @@
 import { useReducer } from "react";
 import { nanoid } from "nanoid";
-import type {
-  ActionResult,
-  ActionType,
-  Zone,
-} from "@shared/types";
+import type { ActionResult, ActionType, Zone } from "@shared/types";
+import type { ScoutMode } from "@/lib/scoutMode";
 
 /**
  * Estado de scouting em memória. Cada registo final é também persistido
- * em `/api/actions`; este hook apenas orquestra o fluxo de seleção:
+ * em `/api/actions`; este hook apenas orquestra o fluxo de seleção.
  *
- *   (1) selecionar jogadora  →  (2) tipo de acção  →  (3) zona  →  (4) resultado
+ * Modo `lite`     → player → action → zone (opcional)  → result
+ * Modo `complete` → player → action → zoneFrom         → zoneTo → result
  *
- * O id da acção é gerado client-side (nanoid) para permitir Undo optimista
- * antes do round-trip à API.
+ * Em modo `complete`, `zoneFrom` é também o início da seta de trajectória
+ * desenhada no Court. A próxima acção sugerida é computada por
+ * `deriveSuggestion` com base na última acção guardada + regras do fluxo.
  */
 
 export interface LoggedAction {
   id: string;
   playerId: string;
   type: ActionType;
+  zoneFrom: Zone | null;
   zoneTo: Zone | null;
   result: ActionResult;
   rallyId: string;
@@ -28,12 +28,22 @@ export interface LoggedAction {
   timestamp: number;
 }
 
-export type Step = "player" | "action" | "zone" | "result" | "idle";
+export type Step =
+  | "idle"
+  | "player"
+  | "action"
+  | "zoneFrom"
+  | "zoneTo"
+  // Passo legado: "zone" mantido para o modo lite (= destino único opcional).
+  | "zone"
+  | "result";
 
 interface ScoutState {
+  mode: ScoutMode;
   step: Step;
   playerId: string | null;
   actionType: ActionType | null;
+  zoneFrom: Zone | null;
   zoneTo: Zone | null;
   setNumber: number;
   rotation: number;
@@ -46,11 +56,14 @@ interface ScoutState {
 type ScoutEvent =
   | { kind: "selectPlayer"; playerId: string }
   | { kind: "selectAction"; actionType: ActionType }
-  | { kind: "selectZone"; zone: Zone }
-  | { kind: "skipZone" }
+  | { kind: "selectZoneFrom"; zone: Zone }
+  | { kind: "selectZoneTo"; zone: Zone }
+  | { kind: "selectZone"; zone: Zone } // lite legacy
+  | { kind: "skipZone" } // lite legacy
   | { kind: "selectResult"; result: ActionResult }
   | { kind: "undo" }
   | { kind: "reset" }
+  | { kind: "setMode"; mode: ScoutMode }
   | { kind: "adjustScore"; side: "home" | "away"; delta: 1 | -1 }
   | { kind: "rotate"; direction: 1 | -1 }
   | { kind: "nextSet" }
@@ -58,9 +71,11 @@ type ScoutEvent =
   | { kind: "hydrate"; actions: LoggedAction[] };
 
 const initial: ScoutState = {
+  mode: "lite",
   step: "idle",
   playerId: null,
   actionType: null,
+  zoneFrom: null,
   zoneTo: null,
   setNumber: 1,
   rotation: 1,
@@ -70,22 +85,88 @@ const initial: ScoutState = {
   log: [],
 };
 
+const TERMINAL_RESULTS = new Set<ActionResult>([
+  "kill",
+  "error",
+  "ace",
+  "blocked",
+  "stuff",
+]);
+
+/**
+ * Regras simplificadas do fluxo: dada a última acção registada, qual é o
+ * tipo de acção mais provável a seguir (para o nosso lado). Usado pela
+ * ActionBar em modo complete para destacar o próximo passo.
+ *
+ * Quando o rally termina (resultado terminal), o próximo é sempre `serve`.
+ * Se não há acção anterior (início do set), também `serve`.
+ */
+export function deriveSuggestion(log: LoggedAction[]): ActionType | null {
+  const last = log[log.length - 1];
+  if (!last) return "serve";
+  if (TERMINAL_RESULTS.has(last.result)) return "serve";
+  switch (last.type) {
+    case "serve":
+      // Bola voltou. Esperamos ataque adversário → defesa nossa.
+      return "dig";
+    case "reception":
+      return "set";
+    case "set":
+      return "attack";
+    case "attack":
+      // Adversário defendeu ou bloqueou com toque → próximo é o nosso
+      // bloco/defesa quando a bola volta.
+      return "dig";
+    case "dig":
+      return "set";
+    case "block":
+      // Block com toque mantém o rally, a bola fica a pairar → set.
+      return "set";
+    default:
+      return null;
+  }
+}
+
 function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
   switch (e.kind) {
+    case "setMode": {
+      // Se mudar de modo a meio de uma acção, reset do passo para idle para
+      // não ficar inconsistente (ex: "zoneFrom" não existe em modo lite).
+      if (s.mode === e.mode) return s;
+      return {
+        ...s,
+        mode: e.mode,
+        step: "idle",
+        playerId: null,
+        actionType: null,
+        zoneFrom: null,
+        zoneTo: null,
+      };
+    }
     case "selectPlayer":
       return { ...s, step: "action", playerId: e.playerId };
-    case "selectAction":
-      return { ...s, step: "zone", actionType: e.actionType };
+    case "selectAction": {
+      // Lite: pula para zona opcional. Complete: pede primeiro zoneFrom.
+      const nextStep: Step = s.mode === "complete" ? "zoneFrom" : "zone";
+      return { ...s, step: nextStep, actionType: e.actionType };
+    }
+    case "selectZoneFrom":
+      return { ...s, step: "zoneTo", zoneFrom: e.zone };
+    case "selectZoneTo":
+      return { ...s, step: "result", zoneTo: e.zone };
+    // --- lite legacy ------------------------------------------------------
     case "selectZone":
       return { ...s, step: "result", zoneTo: e.zone };
     case "skipZone":
       return { ...s, step: "result", zoneTo: null };
+    // ---------------------------------------------------------------------
     case "selectResult": {
       if (!s.playerId || !s.actionType) return s;
       const logged: LoggedAction = {
         id: nanoid(12),
         playerId: s.playerId,
         type: s.actionType,
+        zoneFrom: s.zoneFrom,
         zoneTo: s.zoneTo,
         result: e.result,
         rallyId: s.rallyId,
@@ -93,13 +174,6 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         setNumber: s.setNumber,
         timestamp: Date.now(),
       };
-      const terminals = new Set<ActionResult>([
-        "kill",
-        "error",
-        "ace",
-        "blocked",
-        "stuff",
-      ]);
       const pointScored =
         (logged.type === "attack" && logged.result === "kill") ||
         (logged.type === "serve" && logged.result === "ace") ||
@@ -113,9 +187,12 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         step: "idle",
         playerId: null,
         actionType: null,
+        zoneFrom: null,
         zoneTo: null,
         log: [...s.log, logged],
-        rallyId: terminals.has(logged.result) ? nanoid(8) : s.rallyId,
+        rallyId: TERMINAL_RESULTS.has(logged.result)
+          ? nanoid(8)
+          : s.rallyId,
         homeScore: pointScored ? s.homeScore + 1 : s.homeScore,
         awayScore: pointLost ? s.awayScore + 1 : s.awayScore,
       };
@@ -140,6 +217,7 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
     case "reset":
       return {
         ...initial,
+        mode: s.mode,
         setNumber: s.setNumber,
         rotation: s.rotation,
         log: s.log,
@@ -182,8 +260,8 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
   }
 }
 
-export function useScoutState() {
-  return useReducer(reducer, initial);
+export function useScoutState(mode: ScoutMode = "lite") {
+  return useReducer(reducer, { ...initial, mode });
 }
 
 export type ScoutDispatch = ReturnType<typeof useScoutState>[1];
