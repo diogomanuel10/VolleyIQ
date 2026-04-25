@@ -253,6 +253,10 @@ function Scout({
     ? activePlayers.find((p) => p.id === state.playerId) ?? null
     : null;
 
+  // Hooks devem ficar TODOS antes de qualquer early-return condicional —
+  // por isso `useMemo` da sugestão fica aqui em cima.
+  const suggested = useMemo(() => deriveSuggestion(state.log), [state.log]);
+
   if (matchQuery.isLoading || playersQuery.isLoading) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-4">
@@ -282,7 +286,6 @@ function Scout({
   }
 
   const step = state.step;
-  const suggested = useMemo(() => deriveSuggestion(state.log), [state.log]);
 
   const totalSteps = mode === "complete" ? 5 : 4;
   const stepNumber =
