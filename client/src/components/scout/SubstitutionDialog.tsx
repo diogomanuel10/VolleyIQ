@@ -1,0 +1,147 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { api } from "@/lib/api";
+import type { Player, Substitution } from "@shared/schema";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  matchId: string;
+  setNumber: number;
+  homeScore: number;
+  awayScore: number;
+  /** Quem está em campo agora — só estes podem sair. */
+  onCourt: Player[];
+  /** Quem está no banco — só estes podem entrar. */
+  bench: Player[];
+  onCreated: (sub: Substitution) => void;
+}
+
+export function SubstitutionDialog({
+  open,
+  onOpenChange,
+  matchId,
+  setNumber,
+  homeScore,
+  awayScore,
+  onCourt,
+  bench,
+  onCreated,
+}: Props) {
+  const [outId, setOutId] = useState<string>("");
+  const [inId, setInId] = useState<string>("");
+
+  const create = useMutation({
+    mutationFn: () =>
+      api.post<Substitution>(`/api/matches/${matchId}/substitutions`, {
+        setNumber,
+        homeScore,
+        awayScore,
+        playerInId: inId,
+        playerOutId: outId,
+      }),
+    onSuccess: (sub) => {
+      toast.success("Substituição registada");
+      onCreated(sub);
+      setOutId("");
+      setInId("");
+      onOpenChange(false);
+    },
+    onError: (err) =>
+      toast.error("Falha", {
+        description: err instanceof Error ? err.message : String(err),
+      }),
+  });
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) {
+          setOutId("");
+          setInId("");
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Substituição — Set {setNumber}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="sub-out" className="text-xs">
+              Sai
+            </Label>
+            <Select
+              id="sub-out"
+              value={outId}
+              onChange={(e) => setOutId(e.target.value)}
+            >
+              <option value="">— escolher —</option>
+              {onCourt.map((p) => (
+                <option key={p.id} value={p.id}>
+                  #{p.number} {p.firstName} {p.lastName} · {p.position}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sub-in" className="text-xs">
+              Entra
+            </Label>
+            <Select
+              id="sub-in"
+              value={inId}
+              onChange={(e) => setInId(e.target.value)}
+            >
+              <option value="">— escolher —</option>
+              {bench.map((p) => (
+                <option key={p.id} value={p.id}>
+                  #{p.number} {p.firstName} {p.lastName} · {p.position}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Resultado actual: {homeScore} — {awayScore}. A substituição
+            fica timestampada com o resultado para análises por momento do
+            set.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={create.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={() => create.mutate()}
+            disabled={!inId || !outId || create.isPending}
+          >
+            {create.isPending ? "A registar…" : "Confirmar substituição"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

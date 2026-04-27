@@ -12,6 +12,8 @@ import {
   opponentTeams,
   opponentPlayers,
   opponentCoaches,
+  lineups,
+  substitutions,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
@@ -19,6 +21,8 @@ import {
   type InsertOpponentTeam,
   type InsertOpponentPlayer,
   type InsertOpponentCoach,
+  type InsertLineup,
+  type InsertSubstitution,
 } from "@shared/schema";
 import type {
   TrainingPriority,
@@ -541,4 +545,68 @@ export async function listMatchesVsOpponent(
       ),
     )
     .orderBy(desc(matches.date));
+}
+
+// ── Lineups ─────────────────────────────────────────────────────────────
+export async function listLineupsForMatch(matchId: string) {
+  return db
+    .select()
+    .from(lineups)
+    .where(eq(lineups.matchId, matchId))
+    .orderBy(lineups.setNumber);
+}
+
+/**
+ * Upsert por (matchId, setNumber). Cada set tem no máximo um lineup
+ * inicial — guardamos os 6 jogadores e a rotação de partida.
+ */
+export async function saveLineup(data: InsertLineup) {
+  const existing = await db
+    .select()
+    .from(lineups)
+    .where(
+      and(
+        eq(lineups.matchId, data.matchId),
+        eq(lineups.setNumber, data.setNumber),
+      ),
+    )
+    .limit(1);
+  if (existing.length) {
+    await db
+      .update(lineups)
+      .set(data)
+      .where(eq(lineups.id, existing[0].id));
+    const [row] = await db
+      .select()
+      .from(lineups)
+      .where(eq(lineups.id, existing[0].id));
+    return row;
+  }
+  const id = newId();
+  await db.insert(lineups).values({ ...data, id });
+  const [row] = await db.select().from(lineups).where(eq(lineups.id, id));
+  return row;
+}
+
+// ── Substitutions ───────────────────────────────────────────────────────
+export async function listSubstitutionsForMatch(matchId: string) {
+  return db
+    .select()
+    .from(substitutions)
+    .where(eq(substitutions.matchId, matchId))
+    .orderBy(substitutions.timestamp);
+}
+
+export async function createSubstitution(data: InsertSubstitution) {
+  const id = newId();
+  await db.insert(substitutions).values({ ...data, id });
+  const [row] = await db
+    .select()
+    .from(substitutions)
+    .where(eq(substitutions.id, id));
+  return row;
+}
+
+export async function deleteSubstitution(id: string) {
+  await db.delete(substitutions).where(eq(substitutions.id, id));
 }

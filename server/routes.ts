@@ -10,6 +10,8 @@ import {
   insertOpponentTeamSchema,
   insertOpponentPlayerSchema,
   insertOpponentCoachSchema,
+  insertLineupSchema,
+  insertSubstitutionSchema,
 } from "@shared/schema";
 import { detectPatterns } from "./ai/patterns";
 import { recommendTraining } from "./ai/training";
@@ -573,3 +575,44 @@ router.get(
     res.json(await storage.listMatchesVsOpponent(req.teamId, req.params.id));
   },
 );
+
+// ── Lineups ──────────────────────────────────────────────────────────────
+router.get("/matches/:matchId/lineups", async (req, res) => {
+  res.json(await storage.listLineupsForMatch(req.params.matchId));
+});
+
+router.post("/matches/:matchId/lineups", async (req, res) => {
+  const parsed = insertLineupSchema.safeParse({
+    ...req.body,
+    matchId: req.params.matchId,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const row = await storage.saveLineup(parsed.data);
+  res.status(201).json(row);
+});
+
+// ── Substitutions ────────────────────────────────────────────────────────
+router.get("/matches/:matchId/substitutions", async (req, res) => {
+  res.json(await storage.listSubstitutionsForMatch(req.params.matchId));
+});
+
+router.post("/matches/:matchId/substitutions", async (req, res) => {
+  const parsed = insertSubstitutionSchema.safeParse({
+    ...req.body,
+    matchId: req.params.matchId,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const row = await storage.createSubstitution(parsed.data);
+  res.status(201).json(row);
+});
+
+router.delete("/substitutions/:id", async (req, res) => {
+  await storage.deleteSubstitution(req.params.id);
+  res.status(204).end();
+});

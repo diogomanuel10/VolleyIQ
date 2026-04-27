@@ -206,6 +206,28 @@ export const lineups = pgTable(
   (t) => ({ byMatch: index("lineups_match_idx").on(t.matchId) }),
 );
 
+// ── Substitutions (mudanças durante o set) ───────────────────────────────
+export const substitutions = pgTable(
+  "substitutions",
+  {
+    id: text("id").primaryKey(),
+    matchId: text("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    setNumber: integer("set_number").notNull(),
+    homeScore: integer("home_score").notNull().default(0),
+    awayScore: integer("away_score").notNull().default(0),
+    playerInId: text("player_in_id")
+      .notNull()
+      .references(() => players.id),
+    playerOutId: text("player_out_id")
+      .notNull()
+      .references(() => players.id),
+    timestamp: timestamp("timestamp").notNull().defaultNow(),
+  },
+  (t) => ({ byMatch: index("substitutions_match_idx").on(t.matchId) }),
+);
+
 // ── Actions (grão fino — ~500 linhas / jogo) ─────────────────────────────
 export const actions = pgTable(
   "actions",
@@ -327,9 +349,17 @@ export type ChecklistItem = InferSelectModel<typeof checklistItems>;
 
 export const insertLineupSchema = createInsertSchema(lineups).omit({ id: true });
 export type Lineup = InferSelectModel<typeof lineups>;
+export type InsertLineup = z.infer<typeof insertLineupSchema>;
 
 export const insertSetSchema = createInsertSchema(sets).omit({ id: true });
 export type GameSet = InferSelectModel<typeof sets>;
+
+export const insertSubstitutionSchema = createInsertSchema(substitutions).omit({
+  id: true,
+  timestamp: true,
+});
+export type Substitution = InferSelectModel<typeof substitutions>;
+export type InsertSubstitution = z.infer<typeof insertSubstitutionSchema>;
 
 export type ScoutingReport = InferSelectModel<typeof scoutingReports>;
 export type TrainingLog = InferSelectModel<typeof trainingLogs>;

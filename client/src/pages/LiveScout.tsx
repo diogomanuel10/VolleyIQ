@@ -7,7 +7,9 @@ import {
   Crown,
   Monitor,
   Radio,
+  Repeat,
   SkipForward,
+  Users,
   Video,
   Zap,
   Gauge,
@@ -31,8 +33,17 @@ import { ResultBar } from "@/components/scout/ResultBar";
 import { ScorePanel } from "@/components/scout/ScorePanel";
 import { ActionLog } from "@/components/scout/ActionLog";
 import { VideoPanel, type VideoPanelHandle } from "@/components/scout/VideoPanel";
-import type { Match, Player, Action as DbAction, Team } from "@shared/schema";
+import type {
+  Match,
+  Player,
+  Action as DbAction,
+  Team,
+  Lineup,
+  Substitution,
+} from "@shared/schema";
 import { ACTION_LABEL, type ActionType, type Zone } from "@shared/types";
+import { LineupWizard } from "@/components/scout/LineupWizard";
+import { SubstitutionDialog } from "@/components/scout/SubstitutionDialog";
 
 export default function LiveScout() {
   const params = useParams<{ matchId?: string }>();
@@ -240,14 +251,79 @@ function Scout({
     [playersQuery.data],
   );
 
-  // Lineup = as primeiras 6 activas por número (ordenação determinística).
-  // Num futuro wizard de lineup isto passa a vir da tabela `lineups`.
+  const lineupsQuery = useQuery({
+    queryKey: ["lineups", matchId],
+    queryFn: () => api.get<Lineup[]>(`/api/matches/${matchId}/lineups`),
+  });
+  const subsQuery = useQuery({
+    queryKey: ["substitutions", matchId],
+    queryFn: () =>
+      api.get<Substitution[]>(`/api/matches/${matchId}/substitutions`),
+  });
+  const [lineupOpen, setLineupOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
+
+  const savedLineup = useMemo(
+    () =>
+      (lineupsQuery.data ?? []).find((l) => l.setNumber === state.setNumber) ??
+      null,
+    [lineupsQuery.data, state.setNumber],
+  );
+
+  /**
+   * Lineup = se tivermos lineup guardado para este set, partimos dele e
+   * aplicamos as substituições por ordem de timestamp. Caso contrário,
+   * fallback para "primeiras 6 activas por número" (comportamento legacy).
+   */
   const lineup = useMemo<(Player | null)[]>(() => {
+    const byId = new Map(activePlayers.map((p) => [p.id, p]));
+    if (savedLineup) {
+      const slots: (Player | null)[] = [
+        savedLineup.p1 ? byId.get(savedLineup.p1) ?? null : null,
+        savedLineup.p2 ? byId.get(savedLineup.p2) ?? null : null,
+        savedLineup.p3 ? byId.get(savedLineup.p3) ?? null : null,
+        savedLineup.p4 ? byId.get(savedLineup.p4) ?? null : null,
+        savedLineup.p5 ? byId.get(savedLineup.p5) ?? null : null,
+        savedLineup.p6 ? byId.get(savedLineup.p6) ?? null : null,
+      ];
+      // Aplica substituições por ordem cronológica.
+      const subsForSet = (subsQuery.data ?? [])
+        .filter((s) => s.setNumber === state.setNumber)
+        .sort(
+          (a, b) =>
+            new Date(a.timestamp).getTime() -
+            new Date(b.timestamp).getTime(),
+        );
+      for (const sub of subsForSet) {
+        const idx = slots.findIndex((p) => p?.id === sub.playerOutId);
+        if (idx === -1) continue;
+        slots[idx] = byId.get(sub.playerInId) ?? null;
+      }
+      return slots;
+    }
     const sorted = [...activePlayers].sort((a, b) => a.number - b.number);
     const slots: (Player | null)[] = [null, null, null, null, null, null];
     for (let i = 0; i < 6 && i < sorted.length; i++) slots[i] = sorted[i];
     return slots;
-  }, [activePlayers]);
+  }, [activePlayers, savedLineup, subsQuery.data, state.setNumber]);
+
+  // Quem está em campo agora (jogadoras únicas no `lineup` 6-slot) e quem
+  // está no banco (toda a roster activa que não está em campo).
+  const onCourt = useMemo<Player[]>(() => {
+    const seen = new Set<string>();
+    const out: Player[] = [];
+    for (const p of lineup) {
+      if (p && !seen.has(p.id)) {
+        seen.add(p.id);
+        out.push(p);
+      }
+    }
+    return out;
+  }, [lineup]);
+  const bench = useMemo<Player[]>(() => {
+    const onIds = new Set(onCourt.map((p) => p.id));
+    return activePlayers.filter((p) => !onIds.has(p.id));
+  }, [activePlayers, onCourt]);
 
   const selectedPlayer = state.playerId
     ? activePlayers.find((p) => p.id === state.playerId) ?? null
@@ -375,6 +451,27 @@ function Scout({
             canUseComplete={canUseComplete}
             onChange={handleModeChange}
           />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setLineupOpen(true)}
+            title="Definir lineup deste set"
+          >
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">
+              {savedLineup ? "Lineup" : "Definir lineup"}
+            </span>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSubOpen(true)}
+            disabled={onCourt.length === 0 || bench.length === 0}
+            title="Substituição"
+          >
+            <Repeat className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Subs</span>
+          </Button>
           <Button asChild size="sm" variant="ghost">
             <Link href={`/second-screen/${matchId}`}>
               <Monitor className="h-4 w-4" /> Segunda écran
@@ -528,6 +625,33 @@ function Scout({
           </div>
         </aside>
       </div>
+
+      <LineupWizard
+        open={lineupOpen}
+        onOpenChange={setLineupOpen}
+        matchId={matchId}
+        setNumber={state.setNumber}
+        rotation={state.rotation}
+        roster={activePlayers}
+        existing={savedLineup}
+        onSaved={() => {
+          lineupsQuery.refetch();
+        }}
+      />
+
+      <SubstitutionDialog
+        open={subOpen}
+        onOpenChange={setSubOpen}
+        matchId={matchId}
+        setNumber={state.setNumber}
+        homeScore={state.homeScore}
+        awayScore={state.awayScore}
+        onCourt={onCourt}
+        bench={bench}
+        onCreated={() => {
+          subsQuery.refetch();
+        }}
+      />
     </div>
   );
 }

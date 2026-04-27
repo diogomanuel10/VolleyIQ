@@ -15,6 +15,13 @@
       "when": 1777026950738,
       "tag": "0001_opponent_teams",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777281728637,
+      "tag": "0002_substitutions",
+      "breakpoints": true
     }
   ]
 }
