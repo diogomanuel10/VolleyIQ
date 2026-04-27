@@ -112,12 +112,21 @@ function mapResult(skill: string, grade: string): ActionResult | null {
 }
 
 function parseDateUS(s: string): Date | null {
-  // Formato observado: MM/DD/YYYY
+  // DataVolley grava `MM/DD/YYYY` em scouts US e `DD/MM/YYYY` em scouts EU
+  // (PT/ES/IT/etc). Tentamos DD/MM primeiro porque é o mais comum
+  // globalmente, e caímos para MM/DD se o "dia" parecer ser um mês válido.
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return null;
-  const [, mm, dd, yyyy] = m;
-  const d = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-  return Number.isNaN(d.getTime()) ? null : d;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  const y = Number(m[3]);
+  function build(month: number, day: number) {
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    const d = new Date(Date.UTC(y, month - 1, day));
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  // Ambíguo (ex: 03/04/2026): preferimos DD/MM (Europa) quando ambos válidos.
+  return build(b, a) ?? build(a, b);
 }
 
 function guessPosition(code: string | undefined): DvwPlayer["positionGuess"] {
@@ -200,11 +209,17 @@ function parsePlayers(
   return players;
 }
 
-/** Identifica linhas de marcador (ex: `*p01:00`, `ap01:01`) e zone-only. */
+/** Identifica linhas de marcador (não-acção) que devem ser ignoradas. */
 function isScoreOrZoneLine(code: string): boolean {
   // Marcadores de pontuação: *p01:00 ou ap01:01
-  if (/^[*a]p\d{2}:\d{2}$/.test(code)) return true;
-  // Lineup/setter zone marker: *z3, az3, *P04, etc.
+  if (/^[*a]p\d{1,2}:\d{1,2}$/i.test(code)) return true;
+  // Substituições: *c16:02 ou ac08:25 (player que entra : player que sai)
+  if (/^[*a]c\d{1,2}:\d{1,2}$/i.test(code)) return true;
+  // Time-outs: *T ou aT (com ou sem ; a seguir)
+  if (/^[*a]T$/.test(code)) return true;
+  // Boundary de set: **1set, **2set, etc.
+  if (/^\*\*\d+set$/i.test(code)) return true;
+  // Lineup/setter zone marker: *z3, az3, *P04, *P17>LUp, etc.
   if (/^[*a][zPpZ][^A-Z=#+!\-/]/.test(code) && !/[SREABDF]/.test(code))
     return true;
   // Linha de info `$$&H#` (winning symbol marker)
