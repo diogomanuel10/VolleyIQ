@@ -25,7 +25,7 @@ export interface CourtProps {
 // ── Geometria horizontal ─────────────────────────────────────────────────
 const W = 600;
 const H = 300;
-const MARGIN = 12;
+const MARGIN = 6;
 const HALF_W = (W - MARGIN * 2) / 2;
 const COURT_H = H - MARGIN * 2;
 const CELL_W = HALF_W / 3;

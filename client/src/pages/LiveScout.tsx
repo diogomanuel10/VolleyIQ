@@ -515,6 +515,7 @@ function Scout({
               </Badge>
             </div>
             <Court
+              className="max-h-[280px] w-full"
               selectedZone={state.zoneTo}
               selectedZoneFrom={state.zoneFrom}
               selectedZoneSide={zoneToSide}
