@@ -1,58 +1,28 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ZONES, ZONE_GRID, type Zone } from "@shared/types";
+import { ZONES, type Zone } from "@shared/types";
 import { cn } from "@/lib/utils";
 import type { Player } from "@shared/schema";
-
-/**
- * Campo de voleibol dinâmico. A metade de cima (opponent) mostra as 9 zonas
- * numeradas e aceita toque para escolher a zona de destino da bola. A metade
- * de baixo (nossa) mostra as 6 jogadoras em campo nas suas posições de
- * rotação.
- *
- * Layout (SVG viewBox 300×600, 9 wide × 18 long com ~10% margem):
- *
- *   ┌─────────────┐  ← opponent court
- *   │  4   3   2  │
- *   │  7   8   9  │
- *   │  5   6   1  │
- *   ├━━━━━━━━━━━━━┤  ← net (linha cheia)
- *   │  P4 P3 P2   │  ← nossas jogadoras front row
- *   │             │
- *   │  P5 P6 P1   │  ← nossas jogadoras back row
- *   └─────────────┘
- */
 
 type Half = "opponent" | "ours";
 
 export interface CourtProps {
-  /** Zona atualmente selecionada (destaque). */
   selectedZone?: Zone | null;
-  /** Callback quando o user toca numa zona do lado adversário. */
-  onZoneSelect?: (z: Zone) => void;
-  /** Jogadoras em campo, indexadas 0..5 correspondendo às posições 1..6. */
+  selectedZoneFrom?: Zone | null;
+  selectedZoneSide?: Half | null;
+  selectedZoneFromSide?: Half | null;
+  onZoneSelect?: (z: Zone, side: Half) => void;
+  onZoneFromSelect?: (z: Zone, side: Half) => void;
+  pickTarget?: "from" | "to" | null;
   lineup?: (Player | null)[];
   selectedPlayerId?: string | null;
   onPlayerSelect?: (id: string) => void;
   rotation?: number;
-  /** Quando true, impede toques nas zonas (ex: fluxo ainda não pediu zona). */
+  playersDisabled?: boolean;
   zonesDisabled?: boolean;
-
   className?: string;
 }
 
-// ── Geometria horizontal: rede ao centro vertical ────────────────────────
-//
-//  ┌──────────────┬──────────────┐
-//  │  ADVERSÁRIO  │     NÓS      │
-//  │  [2][3][4]   │  [4][3][2]   │
-//  │  [9][8][7]   │  [7][8][9]   │  (espelhado)
-//  │  [1][6][5]   │  [5][6][1]   │
-//  └──────────────┴──────────────┘
-//         ↑ rede (linha central)
-//
-// SVG viewBox 600×300. Cada metade: 276×276 (com MARGIN=12).
-// Cada célula de zona: 92×92.
-
+// ── Geometria horizontal ─────────────────────────────────────────────────
 const W = 600;
 const H = 300;
 const MARGIN = 12;
@@ -61,19 +31,51 @@ const COURT_H = H - MARGIN * 2;
 const CELL_W = HALF_W / 3;
 const CELL_H = COURT_H / 3;
 
-// 6 slots de jogador na nossa metade (bottom half) em posições de rotação
-// base. Orientação: posição 4 (frente esquerda) → top-left da nossa metade.
-//
-//   [P4][P3][P2]   ← linha da frente (perto da rede)
-//   [P5][P6][P1]   ← linha de trás
-const SLOT_POSITIONS: Array<{ row: 0 | 1; col: 0 | 1 | 2; pos: number }> = [
-  { row: 0, col: 0, pos: 4 },
-  { row: 0, col: 1, pos: 3 },
-  { row: 0, col: 2, pos: 2 },
-  { row: 1, col: 0, pos: 5 },
-  { row: 1, col: 1, pos: 6 },
-  { row: 1, col: 2, pos: 1 },
+// NÓS (direita) — rede à esquerda (col 0)
+const ZONE_TO_CELL_OURS: Record<Zone, { col: number; row: number }> = {
+  4: { col: 0, row: 0 },
+  3: { col: 0, row: 1 },
+  2: { col: 0, row: 2 },
+  7: { col: 1, row: 0 },
+  8: { col: 1, row: 1 },
+  9: { col: 1, row: 2 },
+  5: { col: 2, row: 0 },
+  6: { col: 2, row: 1 },
+  1: { col: 2, row: 2 },
+};
+
+// ADVERSÁRIO (esquerda) — espelho horizontal, rede à direita (col 2)
+const ZONE_TO_CELL_OPP: Record<Zone, { col: number; row: number }> = {
+  4: { col: 2, row: 0 },
+  3: { col: 2, row: 1 },
+  2: { col: 2, row: 2 },
+  7: { col: 1, row: 0 },
+  8: { col: 1, row: 1 },
+  9: { col: 1, row: 2 },
+  5: { col: 0, row: 0 },
+  6: { col: 0, row: 1 },
+  1: { col: 0, row: 2 },
+};
+
+// Slots das jogadoras — lado direito (NÓS), rede à esquerda
+const SLOT_POSITIONS: Array<{ col: 0 | 1 | 2; row: 0 | 1 | 2; pos: number }> = [
+  { col: 0, row: 0, pos: 4 },
+  { col: 0, row: 1, pos: 3 },
+  { col: 0, row: 2, pos: 2 },
+  { col: 2, row: 0, pos: 5 },
+  { col: 2, row: 1, pos: 6 },
+  { col: 2, row: 2, pos: 1 },
 ];
+
+function zoneCenter(z: Zone, side: Half) {
+  const x0 = side === "opponent" ? MARGIN : MARGIN + HALF_W;
+  const map = side === "opponent" ? ZONE_TO_CELL_OPP : ZONE_TO_CELL_OURS;
+  const { col, row } = map[z];
+  return {
+    cx: x0 + CELL_W * col + CELL_W / 2,
+    cy: MARGIN + CELL_H * row + CELL_H / 2,
+  };
+}
 
 export function Court({
   selectedZone,
@@ -92,10 +94,7 @@ export function Court({
   className,
 }: CourtProps) {
   const rotatedLineup = lineup
-    ? lineup.map((_, i) => {
-        const sourceIdx = (i + (rotation - 1)) % 6;
-        return lineup[sourceIdx];
-      })
+    ? lineup.map((_, i) => lineup[(i + (rotation - 1)) % 6])
     : null;
 
   function handleZoneClick(z: Zone, side: Half) {
@@ -105,10 +104,8 @@ export function Court({
   }
 
   const trajectory =
-    selectedZoneFrom != null &&
-    selectedZoneFromSide &&
-    selectedZone != null &&
-    selectedZoneSide
+    selectedZoneFrom != null && selectedZoneFromSide &&
+    selectedZone != null && selectedZoneSide
       ? {
           from: zoneCenter(selectedZoneFrom, selectedZoneFromSide),
           to: zoneCenter(selectedZone, selectedZoneSide),
@@ -121,29 +118,36 @@ export function Court({
       className={cn("w-full h-auto select-none", className)}
       aria-label="Campo de voleibol"
     >
-      {/* Chão neutro */}
-      <rect
-        x={0}
-        y={0}
-        width={W}
-        height={H}
-        className="fill-muted/30"
-      />
+      <defs>
+        <marker
+          id="arrowhead"
+          viewBox="0 0 10 10"
+          refX="8" refY="5"
+          markerWidth="6" markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--primary))" />
+        </marker>
+      </defs>
 
-      {/* Opponent court */}
-      <OpponentHalf
-        selectedZone={selectedZone ?? null}
-        onZoneSelect={onZoneSelect}
+      {/* Fundo */}
+      <rect x={0} y={0} width={W} height={H} className="fill-muted/30" rx={8} />
+
+      {/* Lado adversário */}
+      <ZoneGrid
+        side="opponent"
+        selectedZone={selectedZone}
+        selectedZoneSide={selectedZoneSide}
+        selectedZoneFrom={selectedZoneFrom}
+        selectedZoneFromSide={selectedZoneFromSide}
         disabled={!!zonesDisabled}
         onZoneClick={handleZoneClick}
       />
 
-      {/* Rede — linha vertical ao centro */}
+      {/* Rede vertical */}
       <line
-        x1={MARGIN + HALF_W}
-        x2={MARGIN + HALF_W}
-        y1={MARGIN - 4}
-        y2={H - MARGIN + 4}
+        x1={MARGIN + HALF_W} x2={MARGIN + HALF_W}
+        y1={MARGIN - 4} y2={H - MARGIN + 4}
         stroke="hsl(var(--court-line))"
         strokeWidth={4}
       />
@@ -157,19 +161,36 @@ export function Court({
         REDE
       </text>
 
-      {/* Our half */}
-      <OurHalf
+      {/* Lado nosso */}
+      <ZoneGrid
+        side="ours"
+        selectedZone={selectedZone}
+        selectedZoneSide={selectedZoneSide}
+        selectedZoneFrom={selectedZoneFrom}
+        selectedZoneFromSide={selectedZoneFromSide}
+        disabled={!!zonesDisabled}
+        onZoneClick={handleZoneClick}
+      />
+
+      {/* Jogadoras */}
+      <OurPlayers
         lineup={rotatedLineup}
         selectedPlayerId={selectedPlayerId ?? null}
         onPlayerSelect={onPlayerSelect}
         disabled={!!playersDisabled}
       />
+
+      {/* Seta de trajectória */}
+      {trajectory && (
+        <TrajectoryArrow from={trajectory.from} to={trajectory.to} />
+      )}
     </svg>
   );
 }
 
-// ── Opponent half ───────────────────────────────────────────────────────
-function OpponentHalf({
+// ── Zone grid ────────────────────────────────────────────────────────────
+function ZoneGrid({
+  side,
   selectedZone,
   selectedZoneSide,
   selectedZoneFrom,
@@ -185,86 +206,79 @@ function OpponentHalf({
   disabled: boolean;
   onZoneClick: (z: Zone, side: Half) => void;
 }) {
-  const x0 = MARGIN;
+  const x0 = side === "opponent" ? MARGIN : MARGIN + HALF_W;
   const y0 = MARGIN;
-  const cellW = COURT_W / 3;
-  const cellH = HALF_H / 3;
+  const map = side === "opponent" ? ZONE_TO_CELL_OPP : ZONE_TO_CELL_OURS;
 
   return (
     <g>
-      {/* Outline do campo adversário */}
+      {/* Outline */}
       <rect
-        x={x0}
-        y={y0}
-        width={COURT_W}
-        height={HALF_H}
-        className="fill-sky-500/5 stroke-[hsl(var(--court-line))]"
+        x={x0} y={y0}
+        width={HALF_W} height={COURT_H}
+        className={cn(
+          side === "opponent" ? "fill-sky-500/5" : "fill-primary/5",
+          "stroke-[hsl(var(--court-line))]",
+        )}
         strokeWidth={2}
       />
-      {/* Linha de ataque adversária (a 3m da rede) */}
+      {/* Linha de ataque */}
       <line
-        x1={x0}
-        x2={x0 + COURT_W}
-        y1={y0 + HALF_H - cellH}
-        y2={y0 + HALF_H - cellH}
+        x1={side === "opponent" ? x0 + HALF_W - CELL_W : x0 + CELL_W}
+        x2={side === "opponent" ? x0 + HALF_W - CELL_W : x0 + CELL_W}
+        y1={y0} y2={y0 + COURT_H}
         stroke="hsl(var(--court-line))"
         strokeDasharray="4 3"
         strokeOpacity={0.5}
       />
       {/* Label */}
       <text
-        x={x0 + 6}
+        x={side === "opponent" ? x0 + 8 : x0 + HALF_W - 8}
         y={y0 + 14}
+        textAnchor={side === "opponent" ? "start" : "end"}
         className="fill-muted-foreground text-[10px]"
       >
         {side === "opponent" ? "ADVERSÁRIO" : "NÓS"}
       </text>
 
       {ZONES.map((z) => {
-        const { col, row } = ZONE_GRID[z];
-        const cx = x0 + cellW * col;
-        const cy = y0 + cellH * row;
-        const isSelected = selectedZone === z;
+        const { col, row } = map[z];
+        const cx = x0 + CELL_W * col;
+        const cy = y0 + CELL_H * row;
+        const isTo = selectedZone === z && selectedZoneSide === side;
+        const isFrom = selectedZoneFrom === z && selectedZoneFromSide === side;
+
         return (
           <g key={`${side}-${z}`}>
             <motion.rect
-              x={cx}
-              y={cy}
-              width={cellW}
-              height={cellH}
-              rx={6}
+              x={cx} y={cy}
+              width={CELL_W} height={CELL_H}
+              rx={4}
               className={cn(
-                "transition-colors",
-                isSelected
-                  ? "fill-primary/25"
-                  : isFrom
-                    ? "fill-amber-500/30"
-                    : disabled
-                      ? side === "opponent"
-                        ? "fill-sky-500/5"
-                        : "fill-primary/5"
-                      : side === "opponent"
-                        ? "fill-sky-500/10 hover:fill-sky-500/20 cursor-pointer"
-                        : "fill-primary/10 hover:fill-primary/20 cursor-pointer",
+                isTo ? "fill-primary/25"
+                  : isFrom ? "fill-amber-500/30"
+                  : disabled
+                    ? side === "opponent" ? "fill-sky-500/5" : "fill-primary/5"
+                    : side === "opponent"
+                      ? "fill-sky-500/10 hover:fill-sky-500/20 cursor-pointer"
+                      : "fill-primary/10 hover:fill-primary/20 cursor-pointer",
               )}
               stroke="hsl(var(--court-line))"
               strokeOpacity={0.35}
               strokeWidth={1}
               onClick={() => !disabled && onZoneClick(z, side)}
               whileTap={!disabled ? { scale: 0.96 } : undefined}
-              style={{ transformOrigin: `${cx + cellW / 2}px ${cy + cellH / 2}px` }}
+              style={{ transformOrigin: `${cx + CELL_W / 2}px ${cy + CELL_H / 2}px` }}
             />
             <text
-              x={cx + cellW / 2}
-              y={cy + cellH / 2 + 6}
+              x={cx + CELL_W / 2}
+              y={cy + CELL_H / 2 + 6}
               textAnchor="middle"
               className={cn(
                 "text-[18px] font-bold pointer-events-none",
-                isSelected
-                  ? "fill-primary"
-                  : isFrom
-                    ? "fill-amber-600"
-                    : "fill-foreground/50",
+                isTo ? "fill-primary"
+                  : isFrom ? "fill-amber-600"
+                  : "fill-foreground/50",
               )}
             >
               {z}
@@ -272,10 +286,10 @@ function OpponentHalf({
             <AnimatePresence>
               {(isTo || isFrom) && (
                 <motion.circle
-                  cx={cx + cellW / 2}
-                  cy={cy + cellH / 2}
+                  cx={cx + CELL_W / 2}
+                  cy={cy + CELL_H / 2}
                   initial={{ r: 0, opacity: 0.6 }}
-                  animate={{ r: Math.min(cellW, cellH) / 2, opacity: 0 }}
+                  animate={{ r: Math.min(CELL_W, CELL_H) / 2, opacity: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.6, ease: "easeOut" }}
                   fill={isTo ? "hsl(var(--primary))" : "rgb(245 158 11)"}
@@ -290,8 +304,40 @@ function OpponentHalf({
   );
 }
 
-// ── Our half ────────────────────────────────────────────────────────────
-function OurHalf({
+// ── Seta de trajectória ──────────────────────────────────────────────────
+function TrajectoryArrow({
+  from,
+  to,
+}: {
+  from: { cx: number; cy: number };
+  to: { cx: number; cy: number };
+}) {
+  const mx = (from.cx + to.cx) / 2;
+  const my = (from.cy + to.cy) / 2;
+  const dx = to.cx - from.cx;
+  const dy = to.cy - from.cy;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const bend = Math.min(len * 0.25, 40);
+
+  return (
+    <motion.path
+      d={`M ${from.cx} ${from.cy} Q ${mx + nx * bend} ${my + ny * bend}, ${to.cx} ${to.cy}`}
+      fill="none"
+      stroke="hsl(var(--primary))"
+      strokeWidth={3}
+      strokeLinecap="round"
+      markerEnd="url(#arrowhead)"
+      initial={{ pathLength: 0, opacity: 0 }}
+      animate={{ pathLength: 1, opacity: 1 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    />
+  );
+}
+
+// ── Our players ──────────────────────────────────────────────────────────
+function OurPlayers({
   lineup,
   selectedPlayerId,
   onPlayerSelect,
@@ -302,10 +348,8 @@ function OurHalf({
   onPlayerSelect?: (id: string) => void;
   disabled: boolean;
 }) {
-  const x0 = MARGIN;
-  const y0 = MARGIN + HALF_H;
-  const cellW = COURT_W / 3;
-  const cellH = HALF_H / 2;
+  const x0 = MARGIN + HALF_W;
+  const y0 = MARGIN;
 
   return (
     <g>
@@ -313,7 +357,9 @@ function OurHalf({
         const player = lineup?.[idx] ?? null;
         const cx = x0 + CELL_W * slot.col + CELL_W / 2;
         const cy = y0 + CELL_H * slot.row + CELL_H / 2;
-        const isSelected = player && selectedPlayerId === player.id;
+        const isSelected = !!(player && selectedPlayerId === player.id);
+        const clickable = !disabled && !!player;
+
         return (
           <g
             key={idx}
@@ -326,9 +372,7 @@ function OurHalf({
             style={disabled ? { opacity: 0.65 } : undefined}
           >
             <motion.circle
-              cx={cx}
-              cy={cy}
-              r={28}
+              cx={cx} cy={cy} r={22}
               className={cn(
                 "stroke-[hsl(var(--court-line))]",
                 isSelected ? "fill-primary" : "fill-background",
@@ -339,25 +383,21 @@ function OurHalf({
               transition={{ duration: 0.25 }}
             />
             <text
-              x={cx}
-              y={cy - 4}
+              x={cx} y={cy - 4}
               textAnchor="middle"
               className={cn(
-                "text-[18px] font-bold pointer-events-none",
+                "text-[13px] font-bold pointer-events-none",
                 isSelected ? "fill-primary-foreground" : "fill-foreground",
               )}
             >
               {player ? `#${player.number}` : "—"}
             </text>
             <text
-              x={cx}
-              y={cy + 9}
+              x={cx} y={cy + 9}
               textAnchor="middle"
               className={cn(
                 "text-[8px] pointer-events-none",
-                isSelected
-                  ? "fill-primary-foreground/90"
-                  : "fill-muted-foreground",
+                isSelected ? "fill-primary-foreground/90" : "fill-muted-foreground",
               )}
             >
               {player ? player.position : `P${slot.pos}`}
