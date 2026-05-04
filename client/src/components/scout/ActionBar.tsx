@@ -11,6 +11,15 @@ const ICON: Record<ActionType, React.ComponentType<{ className?: string }>> = {
   dig: Volleyball,
 };
 
+const KEY_HINT: Record<ActionType, string> = {
+  serve: "1",
+  reception: "2",
+  set: "3",
+  attack: "4",
+  block: "5",
+  dig: "6",
+};
+
 export function ActionBar({
   value,
   onChange,
@@ -43,6 +52,16 @@ export function ActionBar({
               disabled && "opacity-50 cursor-not-allowed",
             )}
           >
+            <kbd
+              className={cn(
+                "absolute top-1 left-1 hidden sm:inline-flex h-4 min-w-[1rem] items-center justify-center px-1 rounded text-[10px] font-mono leading-none",
+                active
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {KEY_HINT[t]}
+            </kbd>
             <Icon className="h-5 w-5" />
             {ACTION_LABEL[t]}
             {hint && (

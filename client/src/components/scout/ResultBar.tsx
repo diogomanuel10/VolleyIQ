@@ -2,6 +2,7 @@ import {
   RESULTS_BY_ACTION,
   RESULT_COLOR,
   RESULT_LABEL,
+  getDvCode,
   type ActionResult,
   type ActionType,
 } from "@shared/types";
@@ -26,18 +27,26 @@ export function ResultBar({
             : "grid-cols-2 sm:grid-cols-5",
       )}
     >
-      {options.map((r) => (
-        <button
-          key={r}
-          onClick={() => onResult(r)}
-          className={cn(
-            "h-16 rounded-lg font-semibold text-sm transition-all no-touch-callout active:scale-95",
-            RESULT_COLOR[r],
-          )}
-        >
-          {RESULT_LABEL[r]}
-        </button>
-      ))}
+      {options.map((r) => {
+        const dv = getDvCode(actionType, r);
+        return (
+          <button
+            key={r}
+            onClick={() => onResult(r)}
+            className={cn(
+              "relative h-16 rounded-lg font-semibold text-sm transition-all no-touch-callout active:scale-95",
+              RESULT_COLOR[r],
+            )}
+          >
+            {dv && (
+              <kbd className="absolute top-1 left-1 hidden sm:inline-flex h-4 min-w-[1rem] items-center justify-center px-1 rounded bg-white/20 text-white text-[10px] font-mono leading-none">
+                {dv}
+              </kbd>
+            )}
+            {RESULT_LABEL[r]}
+          </button>
+        );
+      })}
     </div>
   );
 }

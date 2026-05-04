@@ -103,6 +103,7 @@ export default function Players() {
             <PlayerDialog
               teamId={team.id}
               editing={editing}
+              existingNumbers={(playersQuery.data ?? []).map((p) => p.number)}
               onSaved={() => {
                 setDialogOpen(false);
                 setEditing(null);
@@ -235,18 +236,28 @@ export default function Players() {
   );
 }
 
+function nextFreeNumber(existing: number[]): number {
+  const used = new Set(existing);
+  for (let n = 1; n <= 99; n++) if (!used.has(n)) return n;
+  return 1;
+}
+
 function PlayerDialog({
   teamId,
   editing,
+  existingNumbers = [],
   onSaved,
 }: {
   teamId: string;
   editing: Player | null;
+  existingNumbers?: number[];
   onSaved: () => void;
 }) {
   const [firstName, setFirstName] = useState(editing?.firstName ?? "");
   const [lastName, setLastName] = useState(editing?.lastName ?? "");
-  const [number, setNumber] = useState(editing?.number ?? 1);
+  const [number, setNumber] = useState(
+    editing?.number ?? nextFreeNumber(existingNumbers),
+  );
   const [position, setPosition] = useState<Position>(editing?.position ?? "OH");
   const [heightCm, setHeightCm] = useState(editing?.heightCm ?? "");
   const [active, setActive] = useState(editing?.active ?? true);

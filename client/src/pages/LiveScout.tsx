@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   Crown,
+  Keyboard,
   Monitor,
   Radio,
   Repeat,
@@ -45,6 +46,7 @@ import type {
 import { ACTION_LABEL, type ActionType, type Zone } from "@shared/types";
 import { LineupWizard } from "@/components/scout/LineupWizard";
 import { SubstitutionDialog } from "@/components/scout/SubstitutionDialog";
+import { KeyboardHelp } from "@/components/scout/KeyboardHelp";
 
 export default function LiveScout() {
   const params = useParams<{ matchId?: string }>();
@@ -147,10 +149,9 @@ function Scout({
     teamId,
     team.plan,
   );
-const [state, dispatch] = useScoutState(mode);
+  const [state, dispatch] = useScoutState(mode);
+  const [helpOpen, setHelpOpen] = useState(false);
 
-useScoutKeyboard(state, dispatch);
-  
   // Side em que o utilizador clicou (não persiste; só para desenhar a seta).
   const [zoneFromSide, setZoneFromSide] = useState<"opponent" | "ours" | null>(
     null,
@@ -253,6 +254,20 @@ useScoutKeyboard(state, dispatch);
     () => (playersQuery.data ?? []).filter((p) => p.active),
     [playersQuery.data],
   );
+
+  const handleKeyboardUndo = () => {
+    const last = state.log[state.log.length - 1];
+    if (!last) return;
+    dispatch({ kind: "undo" });
+    syncedIds.current.delete(last.id);
+    deleteAction.mutate(last.id);
+  };
+
+  useScoutKeyboard(state, dispatch, {
+    roster: activePlayers,
+    onUndo: handleKeyboardUndo,
+    onToggleHelp: () => setHelpOpen((v) => !v),
+  });
 
   const lineupsQuery = useQuery({
     queryKey: ["lineups", matchId],
@@ -475,6 +490,15 @@ useScoutKeyboard(state, dispatch);
             <Repeat className="h-4 w-4" />
             <span className="hidden sm:inline ml-1">Subs</span>
           </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setHelpOpen(true)}
+            title="Atalhos de teclado (?)"
+            aria-label="Atalhos de teclado"
+          >
+            <Keyboard className="h-4 w-4" />
+          </Button>
           <Button asChild size="sm" variant="ghost">
             <Link href={`/second-screen/${matchId}`}>
               <Monitor className="h-4 w-4" /> Segunda écran
@@ -655,6 +679,8 @@ useScoutKeyboard(state, dispatch);
           subsQuery.refetch();
         }}
       />
+
+      <KeyboardHelp open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 }
