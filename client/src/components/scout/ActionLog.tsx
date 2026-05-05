@@ -40,15 +40,33 @@ export function ActionLog({
 
       <div className="flex-1 overflow-y-auto space-y-1 pr-1">
         <AnimatePresence initial={false}>
-          {recent.map((a) => {
+          {recent.map((a, idx) => {
             const p = byId.get(a.playerId);
             const dv = getDvCode(a.type, a.result);
+            const isNewest = idx === 0;
             return (
               <motion.div
                 key={a.id}
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={
+                  isNewest
+                    ? {
+                        opacity: 0,
+                        y: -6,
+                        backgroundColor: "rgba(16,185,129,0.18)",
+                      }
+                    : { opacity: 0, y: -6 }
+                }
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  backgroundColor: "rgba(0,0,0,0)",
+                }}
                 exit={{ opacity: 0 }}
+                transition={
+                  isNewest
+                    ? { backgroundColor: { duration: 1.2, delay: 0.2 } }
+                    : { duration: 0.2 }
+                }
                 className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
               >
                 <span className="w-8 font-bold text-center tabular-nums">
@@ -68,8 +86,11 @@ export function ActionLog({
           })}
         </AnimatePresence>
         {!recent.length && (
-          <div className="text-xs text-muted-foreground text-center py-8">
-            Ainda sem acções registadas.
+          <div className="text-xs text-muted-foreground text-center py-8 space-y-1">
+            <p>Ainda sem acções registadas.</p>
+            <p className="text-[11px]">
+              Toca numa jogadora ou digita o nº de camisola para começar.
+            </p>
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { motion } from "framer-motion";
 import {
   TrendingUp,
@@ -9,12 +10,18 @@ import {
   Swords,
   Sparkles,
   Database,
+  BarChart3,
+  Radio,
+  CalendarPlus,
+  Users,
 } from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { TeamRadar } from "@/components/charts/TeamRadar";
 import { RotationSideOut } from "@/components/charts/RotationSideOut";
@@ -186,15 +193,43 @@ export default function Dashboard() {
         )}
       </header>
 
-      {isEmpty && (
-        <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            Ainda sem acções registadas. Entra em{" "}
-            <span className="font-medium">Live Scout</span> durante um jogo
-            para começar a popular estes gráficos — enquanto isso mostramos
-            dados de exemplo.
-          </CardContent>
-        </Card>
+      {(isEmpty || !real) && (
+        <EmptyState
+          icon={BarChart3}
+          title="Os teus dados aparecem aqui"
+          description={
+            <>
+              Ainda não há acções registadas para <strong>{team.name}</strong>.
+              Os gráficos abaixo são <strong>exemplo</strong> — substitui-os
+              fazendo o scouting de um jogo, ou marcando um para começar.
+            </>
+          }
+          actions={
+            <>
+              <Button asChild>
+                <Link href="/scout">
+                  <Radio className="h-4 w-4" /> Iniciar Live Scout
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/matches">
+                  <CalendarPlus className="h-4 w-4" /> Marcar jogo
+                </Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link href="/players">
+                  <Users className="h-4 w-4" /> Roster
+                </Link>
+              </Button>
+            </>
+          }
+          footer={
+            <>
+              💡 Já fazes scouting com DataVolley? Importa o ficheiro{" "}
+              <code className="font-mono">.dvw</code> em <em>Jogos</em>.
+            </>
+          }
+        />
       )}
 
       {statsQuery.isLoading ? (

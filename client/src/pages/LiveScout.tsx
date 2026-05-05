@@ -51,6 +51,8 @@ import {
   type ScoutHelpTab,
 } from "@/components/scout/KeyboardHelp";
 import { WelcomeBanner } from "@/components/scout/WelcomeBanner";
+import { LastActionPill } from "@/components/scout/LastActionPill";
+import { StepProgress } from "@/components/scout/StepProgress";
 import {
   Tooltip,
   TooltipContent,
@@ -297,9 +299,16 @@ function Scout({
   const handleKeyboardUndo = () => {
     const last = state.log[state.log.length - 1];
     if (!last) return;
+    const player = activePlayers.find((p) => p.id === last.playerId);
     dispatch({ kind: "undo" });
     syncedIds.current.delete(last.id);
     deleteAction.mutate(last.id);
+    toast("Acção apagada", {
+      description: player
+        ? `#${player.number} · ${ACTION_LABEL[last.type]}`
+        : ACTION_LABEL[last.type],
+      duration: 2000,
+    });
   };
 
   useScoutKeyboard(state, dispatch, {
@@ -392,6 +401,7 @@ function Scout({
   // Hooks devem ficar TODOS antes de qualquer early-return condicional —
   // por isso `useMemo` da sugestão fica aqui em cima.
   const suggested = useMemo(() => deriveSuggestion(state.log), [state.log]);
+  const lastLogged = state.log[state.log.length - 1] ?? null;
 
   if (matchQuery.isLoading || playersQuery.isLoading) {
     return (
@@ -423,7 +433,11 @@ function Scout({
 
   const step = state.step;
 
-  const totalSteps = mode === "complete" ? 5 : 4;
+  const progressSteps =
+    mode === "complete"
+      ? ["Jogadora", "Acção", "Origem", "Destino", "Resultado"]
+      : ["Jogadora", "Acção", "Zona", "Resultado"];
+  const totalSteps = progressSteps.length;
   const stepNumber =
     step === "idle" || step === "player"
       ? 1
@@ -605,13 +619,8 @@ function Scout({
           />
 
           <div className="rounded-xl border bg-card p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Campo
-              </div>
-              <Badge variant="outline" className="text-[10px]">
-                {stepNumber} / {totalSteps} · {stepLabel}
-              </Badge>
+            <div className="mb-2">
+              <StepProgress steps={progressSteps} current={stepNumber - 1} />
             </div>
             <Court
               selectedZone={state.zoneTo}
@@ -647,6 +656,17 @@ function Scout({
 
           {/* Fluxo — aparece consoante o step actual */}
           <div className="space-y-2">
+            {step === "idle" && (
+              <LastActionPill
+                last={lastLogged}
+                player={
+                  lastLogged
+                    ? activePlayers.find((p) => p.id === lastLogged.playerId) ??
+                      null
+                    : null
+                }
+              />
+            )}
             {(step === "action" ||
               step === "zone" ||
               step === "zoneFrom" ||
@@ -713,13 +733,7 @@ function Scout({
             <ActionLog
               log={state.log}
               players={activePlayers}
-              onUndo={() => {
-                const last = state.log[state.log.length - 1];
-                if (!last) return;
-                dispatch({ kind: "undo" });
-                syncedIds.current.delete(last.id);
-                deleteAction.mutate(last.id);
-              }}
+              onUndo={handleKeyboardUndo}
             />
           </div>
         </aside>

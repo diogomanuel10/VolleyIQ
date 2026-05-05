@@ -15,12 +15,16 @@ import {
   Printer,
   Video,
   PlayCircle,
+  ClipboardList,
+  Radio,
+  CalendarPlus,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatPct, cn } from "@/lib/utils";
@@ -161,14 +165,25 @@ function MatchPicker({ teamId }: { teamId: string }) {
       {matchesQuery.isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : list.length === 0 ? (
-        <Card>
-          <CardContent className="p-10 text-center text-muted-foreground space-y-3">
-            <p>Sem jogos terminados ainda.</p>
-            <Button asChild variant="outline">
-              <Link href="/matches">Ir para Jogos</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={ClipboardList}
+          title="Sem jogos terminados ainda"
+          description="Os resumos pós-jogo aparecem aqui assim que um jogo passa a estado 'terminado'. Entretanto, faz scouting do próximo."
+          actions={
+            <>
+              <Button asChild>
+                <Link href="/scout">
+                  <Radio className="h-4 w-4" /> Iniciar Live Scout
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/matches">
+                  <CalendarPlus className="h-4 w-4" /> Ir para Jogos
+                </Link>
+              </Button>
+            </>
+          }
+        />
       ) : (
         <div className="space-y-2">
           {list.map((m) => (
@@ -231,14 +246,25 @@ function Summary({
   if (summaryQuery.isError || !summaryQuery.data) {
     return (
       <div className="p-4 md:p-8 max-w-3xl mx-auto">
-        <Card>
-          <CardContent className="p-10 text-center text-muted-foreground">
-            Jogo sem resumo disponível.{" "}
-            <Link href="/matches" className="text-primary hover:underline">
-              Voltar aos jogos
-            </Link>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={ClipboardList}
+          title="Este jogo ainda não foi scoutado"
+          description="O resumo pós-jogo precisa de pelo menos algumas acções registadas. Abre o Live Scout e regista o jogo (mesmo que seja em diferido a partir de vídeo)."
+          actions={
+            <>
+              <Button asChild>
+                <Link href={`/scout/${matchId}`}>
+                  <Radio className="h-4 w-4" /> Abrir no Live Scout
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/matches">
+                  <ArrowLeft className="h-4 w-4" /> Voltar aos jogos
+                </Link>
+              </Button>
+            </>
+          }
+        />
       </div>
     );
   }

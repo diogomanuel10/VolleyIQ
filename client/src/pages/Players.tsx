@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, UserCog } from "lucide-react";
+import { Plus, Trash2, Upload, UserCog, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -162,10 +163,41 @@ export default function Players() {
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
+      ) : (playersQuery.data ?? []).length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Constrói o teu plantel"
+          description="Adiciona as jogadoras uma a uma, ou importa um Excel/CSV com nome, número e posição."
+          actions={
+            <>
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4" /> Nova jogadora
+              </Button>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" /> Importar
+              </Button>
+            </>
+          }
+          footer={
+            <>
+              💡 O número de camisola é sugerido automaticamente para
+              evitares duplicados.
+            </>
+          }
+        />
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="p-10 text-center text-muted-foreground">
-            Sem jogadoras. Adiciona a primeira com <b>Nova jogadora</b>.
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center text-muted-foreground text-sm">
+            Nenhuma jogadora corresponde aos filtros actuais.{" "}
+            <button
+              onClick={() => {
+                setPositionFilter("all");
+                setShowInactive(true);
+              }}
+              className="text-primary hover:underline"
+            >
+              Limpar filtros
+            </button>
           </CardContent>
         </Card>
       ) : (

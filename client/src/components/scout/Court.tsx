@@ -148,18 +148,36 @@ export function Court({
         onZoneClick={handleZoneClick}
       />
 
-      {/* Rede vertical */}
-      <line
-        x1={MARGIN + HALF_W} x2={MARGIN + HALF_W}
-        y1={MARGIN - 4} y2={H - MARGIN + 4}
-        stroke="hsl(var(--court-line))"
-        strokeWidth={4}
-      />
+      {/* Rede — duas linhas paralelas evocando a malha, com vinheta central */}
+      <g>
+        <line
+          x1={MARGIN + HALF_W - 2} x2={MARGIN + HALF_W - 2}
+          y1={MARGIN - 6} y2={H - MARGIN + 6}
+          stroke="hsl(var(--court-line))"
+          strokeWidth={2}
+          strokeOpacity={0.7}
+        />
+        <line
+          x1={MARGIN + HALF_W + 2} x2={MARGIN + HALF_W + 2}
+          y1={MARGIN - 6} y2={H - MARGIN + 6}
+          stroke="hsl(var(--court-line))"
+          strokeWidth={2}
+          strokeOpacity={0.7}
+        />
+        <line
+          x1={MARGIN + HALF_W} x2={MARGIN + HALF_W}
+          y1={MARGIN - 6} y2={H - MARGIN + 6}
+          stroke="hsl(var(--court-line))"
+          strokeWidth={1}
+          strokeDasharray="2 3"
+          strokeOpacity={0.5}
+        />
+      </g>
       <text
         x={MARGIN + HALF_W}
         y={H / 2 + 4}
         textAnchor="middle"
-        className="fill-muted-foreground text-[9px]"
+        className="fill-muted-foreground text-[9px] font-semibold tracking-widest"
         transform={`rotate(-90, ${MARGIN + HALF_W}, ${H / 2})`}
       >
         REDE
@@ -279,10 +297,14 @@ function ZoneGrid({
               y={cy + CELL_H / 2 + 6}
               textAnchor="middle"
               className={cn(
-                "text-[18px] font-bold pointer-events-none",
-                isTo ? "fill-primary"
-                  : isFrom ? "fill-amber-600"
-                  : "fill-foreground/50",
+                "font-bold pointer-events-none transition-all",
+                isTo
+                  ? "text-[20px] fill-primary"
+                  : isFrom
+                    ? "text-[20px] fill-amber-600"
+                    : disabled
+                      ? "text-[14px] fill-foreground/30"
+                      : "text-[18px] fill-foreground/55",
               )}
             >
               {z}

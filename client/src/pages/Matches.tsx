@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   Trash2,
   Upload,
+  CalendarPlus,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
@@ -17,6 +18,7 @@ import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -154,11 +156,42 @@ export default function Matches() {
             <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
+      ) : (matchesQuery.data ?? []).length === 0 ? (
+        <EmptyState
+          icon={CalendarPlus}
+          title="Marca o teu primeiro jogo"
+          description="Adiciona um jogo agendado para abrires o Live Scout no dia. Depois é só fluir: registar acções, ver estatísticas, gerar relatórios."
+          actions={
+            <>
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4" /> Novo jogo
+              </Button>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" /> Importar calendário
+              </Button>
+              <Button variant="ghost" onClick={() => setDvwOpen(true)}>
+                <Upload className="h-4 w-4" /> Importar .dvw
+              </Button>
+            </>
+          }
+          footer={
+            <>
+              💡 Tens histórico em DataVolley? Cada <code>.dvw</code> importa
+              jogo, plantel adversário e todas as acções.
+            </>
+          }
+        />
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="p-10 text-center text-muted-foreground">
-            Sem jogos {statusFilter !== "all" ? `(${STATUS_LABEL[statusFilter]})` : ""}.
-            Cria o primeiro com <b>Novo jogo</b>.
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center text-muted-foreground text-sm">
+            Nenhum jogo no estado{" "}
+            <strong>{STATUS_LABEL[statusFilter as Status].toLowerCase()}</strong>.{" "}
+            <button
+              onClick={() => setStatusFilter("all")}
+              className="text-primary hover:underline"
+            >
+              Ver todos
+            </button>
           </CardContent>
         </Card>
       ) : (
