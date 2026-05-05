@@ -46,7 +46,19 @@ import type {
 import { ACTION_LABEL, type ActionType, type Zone } from "@shared/types";
 import { LineupWizard } from "@/components/scout/LineupWizard";
 import { SubstitutionDialog } from "@/components/scout/SubstitutionDialog";
-import { KeyboardHelp } from "@/components/scout/KeyboardHelp";
+import {
+  KeyboardHelp,
+  type ScoutHelpTab,
+} from "@/components/scout/KeyboardHelp";
+import { WelcomeBanner } from "@/components/scout/WelcomeBanner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+const WELCOME_KEY = "volleyiq:scout:welcomed";
 
 export default function LiveScout() {
   const params = useParams<{ matchId?: string }>();
@@ -151,6 +163,33 @@ function Scout({
   );
   const [state, dispatch] = useScoutState(mode);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpTab, setHelpTab] = useState<ScoutHelpTab>("shortcuts");
+  const [welcomeDismissed, setWelcomeDismissed] = useState(true);
+
+  // Banner de primeira visita: aparece se não estiver na flag local. Lemos
+  // de forma lazy para evitar acessos a window durante SSR/hidratação.
+  useEffect(() => {
+    try {
+      const seen = window.localStorage.getItem(WELCOME_KEY);
+      if (!seen) setWelcomeDismissed(false);
+    } catch {
+      // localStorage indisponível (modo privado etc.) — banner fica oculto.
+    }
+  }, []);
+
+  const dismissWelcome = () => {
+    setWelcomeDismissed(true);
+    try {
+      window.localStorage.setItem(WELCOME_KEY, "1");
+    } catch {
+      // ignora
+    }
+  };
+
+  const openHelp = (tab: ScoutHelpTab = "shortcuts") => {
+    setHelpTab(tab);
+    setHelpOpen(true);
+  };
 
   // Side em que o utilizador clicou (não persiste; só para desenhar a seta).
   const [zoneFromSide, setZoneFromSide] = useState<"opponent" | "ours" | null>(
@@ -266,7 +305,10 @@ function Scout({
   useScoutKeyboard(state, dispatch, {
     roster: activePlayers,
     onUndo: handleKeyboardUndo,
-    onToggleHelp: () => setHelpOpen((v) => !v),
+    onToggleHelp: () => {
+      setHelpTab("shortcuts");
+      setHelpOpen((v) => !v);
+    },
   });
 
   const lineupsQuery = useQuery({
@@ -448,7 +490,17 @@ function Scout({
   }
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="p-3 md:p-6 mx-auto space-y-3 md:space-y-4">
+      {!welcomeDismissed && (
+        <WelcomeBanner
+          onOpenHelp={() => {
+            openHelp("quickstart");
+            dismissWelcome();
+          }}
+          onDismiss={dismissWelcome}
+        />
+      )}
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} aria-label="Voltar">
@@ -464,11 +516,31 @@ function Scout({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ModeSwitch
-            mode={mode}
-            canUseComplete={canUseComplete}
-            onChange={handleModeChange}
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <ModeSwitch
+                  mode={mode}
+                  canUseComplete={canUseComplete}
+                  onChange={handleModeChange}
+                />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="space-y-1">
+                <div>
+                  <strong>Lite:</strong> jogadora → acção → zona → resultado.
+                </div>
+                <div>
+                  <strong>Completo:</strong> adiciona origem da bola para
+                  trajectórias e heatmaps por origem.
+                </div>
+                <div className="text-muted-foreground">
+                  Carrega no botão de ajuda para mais detalhes.
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
           <Button
             size="sm"
             variant="ghost"
@@ -493,9 +565,9 @@ function Scout({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setHelpOpen(true)}
-            title="Atalhos de teclado (?)"
-            aria-label="Atalhos de teclado"
+            onClick={() => openHelp("shortcuts")}
+            title="Ajuda (?)"
+            aria-label="Ajuda do Live Scout"
           >
             <Keyboard className="h-4 w-4" />
           </Button>
@@ -680,8 +752,13 @@ function Scout({
         }}
       />
 
-      <KeyboardHelp open={helpOpen} onOpenChange={setHelpOpen} />
+      <KeyboardHelp
+        open={helpOpen}
+        onOpenChange={setHelpOpen}
+        initialTab={helpTab}
+      />
     </div>
+    </TooltipProvider>
   );
 }
 

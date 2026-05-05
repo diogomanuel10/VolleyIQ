@@ -1,6 +1,11 @@
 import { ChevronLeft, ChevronRight, Minus, Plus, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function ScorePanel({
   homeScore,
@@ -36,7 +41,17 @@ export function ScorePanel({
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline">Rot. {rotation}</Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="cursor-help">
+                Rot. {rotation}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              Posição do distribuidor: P{rotation}. Carrega na seta para
+              avançar quando ganhares o serviço (side-out).
+            </TooltipContent>
+          </Tooltip>
           <Button
             variant="outline"
             size="icon"
