@@ -6,7 +6,11 @@ import type { Player } from "@shared/schema";
 
 type Half = "opponent" | "ours";
 
-/** Ponto SVG (em coordenadas do viewBox) de onde a bola caiu. */
+/**
+ * Ponto preciso onde a bola caiu — em percentagem (0..100) do SVG total
+ * do Court. Independente do viewBox: persistível na BD e transferível entre
+ * versões. O lado é redundante (derivável de x) mas mantido por ergonomia.
+ */
 export interface CourtPoint {
   x: number;
   y: number;
@@ -42,6 +46,12 @@ const HALF_W = (W - MARGIN * 2) / 2;
 const COURT_H = H - MARGIN * 2;
 const CELL_W = HALF_W / 3;
 const CELL_H = COURT_H / 3;
+
+// Conversão SVG ↔ percentagem do court (0..100). Persistimos sempre em %.
+const xToPct = (svgX: number) => (svgX / W) * 100;
+const yToPct = (svgY: number) => (svgY / H) * 100;
+const pctToX = (pct: number) => (pct / 100) * W;
+const pctToY = (pct: number) => (pct / 100) * H;
 
 // NÓS (direita) — rede à esquerda (col 0)
 const ZONE_TO_CELL_OURS: Record<Zone, { col: number; row: number }> = {
@@ -106,12 +116,13 @@ function zoneCenter(z: Zone, side: Half) {
 }
 
 /**
- * Devolve a posição central de uma zona como `CourtPoint`. Útil para fallback
- * quando o utilizador escolhe a zona por teclado (sem coordenadas precisas).
+ * Devolve a posição central de uma zona como `CourtPoint` em percentagem.
+ * Útil para fallback quando o utilizador escolhe a zona por teclado (sem
+ * coordenadas precisas).
  */
 export function zoneToPoint(z: Zone, side: Half): CourtPoint {
   const { cx, cy } = zoneCenter(z, side);
-  return { x: cx, y: cy, side };
+  return { x: xToPct(cx), y: yToPct(cy), side };
 }
 
 // Lado direito (NÓS), rede à esquerda
@@ -163,14 +174,19 @@ export function Court({
     const local = pt.matrixTransform(ctm.inverse());
     const z = pointToZone(local.x, local.y, side);
     if (!z) return;
-    const point: CourtPoint = { x: local.x, y: local.y, side };
+    // CourtPoint sai em PERCENTAGEM, não em SVG bruto — pronto a persistir.
+    const point: CourtPoint = {
+      x: xToPct(local.x),
+      y: yToPct(local.y),
+      side,
+    };
     if (pickTarget === "from") onZoneFromSelect?.(z, side, point);
     else onZoneSelect?.(z, side, point);
   }
 
   // Pontos a desenhar — preferimos as coords precisas se existirem; senão
   // caímos no centro da zona seleccionada (compatibilidade com selecção
-  // por teclado ou estados antigos).
+  // por teclado ou estados antigos). Os pontos vêm em PERCENT (0..100).
   const fromPoint =
     selectedPointFrom ??
     (selectedZoneFrom != null && selectedZoneFromSide
@@ -182,13 +198,16 @@ export function Court({
       ? zoneToPoint(selectedZone, selectedZoneSide)
       : null);
 
+  // Em SVG (para rendering).
+  const fromSvg = fromPoint
+    ? { cx: pctToX(fromPoint.x), cy: pctToY(fromPoint.y) }
+    : null;
+  const toSvg = toPoint
+    ? { cx: pctToX(toPoint.x), cy: pctToY(toPoint.y) }
+    : null;
+
   const trajectory =
-    fromPoint && toPoint
-      ? {
-          from: { cx: fromPoint.x, cy: fromPoint.y },
-          to: { cx: toPoint.x, cy: toPoint.y },
-        }
-      : null;
+    fromSvg && toSvg ? { from: fromSvg, to: toSvg } : null;
 
   return (
     <svg
@@ -288,19 +307,19 @@ export function Court({
 
       {/* Marcadores precisos (origem + destino) */}
       <AnimatePresence>
-        {fromPoint && (
+        {fromSvg && (
           <PointMarker
             key="from"
-            cx={fromPoint.x}
-            cy={fromPoint.y}
+            cx={fromSvg.cx}
+            cy={fromSvg.cy}
             color="amber"
           />
         )}
-        {toPoint && (
+        {toSvg && (
           <PointMarker
             key="to"
-            cx={toPoint.x}
-            cy={toPoint.y}
+            cx={toSvg.cx}
+            cy={toSvg.cy}
             color="primary"
           />
         )}

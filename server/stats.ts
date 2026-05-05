@@ -852,11 +852,39 @@ function buildSetterDistribution(
 }
 
 // ── Player training input ──────────────────────────────────────────────
+/**
+ * Scatter point com (x, y) em % do court (0..100). Mantemos `result` para
+ * que o cliente possa colorir os pontos por tipo de resultado (kill, error,
+ * etc.) — útil para distinguir tendências de eficácia, não só de volume.
+ */
+export interface ScatterPoint {
+  x: number;
+  y: number;
+  result: string;
+  matchId: string;
+}
+
+export interface PlayerZoneBreakdown {
+  zone: number;
+  count: number;
+  /** % de kills sobre o total de ataques nessa zona (só faz sentido em ataque). */
+  killPct: number;
+}
+
 export interface PlayerSummary {
   player: Player;
   actions: number;
   kpis: TrainingRecommendationInput["kpis"];
   weaknesses: string[];
+  /** Heatmap por zona DV (1-9) — ataques desta atleta. */
+  attackHeatmap: Heatmap;
+  /** Heatmap por zona DV (1-9) — saques desta atleta. */
+  serveHeatmap: Heatmap;
+  /** Pontos precisos para scatter — pelo menos uma das coords presente. */
+  attackPoints: ScatterPoint[];
+  servePoints: ScatterPoint[];
+  /** Top 3 zonas favoritas de ataque (por volume) com kill% por zona. */
+  topAttackZones: PlayerZoneBreakdown[];
 }
 
 export async function buildPlayerSummary(
@@ -927,6 +955,38 @@ export async function buildPlayerSummary(
     weaknesses.push("Nenhum stuff block registado nos últimos jogos.");
   }
 
+  // ── Heatmaps + scatter por atleta ───────────────────────────────────
+  const attackHeatmap = buildHeatmap(recent, "attack");
+  const serveHeatmap = buildHeatmap(recent, "serve");
+
+  const attackPoints: ScatterPoint[] = attacks
+    .filter((a) => a.zoneToX != null && a.zoneToY != null)
+    .map((a) => ({
+      x: a.zoneToX!,
+      y: a.zoneToY!,
+      result: a.result,
+      matchId: a.matchId,
+    }));
+  const servePoints: ScatterPoint[] = serves
+    .filter((a) => a.zoneToX != null && a.zoneToY != null)
+    .map((a) => ({
+      x: a.zoneToX!,
+      y: a.zoneToY!,
+      result: a.result,
+      matchId: a.matchId,
+    }));
+
+  // Top 3 zonas de ataque por volume — útil para o card "as suas zonas".
+  const topAttackZones: PlayerZoneBreakdown[] = [...attackHeatmap.zones]
+    .filter((z) => z.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+    .map((z) => ({
+      zone: z.zone,
+      count: z.count,
+      killPct: z.count > 0 ? round1(((z.kills ?? 0) / z.count) * 100) : 0,
+    }));
+
   return {
     player,
     actions: recent.length,
@@ -939,6 +999,11 @@ export async function buildPlayerSummary(
       digs,
     },
     weaknesses,
+    attackHeatmap,
+    serveHeatmap,
+    attackPoints,
+    servePoints,
+    topAttackZones,
   };
 }
 

@@ -3,6 +3,7 @@ import {
   pgTable,
   text,
   integer,
+  real,
   boolean,
   timestamp,
   index,
@@ -242,6 +243,14 @@ export const actions = pgTable(
     result: text("result", { enum: ACTION_RESULTS }).notNull(),
     zoneFrom: integer("zone_from"),
     zoneTo: integer("zone_to"),
+    // Coordenadas precisas em % do SVG do Court (W=600, H=300):
+    // x ∈ [0, 100] — 0 = lado adversário (esq), 100 = lado nosso (dir)
+    // y ∈ [0, 100] — 0 = topo, 100 = fundo
+    // Permitem heatmaps de alta resolução para além das 9 zonas DV.
+    zoneFromX: real("zone_from_x"),
+    zoneFromY: real("zone_from_y"),
+    zoneToX: real("zone_to_x"),
+    zoneToY: real("zone_to_y"),
     rallyId: text("rally_id"),
     rotation: integer("rotation"),
     // Contexto opcional (jogador adversário em ataque, setter visível, etc.)

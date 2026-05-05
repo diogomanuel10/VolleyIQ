@@ -21,6 +21,12 @@ export interface LoggedAction {
   type: ActionType;
   zoneFrom: Zone | null;
   zoneTo: Zone | null;
+  /** Coordenadas precisas em % do SVG do Court (0..100). Opcionais — caem
+   * no centro da zona quando não existem (ex: selecção por teclado). */
+  zoneFromX?: number | null;
+  zoneFromY?: number | null;
+  zoneToX?: number | null;
+  zoneToY?: number | null;
   result: ActionResult;
   rallyId: string;
   rotation: number;
@@ -54,6 +60,11 @@ export interface ScoutState {
   actionType: ActionType | null;
   zoneFrom: Zone | null;
   zoneTo: Zone | null;
+  /** Coordenadas precisas (% do SVG, 0..100) da origem e destino. */
+  zoneFromX: number | null;
+  zoneFromY: number | null;
+  zoneToX: number | null;
+  zoneToY: number | null;
   setNumber: number;
   rotation: number;
   homeScore: number;
@@ -67,9 +78,9 @@ export interface ScoutState {
 type ScoutEvent =
   | { kind: "selectPlayer"; playerId: string }
   | { kind: "selectAction"; actionType: ActionType }
-  | { kind: "selectZoneFrom"; zone: Zone }
-  | { kind: "selectZoneTo"; zone: Zone }
-  | { kind: "selectZone"; zone: Zone } // lite legacy
+  | { kind: "selectZoneFrom"; zone: Zone; x?: number; y?: number }
+  | { kind: "selectZoneTo"; zone: Zone; x?: number; y?: number }
+  | { kind: "selectZone"; zone: Zone; x?: number; y?: number } // lite legacy
   | { kind: "skipZone" } // lite legacy
   | { kind: "selectResult"; result: ActionResult }
   | { kind: "undo" }
@@ -89,6 +100,10 @@ const initial: ScoutState = {
   actionType: null,
   zoneFrom: null,
   zoneTo: null,
+  zoneFromX: null,
+  zoneFromY: null,
+  zoneToX: null,
+  zoneToY: null,
   setNumber: 1,
   rotation: 1,
   homeScore: 0,
@@ -154,6 +169,10 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         actionType: null,
         zoneFrom: null,
         zoneTo: null,
+        zoneFromX: null,
+        zoneFromY: null,
+        zoneToX: null,
+        zoneToY: null,
       };
     }
     case "selectPlayer":
@@ -164,14 +183,32 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       return { ...s, step: nextStep, actionType: e.actionType };
     }
     case "selectZoneFrom":
-      return { ...s, step: "zoneTo", zoneFrom: e.zone };
+      return {
+        ...s,
+        step: "zoneTo",
+        zoneFrom: e.zone,
+        zoneFromX: e.x ?? null,
+        zoneFromY: e.y ?? null,
+      };
     case "selectZoneTo":
-      return { ...s, step: "result", zoneTo: e.zone };
+      return {
+        ...s,
+        step: "result",
+        zoneTo: e.zone,
+        zoneToX: e.x ?? null,
+        zoneToY: e.y ?? null,
+      };
     // --- lite legacy ------------------------------------------------------
     case "selectZone":
-      return { ...s, step: "result", zoneTo: e.zone };
+      return {
+        ...s,
+        step: "result",
+        zoneTo: e.zone,
+        zoneToX: e.x ?? null,
+        zoneToY: e.y ?? null,
+      };
     case "skipZone":
-      return { ...s, step: "result", zoneTo: null };
+      return { ...s, step: "result", zoneTo: null, zoneToX: null, zoneToY: null };
     // ---------------------------------------------------------------------
     case "selectResult": {
       if (!s.playerId || !s.actionType) return s;
@@ -181,6 +218,10 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         type: s.actionType,
         zoneFrom: s.zoneFrom,
         zoneTo: s.zoneTo,
+        zoneFromX: s.zoneFromX,
+        zoneFromY: s.zoneFromY,
+        zoneToX: s.zoneToX,
+        zoneToY: s.zoneToY,
         result: e.result,
         rallyId: s.rallyId,
         rotation: s.rotation,
@@ -221,6 +262,10 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         actionType: null,
         zoneFrom: null,
         zoneTo: null,
+        zoneFromX: null,
+        zoneFromY: null,
+        zoneToX: null,
+        zoneToY: null,
         log: [...s.log, logged],
         rallyId: rallyEnded ? nanoid(8) : s.rallyId,
         homeScore: pointScored ? s.homeScore + 1 : s.homeScore,

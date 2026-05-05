@@ -1,6 +1,6 @@
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Loader2, Clock } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Clock, Target, Send } from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  HeatmapCourt,
+  type HeatmapZone,
+} from "@/components/scout/HeatmapCourt";
+import {
+  ScatterCourt,
+  type ScatterPoint,
+} from "@/components/scout/ScatterCourt";
 import type { Player } from "@shared/schema";
 import type {
   TrainingFocus,
@@ -39,6 +47,19 @@ const PRIORITY_STYLE: Record<TrainingPriority, string> = {
   low: "bg-slate-500 text-white hover:bg-slate-500/90",
 };
 
+interface PlayerHeatmap {
+  type: "attack" | "serve" | "reception";
+  zones: HeatmapZone[];
+  total: number;
+  maxCount: number;
+}
+
+interface ZoneBreakdown {
+  zone: number;
+  count: number;
+  killPct: number;
+}
+
 interface PlayerSummary {
   player: Player;
   actions: number;
@@ -51,6 +72,11 @@ interface PlayerSummary {
     digs: number;
   };
   weaknesses: string[];
+  attackHeatmap: PlayerHeatmap;
+  serveHeatmap: PlayerHeatmap;
+  attackPoints: ScatterPoint[];
+  servePoints: ScatterPoint[];
+  topAttackZones: ZoneBreakdown[];
 }
 
 interface TrainingLog {
@@ -213,6 +239,115 @@ export default function PlayerDetail() {
             </Card>
           )}
 
+          {/* ── Tendência espacial: ataque ─────────────────────────────── */}
+          {summary!.attackHeatmap.total > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Target className="h-4 w-4" />
+                  Onde ataca · {summary!.attackHeatmap.total} ataques
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Distribuição por zona DV (volume) e pontos precisos
+                  registados (cor = resultado).
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
+                      Heatmap por zona
+                    </div>
+                    <HeatmapCourt
+                      zones={summary!.attackHeatmap.zones}
+                      maxCount={summary!.attackHeatmap.maxCount}
+                      side="opponent"
+                      ariaLabel="Heatmap de ataques por zona"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
+                      Pontos precisos
+                    </div>
+                    <ScatterCourt
+                      points={summary!.attackPoints}
+                      side="opponent"
+                      ariaLabel="Pontos precisos de ataque"
+                    />
+                    <Legend />
+                  </div>
+                </div>
+
+                {summary!.topAttackZones.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">
+                      Top zonas favoritas
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {summary!.topAttackZones.map((z) => (
+                        <div
+                          key={z.zone}
+                          className="rounded-md border p-2 text-center"
+                        >
+                          <div className="text-[10px] text-muted-foreground">
+                            Z{z.zone}
+                          </div>
+                          <div className="text-lg font-bold tabular-nums">
+                            {z.count}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {z.killPct}% kill
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Tendência espacial: saque ──────────────────────────────── */}
+          {summary!.serveHeatmap.total > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Send className="h-4 w-4" />
+                  Onde serve · {summary!.serveHeatmap.total} serviços
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Zona alvo do serviço (lado adversário).
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
+                      Heatmap por zona
+                    </div>
+                    <HeatmapCourt
+                      zones={summary!.serveHeatmap.zones}
+                      maxCount={summary!.serveHeatmap.maxCount}
+                      side="opponent"
+                      ariaLabel="Heatmap de saques por zona"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
+                      Pontos precisos
+                    </div>
+                    <ScatterCourt
+                      points={summary!.servePoints}
+                      side="opponent"
+                      ariaLabel="Pontos precisos de saque"
+                    />
+                    <Legend />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2">
@@ -266,6 +401,25 @@ export default function PlayerDetail() {
           </Card>
         </>
       )}
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1">
+        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+        Positivo
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+        Neutro
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+        Erro / bloqueado
+      </span>
     </div>
   );
 }

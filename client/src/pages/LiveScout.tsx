@@ -200,28 +200,20 @@ function Scout({
   const [zoneToSide, setZoneToSide] = useState<"opponent" | "ours" | null>(
     null,
   );
-  // Posições precisas do toque (em coords SVG do Court). Não persistem.
-  const [zoneFromPoint, setZoneFromPoint] = useState<CourtPoint | null>(null);
-  const [zoneToPoint, setZoneToPoint] = useState<CourtPoint | null>(null);
-
   // Sincroniza o reducer com a preferência guardada quando esta muda.
   useEffect(() => {
     dispatch({ kind: "setMode", mode });
     setZoneFromSide(null);
     setZoneToSide(null);
-    setZoneFromPoint(null);
-    setZoneToPoint(null);
   }, [mode, dispatch]);
 
   // Após registar o resultado, o reducer limpa zoneFrom/zoneTo e volta a
-  // "idle" — alinhamos o estado local (sides + pontos precisos) para o
+  // "idle" — alinhamos os sides locais (que vivem fora do reducer) para o
   // dot/seta desaparecerem com a animação de exit.
   useEffect(() => {
     if (state.step === "idle" && state.zoneFrom == null && state.zoneTo == null) {
       setZoneFromSide(null);
       setZoneToSide(null);
-      setZoneFromPoint(null);
-      setZoneToPoint(null);
     }
   }, [state.step, state.zoneFrom, state.zoneTo]);
 
@@ -253,6 +245,10 @@ function Scout({
       type: a.type as ActionType,
       zoneFrom: (a.zoneFrom as Zone | null) ?? null,
       zoneTo: (a.zoneTo as Zone | null) ?? null,
+      zoneFromX: a.zoneFromX ?? null,
+      zoneFromY: a.zoneFromY ?? null,
+      zoneToX: a.zoneToX ?? null,
+      zoneToY: a.zoneToY ?? null,
       result: a.result,
       rallyId: a.rallyId ?? "",
       rotation: a.rotation ?? 1,
@@ -274,6 +270,10 @@ function Scout({
         result: a.result,
         zoneFrom: a.zoneFrom,
         zoneTo: a.zoneTo,
+        zoneFromX: a.zoneFromX ?? null,
+        zoneFromY: a.zoneFromY ?? null,
+        zoneToX: a.zoneToX ?? null,
+        zoneToY: a.zoneToY ?? null,
         rallyId: a.rallyId,
         rotation: a.rotation,
         videoTimeSec: videoRef.current?.getCurrentTime() ?? null,
@@ -503,8 +503,7 @@ function Scout({
     point: CourtPoint,
   ) {
     setZoneFromSide(side);
-    setZoneFromPoint(point);
-    dispatch({ kind: "selectZoneFrom", zone });
+    dispatch({ kind: "selectZoneFrom", zone, x: point.x, y: point.y });
   }
   function handleZoneToSelect(
     zone: Zone,
@@ -512,9 +511,9 @@ function Scout({
     point: CourtPoint,
   ) {
     setZoneToSide(side);
-    setZoneToPoint(point);
-    if (mode === "complete") dispatch({ kind: "selectZoneTo", zone });
-    else dispatch({ kind: "selectZone", zone });
+    if (mode === "complete")
+      dispatch({ kind: "selectZoneTo", zone, x: point.x, y: point.y });
+    else dispatch({ kind: "selectZone", zone, x: point.x, y: point.y });
   }
   function handleModeChange(next: ScoutMode) {
     if (next === "complete" && !canUseComplete) {
@@ -658,8 +657,16 @@ function Scout({
               selectedZoneFrom={state.zoneFrom}
               selectedZoneSide={zoneToSide}
               selectedZoneFromSide={zoneFromSide}
-              selectedPointFrom={zoneFromPoint}
-              selectedPointTo={zoneToPoint}
+              selectedPointFrom={
+                state.zoneFromX != null && state.zoneFromY != null && zoneFromSide
+                  ? { x: state.zoneFromX, y: state.zoneFromY, side: zoneFromSide }
+                  : null
+              }
+              selectedPointTo={
+                state.zoneToX != null && state.zoneToY != null && zoneToSide
+                  ? { x: state.zoneToX, y: state.zoneToY, side: zoneToSide }
+                  : null
+              }
               pickTarget={
                 step === "zoneFrom"
                   ? "from"
