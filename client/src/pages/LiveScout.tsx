@@ -295,6 +295,12 @@ function Scout({
       // localStorage indisponível — usa defaults
     }
 
+    // Marca todas as acções já no DB como sincronizadas ANTES de popular o
+    // log — assim o sync effect não as re-POSTa após o hydrateSession.
+    for (const a of mapped) {
+      syncedIds.current.add(a.id);
+    }
+
     dispatch({
       kind: "hydrateSession",
       actions: mapped,
