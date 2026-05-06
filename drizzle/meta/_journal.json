@@ -22,6 +22,13 @@
       "when": 1777281728637,
       "tag": "0002_substitutions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778051558331,
+      "tag": "0003_add_action_precise_coords",
+      "breakpoints": true
     }
   ]
 }
