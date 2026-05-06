@@ -91,7 +91,16 @@ type ScoutEvent =
   | { kind: "setServingTeam"; team: Side }
   | { kind: "nextSet" }
   | { kind: "prevSet" }
-  | { kind: "hydrate"; actions: LoggedAction[] };
+  | { kind: "hydrate"; actions: LoggedAction[] }
+  | {
+      kind: "hydrateSession";
+      actions: LoggedAction[];
+      homeScore: number;
+      awayScore: number;
+      setNumber: number;
+      rotation: number;
+      servingTeam: Side;
+    };
 
 const initial: ScoutState = {
   mode: "lite",
@@ -342,6 +351,18 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       return { ...s, setNumber: Math.max(1, s.setNumber - 1) };
     case "hydrate":
       return { ...s, log: e.actions };
+    case "hydrateSession":
+      return {
+        ...initial,
+        mode: s.mode,
+        log: e.actions,
+        homeScore: e.homeScore,
+        awayScore: e.awayScore,
+        setNumber: e.setNumber,
+        rotation: e.rotation,
+        servingTeam: e.servingTeam,
+        rallyId: nanoid(8),
+      };
     default:
       return s;
   }
