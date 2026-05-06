@@ -234,6 +234,9 @@ function Scout({
       api.get<DbAction[]>(`/api/matches/${matchId}/actions`),
   });
 
+  // Chave de persistência para este jogo.
+  const sessionKey = `volleyiq:scout:${matchId}`;
+
   // Hidrata o log a partir da API uma única vez.
   const hydratedRef = useRef(false);
   useEffect(() => {
@@ -255,9 +258,71 @@ function Scout({
       setNumber: 1,
       timestamp: new Date(a.timestamp).getTime(),
     }));
-    dispatch({ kind: "hydrate", actions: mapped });
+
+    // Reconstrói score a partir do log — mais fiável do que localStorage.
+    const setN = mapped.reduce((max, a) => Math.max(max, a.setNumber), 1);
+    const inSet = mapped.filter((a) => a.setNumber === setN);
+    const homeScore = inSet.filter(
+      (a) =>
+        (a.type === "attack" && a.result === "kill") ||
+        (a.type === "serve" && a.result === "ace") ||
+        (a.type === "block" && a.result === "stuff"),
+    ).length;
+    const awayScore = inSet.filter(
+      (a) =>
+        a.result === "error" ||
+        (a.type === "attack" && a.result === "blocked"),
+    ).length;
+
+    // rotation e servingTeam precisam de localStorage — não são reconstruíveis
+    // de forma fiável sem replay completo da lógica de side-out.
+    let rotation = inSet[inSet.length - 1]?.rotation ?? 1;
+    let servingTeam: "home" | "away" = "home";
+    try {
+      const snap = JSON.parse(
+        window.localStorage.getItem(sessionKey) ?? "null",
+      ) as { rotation?: number; servingTeam?: "home" | "away" } | null;
+      if (snap) {
+        if (snap.rotation != null) rotation = snap.rotation;
+        if (snap.servingTeam) servingTeam = snap.servingTeam;
+      }
+    } catch {
+      // localStorage indisponível — usa defaults
+    }
+
+    // Marca todas as acções já no DB como sincronizadas ANTES de popular o
+    // log — assim o sync effect não as re-POSTa após o hydrateSession.
+    for (const a of mapped) {
+      syncedIds.current.add(a.id);
+    }
+
+    dispatch({
+      kind: "hydrateSession",
+      actions: mapped,
+      homeScore,
+      awayScore,
+      setNumber: setN,
+      rotation,
+      servingTeam,
+    });
     hydratedRef.current = true;
-  }, [actionsQuery.data, dispatch]);
+  }, [actionsQuery.data, dispatch, sessionKey]);
+
+  // Persiste rotation e servingTeam após cada alteração (só depois da hidratação).
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      window.localStorage.setItem(
+        sessionKey,
+        JSON.stringify({
+          rotation: state.rotation,
+          servingTeam: state.servingTeam,
+        }),
+      );
+    } catch {
+      // ignora — modo privado ou quota excedida
+    }
+  }, [state.rotation, state.servingTeam, sessionKey]);
 
   const videoRef = useRef<VideoPanelHandle>(null);
 
@@ -265,7 +330,7 @@ function Scout({
     mutationFn: (a: LoggedAction) =>
       api.post<DbAction>("/api/actions", {
         matchId,
-        playerId: a.playerId,
+        playerId: a.playerId || null,
         type: a.type,
         result: a.result,
         zoneFrom: a.zoneFrom,
