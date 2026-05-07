@@ -1,6 +1,6 @@
 import { useReducer } from "react";
 import { nanoid } from "nanoid";
-import type { ActionResult, ActionType, Zone } from "@shared/types";
+import type { ActionResult, ActionType, Zone, ScoutScope } from "@shared/types";
 import type { ScoutMode } from "@/lib/scoutMode";
 
 /**
@@ -17,7 +17,12 @@ import type { ScoutMode } from "@/lib/scoutMode";
 
 export interface LoggedAction {
   id: string;
+  /** ID do jogador da nossa equipa (vazio quando side==="away"). */
   playerId: string;
+  /** ID do jogador adversário referenciado (quando side==="away"). */
+  opponentPlayerId?: string | null;
+  /** De que equipa é esta acção. "home" = padrão actual. */
+  side: Side;
   type: ActionType;
   zoneFrom: Zone | null;
   zoneTo: Zone | null;
@@ -55,8 +60,14 @@ export type Side = "home" | "away";
 
 export interface ScoutState {
   mode: ScoutMode;
+  /** Quais equipas estamos a scout neste jogo. */
+  scoutScope: ScoutScope;
+  /** Equipa activa no momento (relevante quando scoutScope !== "home"). */
+  activeSide: Side;
   step: Step;
   playerId: string | null;
+  /** Preenchido quando activeSide === "away". */
+  opponentPlayerId: string | null;
   actionType: ActionType | null;
   zoneFrom: Zone | null;
   zoneTo: Zone | null;
@@ -77,6 +88,9 @@ export interface ScoutState {
 
 type ScoutEvent =
   | { kind: "selectPlayer"; playerId: string }
+  | { kind: "selectOpponentPlayer"; opponentPlayerId: string }
+  | { kind: "selectSide"; side: Side }
+  | { kind: "setScoutScope"; scope: ScoutScope }
   | { kind: "selectAction"; actionType: ActionType }
   | { kind: "selectZoneFrom"; zone: Zone; x?: number; y?: number }
   | { kind: "selectZoneTo"; zone: Zone; x?: number; y?: number }
@@ -105,8 +119,11 @@ type ScoutEvent =
 
 const initial: ScoutState = {
   mode: "lite",
+  scoutScope: "home",
+  activeSide: "home",
   step: "idle",
   playerId: null,
+  opponentPlayerId: null,
   actionType: null,
   zoneFrom: null,
   zoneTo: null,
@@ -147,24 +164,43 @@ export function deriveSuggestion(log: LoggedAction[]): ActionType | null {
   if (TERMINAL_RESULTS.has(last.result)) return "serve";
   switch (last.type) {
     case "serve":
-      // Bola voltou. Esperamos ataque adversário → defesa nossa.
       return "dig";
     case "reception":
       return "set";
     case "set":
       return "attack";
     case "attack":
-      // Adversário defendeu ou bloqueou com toque → próximo é o nosso
-      // bloco/defesa quando a bola volta.
       return "dig";
     case "dig":
       return "set";
     case "block":
-      // Block com toque mantém o rally, a bola fica a pairar → set.
       return "set";
     default:
       return null;
   }
+}
+
+/**
+ * Sugere de que equipa deverá ser a próxima acção, com base no rally flow.
+ * Usado em modo `both` / `neutral` para o toggle de equipa.
+ *
+ * Regra geral: cada acção alterna de equipa, excepto set→attack (mesma equipa)
+ * e quando o rally termina (volta ao servidor).
+ */
+export function deriveNextSide(log: LoggedAction[], servingTeam: Side): Side {
+  const last = log[log.length - 1];
+  if (!last) return servingTeam;
+  if (TERMINAL_RESULTS.has(last.result)) {
+    // Rally acabou — próximo serve é do vencedor (tratado pelo selectResult).
+    return servingTeam;
+  }
+  const sameSide: ActionType[] = ["set", "dig"];
+  if (sameSide.includes(last.type)) {
+    // set → attack (mesma equipa); dig → set (mesma equipa).
+    return last.side;
+  }
+  // serve → recepção (outro lado); attack → bloco/defesa (outro lado); etc.
+  return last.side === "home" ? "away" : "home";
 }
 
 function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
@@ -187,8 +223,14 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         zoneToY: null,
       };
     }
+    case "setScoutScope":
+      return { ...s, scoutScope: e.scope, activeSide: "home", step: "idle", playerId: null, opponentPlayerId: null, actionType: null };
+    case "selectSide":
+      return { ...s, activeSide: e.side, step: "player", playerId: null, opponentPlayerId: null };
     case "selectPlayer":
-      return { ...s, step: "action", playerId: e.playerId };
+      return { ...s, step: "action", playerId: e.playerId, opponentPlayerId: null };
+    case "selectOpponentPlayer":
+      return { ...s, step: "action", opponentPlayerId: e.opponentPlayerId, playerId: "" };
     case "selectAction": {
       // Lite: pula para zona opcional. Complete: pede primeiro zoneFrom.
       const nextStep: Step = s.mode === "complete" ? "zoneFrom" : "zone";
@@ -223,10 +265,12 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       return { ...s, step: "result", zoneTo: null, zoneToX: null, zoneToY: null };
     // ---------------------------------------------------------------------
     case "selectResult": {
-      if (!s.playerId || !s.actionType) return s;
+      if ((!s.playerId && !s.opponentPlayerId) || !s.actionType) return s;
       const logged: LoggedAction = {
         id: nanoid(12),
-        playerId: s.playerId,
+        playerId: s.playerId ?? "",
+        opponentPlayerId: s.opponentPlayerId ?? null,
+        side: s.activeSide,
         type: s.actionType,
         zoneFrom: s.zoneFrom,
         zoneTo: s.zoneTo,
@@ -271,10 +315,18 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         }
       }
 
+      const nextLog = [...s.log, logged];
+      const nextActiveSide = s.scoutScope === "home"
+        ? "home"
+        : rallyEnded
+          ? nextServingTeam  // rally acabou → começa o servidor
+          : deriveNextSide(nextLog, nextServingTeam);
+
       return {
         ...s,
         step: "idle",
         playerId: null,
+        opponentPlayerId: null,
         actionType: null,
         zoneFrom: null,
         zoneTo: null,
@@ -282,12 +334,13 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         zoneFromY: null,
         zoneToX: null,
         zoneToY: null,
-        log: [...s.log, logged],
+        log: nextLog,
         rallyId: rallyEnded ? nanoid(8) : s.rallyId,
         homeScore: pointScored ? s.homeScore + 1 : s.homeScore,
         awayScore: pointLost ? s.awayScore + 1 : s.awayScore,
         servingTeam: nextServingTeam,
         rotation: nextRotation,
+        activeSide: nextActiveSide,
       };
     }
     case "quickPoint": {
@@ -298,6 +351,7 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       const qLogged: LoggedAction = {
         id: nanoid(12),
         playerId: "",
+        side: "home",
         type: "freeball",
         zoneFrom: null,
         zoneTo: null,
@@ -409,12 +463,14 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       return {
         ...initial,
         mode: s.mode,
+        scoutScope: s.scoutScope,
         log: e.actions,
         homeScore: e.homeScore,
         awayScore: e.awayScore,
         setNumber: e.setNumber,
         rotation: e.rotation,
         servingTeam: e.servingTeam,
+        activeSide: e.servingTeam,
         rallyId: nanoid(8),
       };
     default:

@@ -20,8 +20,10 @@ import { useScoutKeyboard } from "@/hooks/useScoutKeyboard";
 import { api } from "@/lib/api";
 import {
   deriveSuggestion,
+  deriveNextSide,
   useScoutState,
   type LoggedAction,
+  type Side,
 } from "@/hooks/useScoutState";
 import { useScoutMode, type ScoutMode } from "@/lib/scoutMode";
 import { cn } from "@/lib/utils";
@@ -42,8 +44,9 @@ import type {
   Team,
   Lineup,
   Substitution,
+  OpponentPlayer,
 } from "@shared/schema";
-import { ACTION_LABEL, type ActionType, type Zone } from "@shared/types";
+import { ACTION_LABEL, type ActionType, type Zone, type ScoutScope } from "@shared/types";
 import { LineupWizard } from "@/components/scout/LineupWizard";
 import { SubstitutionDialog } from "@/components/scout/SubstitutionDialog";
 import {
@@ -267,6 +270,8 @@ function Scout({
       rotation: a.rotation ?? 1,
       setNumber: a.rotation != null ? 1 : 1, // setNumber não existe na DB ainda
       timestamp: new Date(a.timestamp).getTime(),
+      side: (a.side as "home" | "away") ?? "home",
+      opponentPlayerId: a.opponentPlayerId ?? null,
     }));
 
     // Reconstrói score a partir do log — mais fiável do que localStorage.
@@ -341,6 +346,8 @@ function Scout({
       api.post<DbAction>("/api/actions", {
         matchId,
         playerId: a.playerId || null,
+        opponentPlayerId: a.opponentPlayerId ?? null,
+        side: a.side ?? "home",
         type: a.type,
         result: a.result,
         zoneFrom: a.zoneFrom,
@@ -421,6 +428,17 @@ function Scout({
     queryFn: () =>
       api.get<Substitution[]>(`/api/matches/${matchId}/substitutions`),
   });
+
+  // Jogadores do adversário — carregados quando scoutScope !== "home".
+  const opponentTeamId = matchQuery.data?.opponentTeamId;
+  const opponentPlayersQuery = useQuery({
+    queryKey: ["opponentPlayers", opponentTeamId],
+    queryFn: () =>
+      api.get<OpponentPlayer[]>(`/api/opponents/${opponentTeamId}/players`),
+    enabled: Boolean(opponentTeamId) && state.scoutScope !== "home",
+    staleTime: 10 * 60 * 1000,
+  });
+  const opponentPlayers = opponentPlayersQuery.data ?? [];
 
   // Histórico vs este adversário — alimenta as sugestões do painel lateral.
   // 404 = primeiro jogo contra ele; tratado como "sem histórico".
@@ -720,6 +738,13 @@ function Scout({
               </div>
             </TooltipContent>
           </Tooltip>
+          {/* Scope selector — só visível quando há adversário catalogado */}
+          {opponentTeamId && (
+            <ScopeSelector
+              scope={state.scoutScope}
+              onChange={(s) => dispatch({ kind: "setScoutScope", scope: s })}
+            />
+          )}
           <Button
             size="sm"
             variant="ghost"
@@ -802,6 +827,18 @@ function Scout({
             </div>
           )}
 
+          {/* Team toggle — visível em modo both/neutral */}
+          {state.scoutScope !== "home" && (
+            <TeamToggle
+              activeSide={state.activeSide}
+              suggestedSide={deriveNextSide(state.log, state.servingTeam)}
+              homeName={match.competition ?? "Nossa equipa"}
+              awayName={match.opponent}
+              disabled={step !== "idle" && step !== "player"}
+              onChange={(side) => dispatch({ kind: "selectSide", side })}
+            />
+          )}
+
           <div className="rounded-xl border bg-card p-3 md:p-4">
             <div className="mb-2">
               <StepProgress steps={progressSteps} current={stepNumber - 1} />
@@ -830,14 +867,15 @@ function Scout({
               }
               onZoneSelect={handleZoneToSelect}
               onZoneFromSelect={handleZoneFromSelect}
-              lineup={lineup}
-              selectedPlayerId={state.playerId}
+              lineup={state.activeSide === "home" ? lineup : [null,null,null,null,null,null]}
+              selectedPlayerId={state.activeSide === "home" ? state.playerId : null}
               onPlayerSelect={(id) =>
                 dispatch({ kind: "selectPlayer", playerId: id })
               }
               rotation={state.rotation}
               playersDisabled={
-                step !== "idle" && step !== "player"
+                state.activeSide === "away" ||
+                (step !== "idle" && step !== "player")
               }
               zonesDisabled={
                 step !== "zone" && step !== "zoneFrom" && step !== "zoneTo"
@@ -847,6 +885,19 @@ function Scout({
               {hint}
             </p>
           </div>
+
+          {/* Lista de jogadores do adversário — visível quando activeSide=away */}
+          {state.activeSide === "away" &&
+            state.scoutScope !== "home" &&
+            (step === "idle" || step === "player") && (
+            <OpponentPlayerGrid
+              players={opponentPlayers}
+              selectedId={state.opponentPlayerId}
+              onSelect={(id) =>
+                dispatch({ kind: "selectOpponentPlayer", opponentPlayerId: id })
+              }
+            />
+          )}
 
           {/* Fluxo — aparece consoante o step actual */}
           <div className="space-y-2">
@@ -1053,6 +1104,134 @@ function ModeSwitch({
       <Btn target="lite" icon={Zap} label="Lite" />
       <div className="w-px bg-border" aria-hidden />
       <Btn target="complete" icon={Gauge} label="Completo" />
+    </div>
+  );
+}
+
+// ── Scope selector (Só nós / Ambas) ─────────────────────────────────────────
+function ScopeSelector({
+  scope,
+  onChange,
+}: {
+  scope: ScoutScope;
+  onChange: (s: ScoutScope) => void;
+}) {
+  return (
+    <div className="hidden sm:inline-flex items-stretch rounded-md border overflow-hidden" title="Âmbito do scout">
+      {(["home", "both"] as const).map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s)}
+          className={cn(
+            "px-2.5 h-8 text-xs font-medium transition-colors",
+            scope === s
+              ? "bg-primary text-primary-foreground"
+              : "hover:bg-accent text-muted-foreground",
+          )}
+        >
+          {s === "home" ? "Só nós" : "Ambas"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Team toggle strip ────────────────────────────────────────────────────────
+function TeamToggle({
+  activeSide,
+  suggestedSide,
+  homeName,
+  awayName,
+  disabled,
+  onChange,
+}: {
+  activeSide: Side;
+  suggestedSide: Side;
+  homeName: string;
+  awayName: string;
+  disabled: boolean;
+  onChange: (side: Side) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-1">
+      <span className="text-xs text-muted-foreground shrink-0">Equipa:</span>
+      <div className="inline-flex rounded-md border overflow-hidden">
+        {(["home", "away"] as const).map((side) => {
+          const isActive = activeSide === side;
+          const isSuggested = suggestedSide === side && !isActive;
+          return (
+            <button
+              key={side}
+              disabled={disabled}
+              onClick={() => onChange(side)}
+              className={cn(
+                "px-3 h-7 text-xs font-medium transition-colors relative",
+                isActive
+                  ? side === "home"
+                    ? "bg-blue-600 text-white"
+                    : "bg-rose-600 text-white"
+                  : isSuggested
+                    ? "bg-accent ring-1 ring-inset ring-primary/40 text-foreground"
+                    : "hover:bg-accent text-muted-foreground",
+                disabled && "opacity-50 cursor-not-allowed",
+              )}
+            >
+              {side === "home" ? homeName : awayName}
+              {isSuggested && (
+                <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {suggestedSide !== activeSide && !disabled && (
+        <span className="text-[10px] text-muted-foreground">sugestão</span>
+      )}
+    </div>
+  );
+}
+
+// ── Opponent player grid ─────────────────────────────────────────────────────
+function OpponentPlayerGrid({
+  players,
+  selectedId,
+  onSelect,
+}: {
+  players: OpponentPlayer[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const sorted = [...players].sort((a, b) => (a.number ?? 99) - (b.number ?? 99));
+
+  if (sorted.length === 0) {
+    return (
+      <p className="text-xs text-center text-muted-foreground py-3">
+        Sem jogadores catalogados para este adversário.{" "}
+        Adiciona-os em <strong>Adversários</strong>.
+      </p>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border bg-card p-3">
+      <p className="text-xs text-muted-foreground mb-2">Jogadores do adversário</p>
+      <div className="flex flex-wrap gap-1.5">
+        {sorted.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => onSelect(p.id)}
+            className={cn(
+              "inline-flex flex-col items-center justify-center rounded-lg border px-2 py-1 text-xs transition-colors",
+              selectedId === p.id
+                ? "bg-rose-600 text-white border-rose-600"
+                : "hover:bg-accent",
+            )}
+          >
+            <span className="font-semibold">#{p.number ?? "?"}</span>
+            <span className="text-[10px] opacity-80">{p.position ?? "—"}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

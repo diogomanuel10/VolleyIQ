@@ -276,6 +276,15 @@ export const TRAINING_FOCI = [
 ] as const;
 export type TrainingFocus = (typeof TRAINING_FOCI)[number];
 
+/**
+ * Âmbito do scout numa partida:
+ *   "home"    → só a nossa equipa (comportamento actual)
+ *   "both"    → as duas equipas (jogo nosso, rastreamos ambas)
+ *   "neutral" → dois adversários (jogo de observação, não somos parte)
+ */
+export const SCOUT_SCOPES = ["home", "both", "neutral"] as const;
+export type ScoutScope = (typeof SCOUT_SCOPES)[number];
+
 /** Forma final (cacheada em `training_logs.recJson`). */
 export interface TrainingRecommendation {
   title: string;

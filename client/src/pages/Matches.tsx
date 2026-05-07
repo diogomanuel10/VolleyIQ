@@ -11,6 +11,7 @@ import {
   Trash2,
   Upload,
   CalendarPlus,
+  Eye,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
@@ -211,11 +212,21 @@ export default function Matches() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <div className="font-semibold truncate">
-                        vs. {m.opponent}
+                        {m.matchType === "observation" ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            {m.opponent}
+                          </span>
+                        ) : (
+                          `vs. ${m.opponent}`
+                        )}
                       </div>
                       <Badge variant={STATUS_VARIANT[m.status]}>
                         {STATUS_LABEL[m.status]}
                       </Badge>
+                      {m.matchType === "observation" && (
+                        <Badge variant="secondary">Observação</Badge>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 mt-0.5">
                       <span>{formatDate(m.date)}</span>
@@ -275,11 +286,11 @@ function NewMatchDialog({
   teamId: string;
   onCreated: () => void;
 }) {
+  const [matchType, setMatchType] = useState<"regular" | "observation">("regular");
   const [opponentTeamId, setOpponentTeamId] = useState<string>("");
+  const [opponentTeamBId, setOpponentTeamBId] = useState<string>("");
   const [opponent, setOpponent] = useState("");
-  const [date, setDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [venue, setVenue] = useState<Match["venue"]>("home");
   const [competition, setCompetition] = useState("");
   const [notes, setNotes] = useState("");
@@ -291,13 +302,40 @@ function NewMatchDialog({
   });
   const opponentOptions = opponentsQuery.data ?? [];
 
-  function pickOpponentTeam(id: string) {
+  function pickOpponentTeamA(id: string) {
     setOpponentTeamId(id);
-    if (id) {
+    if (matchType === "observation") {
+      const a = opponentOptions.find((o) => o.id === id);
+      const b = opponentOptions.find((o) => o.id === opponentTeamBId);
+      if (a && b) setOpponent(`${a.name} vs ${b.name}`);
+      else if (a) setOpponent(a.name);
+    } else if (id) {
       const hit = opponentOptions.find((o) => o.id === id);
       if (hit) setOpponent(hit.name);
     }
   }
+
+  function pickOpponentTeamB(id: string) {
+    setOpponentTeamBId(id);
+    const a = opponentOptions.find((o) => o.id === opponentTeamId);
+    const b = opponentOptions.find((o) => o.id === id);
+    if (a && b) setOpponent(`${a.name} vs ${b.name}`);
+    else if (b) setOpponent(b.name);
+  }
+
+  function switchType(t: "regular" | "observation") {
+    setMatchType(t);
+    setOpponentTeamId("");
+    setOpponentTeamBId("");
+    setOpponent("");
+    if (t === "observation") setVenue("neutral");
+    else setVenue("home");
+  }
+
+  const isObservation = matchType === "observation";
+  const canSubmit = isObservation
+    ? !!opponentTeamId && !!opponentTeamBId && opponentTeamId !== opponentTeamBId
+    : !!opponent;
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -305,8 +343,10 @@ function NewMatchDialog({
         teamId,
         opponent,
         opponentTeamId: opponentTeamId || null,
+        opponentTeamBId: isObservation ? (opponentTeamBId || null) : null,
+        matchType,
         date: new Date(date).toISOString(),
-        venue,
+        venue: isObservation ? "neutral" : venue,
         competition: competition || null,
         notes: notes || null,
         videoUrl: videoUrl.trim() || null,
@@ -326,53 +366,130 @@ function NewMatchDialog({
       <DialogHeader>
         <DialogTitle>Novo jogo</DialogTitle>
         <DialogDescription>
-          Agenda um jogo. Podes entrar no Live Scout depois.
+          {isObservation
+            ? "Regista um jogo de observação entre dois adversários."
+            : "Agenda um jogo. Podes entrar no Live Scout depois."}
         </DialogDescription>
       </DialogHeader>
       <form
         className="space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
-          createMutation.mutate();
+          if (canSubmit) createMutation.mutate();
         }}
       >
-        {opponentOptions.length > 0 && (
-          <div className="space-y-1.5">
-            <Label htmlFor="opp-team">Equipa adversária (catálogo)</Label>
-            <Select
-              id="opp-team"
-              value={opponentTeamId}
-              onChange={(e) => pickOpponentTeam(e.target.value)}
+        {/* Match type toggle */}
+        <div className="inline-flex rounded-lg border overflow-hidden w-full">
+          {(["regular", "observation"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => switchType(t)}
+              className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
+                matchType === t
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent"
+              }`}
             >
-              <option value="">— usar texto livre abaixo —</option>
-              {opponentOptions.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                  {o.club ? ` · ${o.club}` : ""}
-                </option>
-              ))}
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Escolher daqui associa o jogo à ficha do adversário (plantel,
-              equipa técnica, histórico).
-            </p>
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <Label htmlFor="opponent">Adversário</Label>
-          <Input
-            id="opponent"
-            value={opponent}
-            onChange={(e) => {
-              setOpponent(e.target.value);
-              // Editar manualmente quebra a associação ao catálogo.
-              if (opponentTeamId) setOpponentTeamId("");
-            }}
-            required
-            placeholder="Porto VC"
-          />
+              {t === "regular" ? "Jogo nosso" : "Observação"}
+            </button>
+          ))}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+
+        {isObservation ? (
+          /* Observation: pick two opponent teams from catalog */
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Selecciona os dois adversários que vais observar. O scout ficará
+              associado a ambas as equipas.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="opp-team-a">Equipa A</Label>
+              <Select
+                id="opp-team-a"
+                value={opponentTeamId}
+                onChange={(e) => pickOpponentTeamA(e.target.value)}
+                required
+              >
+                <option value="">— escolher —</option>
+                {opponentOptions
+                  .filter((o) => o.id !== opponentTeamBId)
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                      {o.club ? ` · ${o.club}` : ""}
+                    </option>
+                  ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="opp-team-b">Equipa B</Label>
+              <Select
+                id="opp-team-b"
+                value={opponentTeamBId}
+                onChange={(e) => pickOpponentTeamB(e.target.value)}
+                required
+              >
+                <option value="">— escolher —</option>
+                {opponentOptions
+                  .filter((o) => o.id !== opponentTeamId)
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                      {o.club ? ` · ${o.club}` : ""}
+                    </option>
+                  ))}
+              </Select>
+            </div>
+            {opponentOptions.length < 2 && (
+              <p className="text-xs text-amber-600">
+                Precisas de pelo menos 2 adversários no catálogo. Vai a{" "}
+                <strong>Adversários</strong> e adiciona-os primeiro.
+              </p>
+            )}
+          </div>
+        ) : (
+          /* Regular: existing opponent + free text */
+          <>
+            {opponentOptions.length > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="opp-team">Equipa adversária (catálogo)</Label>
+                <Select
+                  id="opp-team"
+                  value={opponentTeamId}
+                  onChange={(e) => pickOpponentTeamA(e.target.value)}
+                >
+                  <option value="">— usar texto livre abaixo —</option>
+                  {opponentOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                      {o.club ? ` · ${o.club}` : ""}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Escolher daqui associa o jogo à ficha do adversário (plantel,
+                  equipa técnica, histórico).
+                </p>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="opponent">Adversário</Label>
+              <Input
+                id="opponent"
+                value={opponent}
+                onChange={(e) => {
+                  setOpponent(e.target.value);
+                  if (opponentTeamId) setOpponentTeamId("");
+                }}
+                required
+                placeholder="Porto VC"
+              />
+            </div>
+          </>
+        )}
+
+        <div className={`grid gap-3 ${isObservation ? "grid-cols-1" : "grid-cols-2"}`}>
           <div className="space-y-1.5">
             <Label htmlFor="date">Data</Label>
             <Input
@@ -383,19 +500,22 @@ function NewMatchDialog({
               required
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="venue">Local</Label>
-            <Select
-              id="venue"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value as Match["venue"])}
-            >
-              <option value="home">Casa</option>
-              <option value="away">Fora</option>
-              <option value="neutral">Neutro</option>
-            </Select>
-          </div>
+          {!isObservation && (
+            <div className="space-y-1.5">
+              <Label htmlFor="venue">Local</Label>
+              <Select
+                id="venue"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value as Match["venue"])}
+              >
+                <option value="home">Casa</option>
+                <option value="away">Fora</option>
+                <option value="neutral">Neutro</option>
+              </Select>
+            </div>
+          )}
         </div>
+
         <div className="space-y-1.5">
           <Label htmlFor="competition">Competição (opcional)</Label>
           <Input
@@ -424,8 +544,8 @@ function NewMatchDialog({
           />
         </div>
         <DialogFooter>
-          <Button type="submit" disabled={createMutation.isPending}>
-            Criar jogo
+          <Button type="submit" disabled={createMutation.isPending || !canSubmit}>
+            {isObservation ? "Criar jogo de observação" : "Criar jogo"}
           </Button>
         </DialogFooter>
       </form>

@@ -163,6 +163,15 @@ export const matches = pgTable(
       .default("scheduled"),
     notes: text("notes"),
     videoUrl: text("video_url"),
+    // "regular" = jogo da nossa equipa; "observation" = jogo entre dois adversários.
+    matchType: text("match_type", { enum: ["regular", "observation"] })
+      .notNull()
+      .default("regular"),
+    // Apenas preenchido em jogos de observação: a segunda equipa adversária.
+    opponentTeamBId: text("opponent_team_b_id").references(
+      () => opponentTeams.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({
@@ -257,7 +266,13 @@ export const actions = pgTable(
     zoneToY: real("zone_to_y"),
     rallyId: text("rally_id"),
     rotation: integer("rotation"),
-    // Contexto opcional (jogador adversário em ataque, setter visível, etc.)
+    // "home" = acção da nossa equipa; "away" = acção do adversário.
+    side: text("side", { enum: ["home", "away"] }).notNull().default("home"),
+    // Preenchido quando side = "away": referência ao jogador adversário.
+    opponentPlayerId: text("opponent_player_id").references(
+      () => opponentPlayers.id,
+    ),
+    // Legado: dorsal inteiro sem referência a opponentPlayers.
     opponentPlayer: integer("opponent_player"),
     videoTimeSec: integer("video_time_sec"),
     timestamp: timestamp("timestamp").notNull().defaultNow(),
