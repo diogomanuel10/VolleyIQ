@@ -53,6 +53,11 @@ import {
 import { WelcomeBanner } from "@/components/scout/WelcomeBanner";
 import { LastActionPill } from "@/components/scout/LastActionPill";
 import { StepProgress } from "@/components/scout/StepProgress";
+import { SuggestionsPanel } from "@/components/scout/SuggestionsPanel";
+import {
+  buildSuggestions,
+  type ScoutingHistory,
+} from "@/lib/suggestions";
 import {
   getEffectiveLineup,
   getActiveLiberoId,
@@ -416,6 +421,45 @@ function Scout({
     queryFn: () =>
       api.get<Substitution[]>(`/api/matches/${matchId}/substitutions`),
   });
+
+  // Histórico vs este adversário — alimenta as sugestões do painel lateral.
+  // 404 = primeiro jogo contra ele; tratado como "sem histórico".
+  const opponent = matchQuery.data?.opponent;
+  const historyQuery = useQuery<ScoutingHistory | null>({
+    queryKey: ["scouting", teamId, opponent],
+    queryFn: async () => {
+      try {
+        return await api.get<ScoutingHistory>(
+          `/api/scouting/${encodeURIComponent(opponent!)}?teamId=${teamId}`,
+        );
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(opponent),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const suggestions = useMemo(
+    () =>
+      buildSuggestions({
+        log: state.log,
+        rotation: state.rotation,
+        servingTeam: state.servingTeam,
+        setNumber: state.setNumber,
+        players: activePlayers,
+        history: historyQuery.data ?? null,
+      }),
+    [
+      state.log,
+      state.rotation,
+      state.servingTeam,
+      state.setNumber,
+      activePlayers,
+      historyQuery.data,
+    ],
+  );
+
   const [lineupOpen, setLineupOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
 
@@ -893,8 +937,13 @@ function Scout({
           </div>
         </div>
 
-        {/* Log lateral + vídeo (opcional) */}
+        {/* Sugestões + Log lateral + vídeo (opcional) */}
         <aside className="space-y-3 min-w-0">
+          <SuggestionsPanel
+            suggestions={suggestions}
+            hasLog={state.log.length > 0}
+            hasHistory={Boolean(historyQuery.data)}
+          />
           {match.videoUrl && (
             <div className="rounded-xl border bg-card p-3 md:p-4 space-y-2">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
