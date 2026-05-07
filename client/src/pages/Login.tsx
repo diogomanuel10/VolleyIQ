@@ -111,7 +111,7 @@ export default function Login() {
             onClick={async () => {
               try {
                 await loginGoogle();
-                window.location.reload();
+                // Com signInWithRedirect o browser já navega — nunca chega aqui.
               } catch (err: any) {
                 const msg = authErrorMessage(err);
                 if (msg) toast.error(msg);
