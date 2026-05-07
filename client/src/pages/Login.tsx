@@ -25,6 +25,8 @@ function authErrorMessage(err: any): string {
       return "Demasiadas tentativas. Aguarda uns minutos e tenta de novo.";
     case "auth/network-request-failed":
       return "Sem ligação à internet. Verifica a rede e tenta de novo.";
+    case "auth/unauthorized-domain":
+      return "Domínio não autorizado no Firebase. Adiciona este domínio em Firebase Console → Authentication → Settings → Authorized domains.";
     case "auth/popup-closed-by-user":
       return "Janela do Google fechada antes de confirmar.";
     case "auth/cancelled-popup-request":
