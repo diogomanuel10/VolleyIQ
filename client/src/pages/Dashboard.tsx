@@ -25,7 +25,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { TeamRadar } from "@/components/charts/TeamRadar";
 import { RotationSideOut } from "@/components/charts/RotationSideOut";
+import { SetupGuide } from "@/components/SetupGuide";
 import { cn, formatPct } from "@/lib/utils";
+import type { Player, Match } from "@shared/schema";
 
 // Shape exacto do que `/api/stats/team/:teamId/dashboard` devolve.
 interface DashboardStats {
@@ -128,6 +130,18 @@ export default function Dashboard() {
     enabled: !!team,
   });
 
+  const playersQuery = useQuery({
+    queryKey: ["players", team?.id],
+    queryFn: () => api.get<Player[]>(`/api/players?teamId=${team!.id}`),
+    enabled: !!team,
+  });
+
+  const matchesQuery = useQuery({
+    queryKey: ["matches", team?.id],
+    queryFn: () => api.get<Match[]>(`/api/matches?teamId=${team!.id}`),
+    enabled: !!team,
+  });
+
   if (!team) return null;
 
   const real = statsQuery.data;
@@ -193,44 +207,23 @@ export default function Dashboard() {
         )}
       </header>
 
-      {(isEmpty || !real) && (
-        <EmptyState
-          icon={BarChart3}
-          title="Os teus dados aparecem aqui"
-          description={
-            <>
-              Ainda não há acções registadas para <strong>{team.name}</strong>.
-              Os gráficos abaixo são <strong>exemplo</strong> — substitui-os
-              fazendo o scouting de um jogo, ou marcando um para começar.
-            </>
-          }
-          actions={
-            <>
-              <Button asChild>
-                <Link href="/scout">
-                  <Radio className="h-4 w-4" /> Iniciar Live Scout
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/matches">
-                  <CalendarPlus className="h-4 w-4" /> Marcar jogo
-                </Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link href="/players">
-                  <Users className="h-4 w-4" /> Roster
-                </Link>
-              </Button>
-            </>
-          }
-          footer={
-            <>
-              💡 Já fazes scouting com DataVolley? Importa o ficheiro{" "}
-              <code className="font-mono">.dvw</code> em <em>Jogos</em>.
-            </>
-          }
-        />
-      )}
+      {(isEmpty || !real) && (() => {
+        const players = playersQuery.data ?? [];
+        const matches = matchesQuery.data ?? [];
+        const firstScoutable = matches.find(
+          (m) => m.status === "live" || m.status === "scheduled",
+        );
+        return (
+          <SetupGuide
+            teamId={team.id}
+            teamName={team.name}
+            playersCount={players.length}
+            matchId={firstScoutable?.id ?? null}
+            matchesCount={matches.length}
+            existingPlayerNumbers={players.map((p) => p.number)}
+          />
+        );
+      })()}
 
       {statsQuery.isLoading ? (
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
