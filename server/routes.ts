@@ -73,6 +73,53 @@ async function requireTeamAccess(req: any, res: any, next: any) {
   next();
 }
 
+// Middleware: verifica que o matchId pertence a uma equipa do utilizador.
+// Popula req.match e req.teamId.
+async function requireMatchAccess(req: any, res: any, next: any) {
+  const matchId = req.params.matchId as string | undefined;
+  if (!matchId) return res.status(400).json({ error: "matchId required" });
+  const match = await storage.getMatchById(matchId);
+  if (!match) return res.status(404).json({ error: "match not found" });
+  const ok = await storage.userBelongsToTeam(req.user.uid, match.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  req.match = match;
+  req.teamId = match.teamId;
+  next();
+}
+
+// Middleware: verifica que uma acção individual pertence ao utilizador.
+async function requireActionAccess(req: any, res: any, next: any) {
+  const action = await storage.getActionById(req.params.id);
+  if (!action) return res.status(404).json({ error: "action not found" });
+  const match = await storage.getMatchById(action.matchId);
+  if (!match) return res.status(404).json({ error: "match not found" });
+  const ok = await storage.userBelongsToTeam(req.user.uid, match.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  next();
+}
+
+// Middleware: verifica que um item de checklist pertence ao utilizador.
+async function requireChecklistAccess(req: any, res: any, next: any) {
+  const item = await storage.getChecklistItemById(req.params.id);
+  if (!item) return res.status(404).json({ error: "checklist item not found" });
+  const match = await storage.getMatchById(item.matchId);
+  if (!match) return res.status(404).json({ error: "match not found" });
+  const ok = await storage.userBelongsToTeam(req.user.uid, match.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  next();
+}
+
+// Middleware: verifica que uma substituição pertence ao utilizador.
+async function requireSubstitutionAccess(req: any, res: any, next: any) {
+  const sub = await storage.getSubstitutionById(req.params.id);
+  if (!sub) return res.status(404).json({ error: "substitution not found" });
+  const match = await storage.getMatchById(sub.matchId);
+  if (!match) return res.status(404).json({ error: "match not found" });
+  const ok = await storage.userBelongsToTeam(req.user.uid, match.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  next();
+}
+
 // ── Players ──────────────────────────────────────────────────────────────
 router.get("/players", requireTeamAccess, async (req: any, res) => {
   res.json(await storage.listPlayers(req.teamId));
@@ -221,21 +268,26 @@ router.delete(
 );
 
 // ── Actions (Live Scout) ─────────────────────────────────────────────────
-router.get("/matches/:matchId/actions", async (req, res) => {
+router.get("/matches/:matchId/actions", requireMatchAccess, async (req, res) => {
   res.json(await storage.listActions(req.params.matchId));
 });
 
-router.post("/actions", async (req, res) => {
+router.post("/actions", async (req: any, res) => {
   const parsed = insertActionSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+  // Verifica acesso ao jogo sem confiar em teamId vindo do cliente.
+  const match = await storage.getMatchById(parsed.data.matchId);
+  if (!match) return res.status(404).json({ error: "match not found" });
+  const ok = await storage.userBelongsToTeam(req.user!.uid, match.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
   const action = await storage.createAction(parsed.data);
   res.status(201).json(action);
 });
 
-router.delete("/actions/:id", async (req, res) => {
+router.delete("/actions/:id", requireActionAccess, async (req, res) => {
   await storage.deleteAction(req.params.id);
   res.status(204).end();
 });
@@ -267,12 +319,12 @@ router.post("/actions/bulk", async (req, res) => {
 });
 
 // ── Checklist ────────────────────────────────────────────────────────────
-router.get("/matches/:matchId/checklist", async (req, res) => {
+router.get("/matches/:matchId/checklist", requireMatchAccess, async (req, res) => {
   res.json(await storage.listChecklist(req.params.matchId));
 });
 
 const toggleSchema = z.object({ done: z.boolean() });
-router.patch("/checklist/:id", async (req, res) => {
+router.patch("/checklist/:id", requireChecklistAccess, async (req, res) => {
   const parsed = toggleSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
   await storage.toggleChecklistItem(req.params.id, parsed.data.done);
@@ -577,11 +629,11 @@ router.get(
 );
 
 // ── Lineups ──────────────────────────────────────────────────────────────
-router.get("/matches/:matchId/lineups", async (req, res) => {
+router.get("/matches/:matchId/lineups", requireMatchAccess, async (req, res) => {
   res.json(await storage.listLineupsForMatch(req.params.matchId));
 });
 
-router.post("/matches/:matchId/lineups", async (req, res) => {
+router.post("/matches/:matchId/lineups", requireMatchAccess, async (req, res) => {
   const parsed = insertLineupSchema.safeParse({
     ...req.body,
     matchId: req.params.matchId,
@@ -595,11 +647,11 @@ router.post("/matches/:matchId/lineups", async (req, res) => {
 });
 
 // ── Substitutions ────────────────────────────────────────────────────────
-router.get("/matches/:matchId/substitutions", async (req, res) => {
+router.get("/matches/:matchId/substitutions", requireMatchAccess, async (req, res) => {
   res.json(await storage.listSubstitutionsForMatch(req.params.matchId));
 });
 
-router.post("/matches/:matchId/substitutions", async (req, res) => {
+router.post("/matches/:matchId/substitutions", requireMatchAccess, async (req, res) => {
   const parsed = insertSubstitutionSchema.safeParse({
     ...req.body,
     matchId: req.params.matchId,
@@ -612,7 +664,7 @@ router.post("/matches/:matchId/substitutions", async (req, res) => {
   res.status(201).json(row);
 });
 
-router.delete("/substitutions/:id", async (req, res) => {
+router.delete("/substitutions/:id", requireSubstitutionAccess, async (req, res) => {
   await storage.deleteSubstitution(req.params.id);
   res.status(204).end();
 });

@@ -224,6 +224,30 @@ export async function listActions(matchId: string) {
     .orderBy(actions.timestamp);
 }
 
+/** Devolve um jogo pelo id sem restrição de equipa — usado pelos middlewares de acesso. */
+export async function getMatchById(id: string) {
+  const [row] = await db.select().from(matches).where(eq(matches.id, id));
+  return row ?? null;
+}
+
+/** Devolve uma acção pelo id — usado pelo middleware de delete. */
+export async function getActionById(id: string) {
+  const [row] = await db.select().from(actions).where(eq(actions.id, id));
+  return row ?? null;
+}
+
+/** Devolve um item de checklist pelo id — usado pelo middleware de toggle. */
+export async function getChecklistItemById(id: string) {
+  const [row] = await db.select().from(checklistItems).where(eq(checklistItems.id, id));
+  return row ?? null;
+}
+
+/** Devolve uma substituição pelo id — usado pelo middleware de delete. */
+export async function getSubstitutionById(id: string) {
+  const [row] = await db.select().from(substitutions).where(eq(substitutions.id, id));
+  return row ?? null;
+}
+
 export async function createAction(data: InsertAction) {
   const id = newId();
   await db.insert(actions).values({ ...data, id });

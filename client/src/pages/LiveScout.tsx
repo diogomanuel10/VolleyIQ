@@ -592,6 +592,30 @@ function Scout({
     );
   }
 
+  if (activePlayers.length === 0) {
+    return (
+      <div className="p-4 md:p-8 max-w-xl mx-auto space-y-4">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" /> Voltar
+        </Button>
+        <Card>
+          <CardContent className="p-10 text-center space-y-4">
+            <Users className="h-10 w-10 mx-auto text-muted-foreground/50" />
+            <div>
+              <p className="font-semibold">Sem jogadoras no plantel</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Adiciona jogadoras à equipa antes de abrir o Live Scout.
+              </p>
+            </div>
+            <Button asChild>
+              <Link href="/players">Ir para o Plantel</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const step = state.step;
 
   const progressSteps =
@@ -775,6 +799,20 @@ function Scout({
               disabled={updateMatch.isPending}
             >
               <Radio className="h-4 w-4" /> Iniciar
+            </Button>
+          )}
+          {match.status === "live" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+              onClick={() => {
+                if (confirm("Marcar jogo como terminado?"))
+                  updateMatch.mutate({ status: "finished" });
+              }}
+              disabled={updateMatch.isPending}
+            >
+              Terminar jogo
             </Button>
           )}
         </div>
