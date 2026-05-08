@@ -52,7 +52,7 @@ export function Sidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "hidden md:flex shrink-0 flex-col border-r bg-card transition-[width] duration-200 z-30",
+        "hidden lg:flex shrink-0 flex-col border-r bg-card transition-[width] duration-200 z-30",
         expanded ? "w-60" : "w-16",
       )}
     >

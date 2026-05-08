@@ -44,7 +44,7 @@ export function MobileNav() {
   return (
     <>
       {/* Bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t bg-card/95 backdrop-blur">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 border-t bg-card/95 backdrop-blur">
         <ul className="grid grid-cols-6">
           {primaryItems.map((it) => {
             const active =
@@ -82,7 +82,7 @@ export function MobileNav() {
       {/* Drawer overlay */}
       {drawerOpen && (
         <div
-          className="md:hidden fixed inset-0 z-30"
+          className="lg:hidden fixed inset-0 z-30"
           onClick={() => setDrawerOpen(false)}
         >
           {/* Backdrop */}

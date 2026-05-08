@@ -8,8 +8,8 @@ export function TopBar() {
   const { user } = useAuth();
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 md:px-6">
-      <div className="md:hidden font-semibold">VolleyIQ</div>
-      <div className="hidden md:block text-sm text-muted-foreground">
+      <div className="lg:hidden font-semibold">VolleyIQ</div>
+      <div className="hidden lg:block text-sm text-muted-foreground">
         Bem-vinda de volta — vamos ler o jogo.
       </div>
       <div className="flex items-center gap-3">

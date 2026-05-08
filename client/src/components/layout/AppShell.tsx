@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="print-hide">
           <TopBar />
         </div>
-        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0 print-area">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 print-area">
           {children}
         </main>
         <div className="print-hide">
