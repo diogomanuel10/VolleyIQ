@@ -1,6 +1,14 @@
 import type { LoggedAction, Side } from "@/hooks/useScoutState";
 import type { Player } from "@shared/schema";
 
+export interface PlayerAggregate {
+  playerId: string;
+  matchesPlayed: number;
+  attacks:    { total: number; kills: number; errors: number };
+  serves:     { total: number; aces: number; errors: number };
+  receptions: { total: number; perfect: number; good: number; poor: number; error: number };
+}
+
 /**
  * Sugestões em tempo real para o painel lateral do LiveScout.
  *
@@ -15,12 +23,13 @@ import type { Player } from "@shared/schema";
  */
 
 export type SuggestionCategory =
-  | "scorer"      // jogador em alta forma
-  | "cold"        // jogador em má forma / risco de substituição
-  | "reception"   // adversário a focar recepção num jogador nosso
-  | "setter"      // distribuição enviesada do nosso passador
-  | "rotation"    // rotação forte/fraca historicamente
-  | "tendency";   // tendência geral de zona/ataque
+  | "scorer"        // jogador em alta forma
+  | "cold"          // jogador em má forma / risco de substituição
+  | "reception"     // adversário a focar recepção num jogador nosso
+  | "setter"        // distribuição enviesada do nosso passador
+  | "rotation"      // rotação forte/fraca historicamente
+  | "tendency"      // tendência geral de zona/ataque
+  | "substitution"; // substituição recomendada (serviço/recepção/ataque)
 
 export type SuggestionPriority = "high" | "medium" | "low";
 export type SuggestionSource = "live" | "history";
@@ -49,6 +58,9 @@ interface BuildArgs {
   setNumber: number;
   players: Player[];
   history: ScoutingHistory | null;
+  onCourt: Player[];
+  bench: Player[];
+  playerAggregates: PlayerAggregate[];
 }
 
 const PLAYER_NAME_FALLBACK = "—";
@@ -171,8 +183,6 @@ function liveSetterBias(
   log: LoggedAction[],
   byId: Map<string, Player>,
 ): Suggestion | null {
-  // Próxima acção depois de cada `set` é tipicamente o ataque para esse passe.
-  // Aproximação: contar ataques por jogador como receptor de distribuição.
   const attacks = log.filter((a) => a.type === "attack" && a.playerId);
   if (attacks.length < 6) return null;
   const counts = new Map<string, number>();
@@ -259,12 +269,202 @@ function historyAttackTendency(
   };
 }
 
+// ── Substituições recomendadas ────────────────────────────────────────────
+
+/** Posições que jogam em recepção (pode receber uma DS ou OH). */
+const RECEPTION_POSITIONS = new Set(["OH", "DS", "L"]);
+/** Posições de ataque compatíveis entre si. */
+const ATTACK_GROUPS: Record<string, string[]> = {
+  OH: ["OH", "DS"],
+  OPP: ["OPP", "OH"],
+  MB: ["MB"],
+  S: ["S"],
+  DS: ["DS", "OH"],
+  L: ["L"],
+};
+
+function recPct(r: PlayerAggregate["receptions"]): number {
+  if (!r.total) return 0;
+  // Rating 0–3 normalizado: perfect=3, good=2, poor=1, error=0
+  return ((r.perfect * 3 + r.good * 2 + r.poor) / (r.total * 3)) * 100;
+}
+
+function aceRate(s: PlayerAggregate["serves"]): number {
+  return s.total ? (s.aces / s.total) * 100 : 0;
+}
+
+function serveErrRate(s: PlayerAggregate["serves"]): number {
+  return s.total ? (s.errors / s.total) * 100 : 0;
+}
+
+function killPct(a: PlayerAggregate["attacks"]): number {
+  return a.total ? (a.kills / a.total) * 100 : 0;
+}
+
+/**
+ * Para cada jogadora em campo com recepção fraca neste set (< 50%),
+ * procura no banco a melhor receptora compatível (OH/DS/mesma posição)
+ * com histórico ≥ 65%. Emite no máximo 1 sugestão.
+ */
+function subForReception(
+  log: LoggedAction[],
+  setNumber: number,
+  onCourt: Player[],
+  bench: Player[],
+  aggs: Map<string, PlayerAggregate>,
+  byId: Map<string, Player>,
+): Suggestion | null {
+  const setLog = log.filter((a) => a.setNumber === setNumber);
+
+  for (const player of onCourt) {
+    if (player.position === "L") continue;
+    const recs = setLog.filter((a) => a.type === "reception" && a.playerId === player.id);
+    if (recs.length < 5) continue;
+    const pts = recs.reduce((acc, a) => {
+      if (a.result === "perfect") return acc + 3;
+      if (a.result === "good") return acc + 2;
+      if (a.result === "poor") return acc + 1;
+      return acc;
+    }, 0);
+    const pct = (pts / (recs.length * 3)) * 100;
+    if (pct >= 50) continue;
+
+    const candidates = bench
+      .filter((b) => {
+        const pos = b.position ?? "";
+        const onPos = player.position ?? "";
+        return RECEPTION_POSITIONS.has(pos) || pos === onPos;
+      })
+      .map((b) => ({ player: b, agg: aggs.get(b.id) }))
+      .filter((c) => c.agg && c.agg.matchesPlayed >= 2 && c.agg.receptions.total >= 5)
+      .map((c) => ({ player: c.player, pct: recPct(c.agg!.receptions) }))
+      .sort((a, b) => b.pct - a.pct);
+
+    const best = candidates[0];
+    if (!best || best.pct < 65) continue;
+
+    const p = byId.get(player.id);
+    return {
+      id: `sub-rec-${player.id}`,
+      category: "substitution",
+      priority: "high",
+      title: `Substituição — recepção de ${playerLabel(p)}`,
+      detail: `${Math.round(pct)}% neste set (${recs.length} recepções). ${playerLabel(best.player)} (${best.player.position}) tem ${Math.round(best.pct)}% histórico.`,
+      evidence: `Set ${setNumber} · ${recs.length} recepções`,
+      source: "live",
+    };
+  }
+  return null;
+}
+
+/**
+ * Para cada jogadora em campo com serviço fraco neste set (0 aces OU
+ * > 35% erros com ≥ 5 serviços), procura no banco a melhor servidora
+ * independentemente de posição. Emite no máximo 1 sugestão.
+ */
+function subForServe(
+  log: LoggedAction[],
+  setNumber: number,
+  onCourt: Player[],
+  bench: Player[],
+  aggs: Map<string, PlayerAggregate>,
+  byId: Map<string, Player>,
+): Suggestion | null {
+  const setLog = log.filter((a) => a.setNumber === setNumber);
+
+  for (const player of onCourt) {
+    if (player.position === "L") continue;
+    const serves = setLog.filter((a) => a.type === "serve" && a.playerId === player.id);
+    if (serves.length < 5) continue;
+    const aces = serves.filter((a) => a.result === "ace").length;
+    const errs = serves.filter((a) => a.result === "error").length;
+    const errRate = (errs / serves.length) * 100;
+    const isWeak = aces === 0 || errRate > 35;
+    if (!isWeak) continue;
+
+    const candidates = bench
+      .map((b) => ({ player: b, agg: aggs.get(b.id) }))
+      .filter((c) => c.agg && c.agg.matchesPlayed >= 2 && c.agg.serves.total >= 5)
+      .map((c) => ({ player: c.player, ace: aceRate(c.agg!.serves), err: serveErrRate(c.agg!.serves) }))
+      .filter((c) => c.ace > 5 || c.err < errRate - 10)
+      .sort((a, b) => b.ace - a.ace);
+
+    const best = candidates[0];
+    if (!best) continue;
+
+    const p = byId.get(player.id);
+    const detail = aces === 0
+      ? `Sem aces em ${serves.length} serviços. ${playerLabel(best.player)} (${best.player.position}) tem ${Math.round(best.ace)}% aces histórico.`
+      : `${Math.round(errRate)}% erros em ${serves.length} serviços. ${playerLabel(best.player)} (${best.player.position}) é mais segura.`;
+    return {
+      id: `sub-serve-${player.id}`,
+      category: "substitution",
+      priority: "medium",
+      title: `Substituição de serviço — ${playerLabel(p)}`,
+      detail,
+      evidence: `Set ${setNumber} · ${serves.length} serviços`,
+      source: "live",
+    };
+  }
+  return null;
+}
+
+/**
+ * Para cada atacante em campo com kill% < 20% neste set (≥ 5 ataques),
+ * procura no banco a melhor atacante compatível com histórico ≥ 25%.
+ * Emite no máximo 1 sugestão.
+ */
+function subForAttack(
+  log: LoggedAction[],
+  setNumber: number,
+  onCourt: Player[],
+  bench: Player[],
+  aggs: Map<string, PlayerAggregate>,
+  byId: Map<string, Player>,
+): Suggestion | null {
+  const setLog = log.filter((a) => a.setNumber === setNumber);
+
+  for (const player of onCourt) {
+    if (player.position === "L" || player.position === "S" || player.position === "DS") continue;
+    const attacks = setLog.filter((a) => a.type === "attack" && a.playerId === player.id);
+    if (attacks.length < 5) continue;
+    const kills = attacks.filter((a) => a.result === "kill").length;
+    const kp = (kills / attacks.length) * 100;
+    if (kp >= 20) continue;
+
+    const compatPositions = ATTACK_GROUPS[player.position ?? "OH"] ?? ["OH"];
+    const candidates = bench
+      .filter((b) => compatPositions.includes(b.position ?? ""))
+      .map((b) => ({ player: b, agg: aggs.get(b.id) }))
+      .filter((c) => c.agg && c.agg.matchesPlayed >= 2 && c.agg.attacks.total >= 5)
+      .map((c) => ({ player: c.player, kp: killPct(c.agg!.attacks) }))
+      .filter((c) => c.kp >= 25)
+      .sort((a, b) => b.kp - a.kp);
+
+    const best = candidates[0];
+    if (!best) continue;
+
+    const p = byId.get(player.id);
+    return {
+      id: `sub-attack-${player.id}`,
+      category: "substitution",
+      priority: "medium",
+      title: `Substituição — ataque de ${playerLabel(p)}`,
+      detail: `${Math.round(kp)}% kill neste set (${attacks.length} ataques). ${playerLabel(best.player)} (${best.player.position}) tem ${Math.round(best.kp)}% histórico.`,
+      evidence: `Set ${setNumber} · ${attacks.length} ataques`,
+      source: "live",
+    };
+  }
+  return null;
+}
+
 /**
  * Constrói a lista de sugestões para o estado actual. Ordena por prioridade
- * (high → medium → low), com no máximo 4 entradas para não saturar o painel.
+ * (high → medium → low), com no máximo 5 entradas para acomodar substituições.
  */
 export function buildSuggestions(args: BuildArgs): Suggestion[] {
   const byId = new Map(args.players.map((p) => [p.id, p]));
+  const aggById = new Map(args.playerAggregates.map((a) => [a.playerId, a]));
   const out: Suggestion[] = [];
 
   const live = [
@@ -283,11 +483,21 @@ export function buildSuggestions(args: BuildArgs): Suggestion[] {
     out.push(...hist);
   }
 
+  // Sugestões de substituição — só emite se houver banco e histórico suficiente
+  if (args.bench.length > 0 && args.playerAggregates.length > 0) {
+    const subs = [
+      subForReception(args.log, args.setNumber, args.onCourt, args.bench, aggById, byId),
+      subForServe(args.log, args.setNumber, args.onCourt, args.bench, aggById, byId),
+      subForAttack(args.log, args.setNumber, args.onCourt, args.bench, aggById, byId),
+    ].filter((x): x is Suggestion => x !== null);
+    out.push(...subs);
+  }
+
   const order: Record<SuggestionPriority, number> = {
     high: 0,
     medium: 1,
     low: 2,
   };
   out.sort((a, b) => order[a.priority] - order[b.priority]);
-  return out.slice(0, 4);
+  return out.slice(0, 5);
 }
