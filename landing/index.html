@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="VolleyIQ — A plataforma de scouting e análise de voleibol para treinadores sérios. Live scouting, AI, relatórios e muito mais." />
+  <meta property="og:title" content="VolleyIQ — Análise de Voleibol com IA" />
+  <meta property="og:description" content="Faz scouting em tempo real, deteta padrões com IA e toma decisões com dados." />
+  <meta property="og:type" content="website" />
+  <title>VolleyIQ — Análise de Voleibol com IA</title>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --sky:   #0ea5e9;
+      --sky-d: #0284c7;
+      --dark:  #0f172a;
+      --slate: #1e293b;
+      --slate2:#334155;
+      --muted: #64748b;
+      --dim:   #94a3b8;
+      --light: #f1f5f9;
+      --white: #ffffff;
+      --radius: 12px;
+      font-family: 'Inter var', Inter, system-ui, sans-serif;
+      font-feature-settings: 'cv01','cv02','cv03','cv04';
+    }
+
+    html { scroll-behavior: smooth; }
+    body { background: var(--dark); color: var(--white); line-height: 1.6; overflow-x: hidden; }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    /* ── Layout helpers ───────────────────────────────────────────────── */
+    .container { max-width: 1200px; margin-inline: auto; padding-inline: 1.5rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+    /* ── Buttons ──────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .65rem 1.4rem; border-radius: 8px; font-weight: 600;
+      font-size: .9rem; cursor: pointer; border: none; transition: all .18s;
+      text-decoration: none; white-space: nowrap;
+    }
+    .btn-primary { background: var(--sky); color: var(--white); }
+    .btn-primary:hover { background: var(--sky-d); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(14,165,233,.35); }
+    .btn-outline { background: transparent; color: var(--white); border: 1.5px solid rgba(255,255,255,.25); }
+    .btn-outline:hover { border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.06); }
+    .btn-lg { padding: .85rem 1.8rem; font-size: 1rem; border-radius: 10px; }
+
+    /* ── Badges ───────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .25rem .75rem; border-radius: 999px; font-size: .78rem;
+      font-weight: 600; letter-spacing: .01em;
+    }
+    .badge-sky { background: rgba(14,165,233,.18); color: var(--sky); border: 1px solid rgba(14,165,233,.3); }
+    .badge-green { background: rgba(34,197,94,.15); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+
+    /* ── Navigation ───────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15,23,42,.85); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 3.75rem;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.1rem;
+    }
+    .nav-logo svg { flex-shrink: 0; }
+    .nav-links { display: flex; align-items: center; gap: .25rem; }
+    .nav-link {
+      padding: .4rem .75rem; border-radius: 6px; font-size: .88rem;
+      color: var(--dim); transition: color .15s, background .15s;
+    }
+    .nav-link:hover { color: var(--white); background: rgba(255,255,255,.07); }
+    .nav-cta { display: flex; align-items: center; gap: .5rem; }
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+    }
+
+    /* ── Hero ─────────────────────────────────────────────────────────── */
+    .hero {
+      padding-block: 6rem 5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(14,165,233,.22) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow { margin-bottom: 1.25rem; }
+    .hero h1 {
+      font-size: clamp(2.25rem, 5vw, 3.75rem);
+      font-weight: 800; line-height: 1.12; letter-spacing: -.03em;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 span { color: var(--sky); }
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.2rem); color: var(--dim);
+      max-width: 580px; margin-inline: auto; margin-bottom: 2.25rem;
+    }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .hero-note { margin-top: 1rem; font-size: .8rem; color: var(--muted); }
+
+    /* ── App mockup ───────────────────────────────────────────────────── */
+    .mockup-wrap {
+      margin-top: 4.5rem;
+      position: relative;
+    }
+    .mockup-wrap::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 50%;
+      background: linear-gradient(to top, var(--dark), transparent);
+      z-index: 1; pointer-events: none;
+    }
+    .mockup-browser {
+      background: var(--slate);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05);
+      max-width: 900px; margin-inline: auto;
+    }
+    .mockup-bar {
+      background: var(--slate2);
+      padding: .65rem 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .mockup-dot-r { background: #f87171; }
+    .mockup-dot-y { background: #facc15; }
+    .mockup-dot-g { background: #4ade80; }
+    .mockup-url {
+      flex: 1; background: rgba(0,0,0,.3); border-radius: 5px;
+      padding: .25rem .75rem; font-size: .78rem; color: var(--dim);
+    }
+    .mockup-screen {
+      aspect-ratio: 16/9;
+      background: var(--dark);
+      display: grid; grid-template-columns: 220px 1fr;
+      overflow: hidden; position: relative;
+    }
+
+    /* Mock sidebar */
+    .mock-sidebar {
+      background: var(--slate); border-right: 1px solid rgba(255,255,255,.07);
+      padding: 1rem .75rem; display: flex; flex-direction: column; gap: .25rem;
+    }
+    .mock-logo { display: flex; align-items: center; gap: .5rem; font-weight: 700; font-size: .9rem; padding: .5rem .75rem; margin-bottom: .5rem; }
+    .mock-nav-item {
+      display: flex; align-items: center; gap: .6rem; padding: .5rem .75rem;
+      border-radius: 7px; font-size: .8rem; color: var(--dim);
+    }
+    .mock-nav-item.active { background: rgba(14,165,233,.15); color: var(--sky); }
+    .mock-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .6; }
+
+    /* Mock main content */
+    .mock-main { padding: 1.5rem; overflow: hidden; }
+    .mock-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .mock-title { font-size: 1.1rem; font-weight: 700; }
+    .mock-tag { background: rgba(14,165,233,.2); color: var(--sky); font-size: .7rem; padding: .2rem .5rem; border-radius: 5px; font-weight: 600; }
+    .mock-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 1rem; }
+    .mock-card {
+      background: var(--slate2); border-radius: 9px; padding: .75rem;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .mock-card-label { font-size: .65rem; color: var(--dim); margin-bottom: .2rem; }
+    .mock-card-value { font-size: 1.2rem; font-weight: 700; }
+    .mock-card-value.sky { color: var(--sky); }
+    .mock-card-value.green { color: #4ade80; }
+    .mock-chart { background: var(--slate2); border-radius: 9px; height: 80px; padding: .75rem; border: 1px solid rgba(255,255,255,.06); }
+    .mock-chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 100%; }
+    .mock-bar { flex: 1; border-radius: 3px 3px 0 0; }
+    @media (max-width: 600px) {
+      .mockup-screen { grid-template-columns: 1fr; }
+      .mock-sidebar { display: none; }
+    }
+
+    /* ── Stats banner ─────────────────────────────────────────────────── */
+    .stats-row {
+      padding-block: 3rem;
+      border-block: 1px solid rgba(255,255,255,.07);
+      background: rgba(255,255,255,.02);
+    }
+    .stats-inner {
+      display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;
+    }
+    .stat { text-align: center; }
+    .stat-value { font-size: 2rem; font-weight: 800; color: var(--sky); }
+    .stat-label { font-size: .82rem; color: var(--dim); margin-top: .15rem; }
+
+    /* ── Sections ─────────────────────────────────────────────────────── */
+    section { padding-block: 5rem; }
+    .section-head { text-align: center; margin-bottom: 3.5rem; }
+    .section-head h2 { font-size: clamp(1.75rem, 3.5vw, 2.5rem); font-weight: 800; letter-spacing: -.03em; margin-top: .75rem; }
+    .section-head p { color: var(--dim); max-width: 520px; margin-inline: auto; margin-top: .75rem; font-size: .95rem; }
+
+    /* ── Features ─────────────────────────────────────────────────────── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
+    .feature-card {
+      background: var(--slate); border: 1px solid rgba(255,255,255,.07); border-radius: var(--radius);
+      padding: 1.75rem; transition: border-color .2s, transform .2s;
+    }
+    .feature-card:hover { border-color: rgba(14,165,233,.35); transform: translateY(-3px); }
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: rgba(14,165,233,.15); display: grid; place-items: center; margin-bottom: 1rem;
+    }
+    .feature-icon svg { width: 22px; height: 22px; stroke: var(--sky); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .feature-card p { font-size: .88rem; color: var(--dim); line-height: 1.6; }
+
+    /* ── Scout demo strip ─────────────────────────────────────────────── */
+    .scout-strip {
+      background: var(--slate);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: grid; grid-template-columns: 1fr 1fr;
+      min-height: 380px;
+    }
+    .scout-left { padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+    .scout-left h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 800; letter-spacing: -.03em; margin-block: .75rem 1rem; }
+    .scout-left p { color: var(--dim); font-size: .92rem; line-height: 1.7; margin-bottom: 1.5rem; }
+    .scout-checks { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 2rem; }
+    .scout-check { display: flex; align-items: flex-start; gap: .6rem; font-size: .88rem; }
+    .check-icon { width: 18px; height: 18px; border-radius: 50%; background: rgba(14,165,233,.2); display: grid; place-items: center; flex-shrink: 0; margin-top: .1rem; }
+    .check-icon svg { width: 10px; stroke: var(--sky); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .scout-right {
+      background: var(--dark); padding: 2rem;
+      display: flex; flex-direction: column; gap: 1rem; justify-content: center;
+    }
+    .court-visual {
+      background: #0d2137; border: 1px solid rgba(14,165,233,.2); border-radius: 10px;
+      aspect-ratio: 4/3; display: grid; place-items: center; position: relative; overflow: hidden;
+    }
+    .court-net { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(14,165,233,.4); }
+    .court-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+    .court-cell { border: 1px solid rgba(14,165,233,.08); }
+    .court-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; }
+    .score-row {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--slate); border-radius: 8px; padding: .75rem 1rem;
+    }
+    .score-team { font-size: .78rem; color: var(--dim); }
+    .score-val { font-size: 1.5rem; font-weight: 800; }
+    .score-sep { color: var(--muted); font-size: 1rem; }
+    .action-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .action-pill {
+      flex: 1; min-width: 0; padding: .4rem .5rem; border-radius: 7px; font-size: .75rem;
+      font-weight: 600; text-align: center; background: var(--slate2); color: var(--dim);
+      border: 1px solid rgba(255,255,255,.07);
+    }
+    .action-pill.active { background: rgba(14,165,233,.2); color: var(--sky); border-color: rgba(14,165,233,.3); }
+    @media (max-width: 700px) {
+      .scout-strip { grid-template-columns: 1fr; }
+      .scout-right { display: none; }
+    }
+
+    /* ── AI section ───────────────────────────────────────────────────── */
+    .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+    .ai-left h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -.03em; margin-block: .75rem 1rem; }
+    .ai-left p { color: var(--dim); font-size: .92rem; line-height: 1.7; margin-bottom: 1.5rem; }
+    .ai-card-stack { display: flex; flex-direction: column; gap: .75rem; }
+    .ai-card {
+      background: var(--slate); border: 1px solid rgba(255,255,255,.07); border-radius: 10px;
+      padding: 1rem 1.25rem; display: flex; align-items: flex-start; gap: .9rem;
+    }
+    .ai-card-icon { width: 36px; height: 36px; border-radius: 8px; background: rgba(14,165,233,.15); display: grid; place-items: center; flex-shrink: 0; }
+    .ai-card-icon svg { width: 18px; stroke: var(--sky); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .ai-card h4 { font-size: .88rem; font-weight: 700; margin-bottom: .15rem; }
+    .ai-card p { font-size: .8rem; color: var(--dim); }
+    .confidence-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); margin-top: .5rem; overflow: hidden; }
+    .confidence-fill { height: 100%; border-radius: 2px; background: var(--sky); }
+    @media (max-width: 700px) {
+      .ai-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Pricing ──────────────────────────────────────────────────────── */
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; align-items: start; }
+    .plan-card {
+      background: var(--slate); border: 1px solid rgba(255,255,255,.09); border-radius: var(--radius);
+      padding: 2rem; transition: border-color .2s; position: relative;
+    }
+    .plan-card.featured {
+      border-color: var(--sky); box-shadow: 0 0 0 1px var(--sky), 0 20px 50px rgba(14,165,233,.2);
+      transform: translateY(-4px);
+    }
+    .plan-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--sky); color: var(--white); font-size: .72rem; font-weight: 700;
+      padding: .2rem .75rem; border-radius: 999px; white-space: nowrap;
+    }
+    .plan-name { font-size: .82rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .5rem; }
+    .plan-price { font-size: 2.5rem; font-weight: 800; letter-spacing: -.03em; }
+    .plan-price span { font-size: 1rem; font-weight: 400; color: var(--dim); }
+    .plan-blurb { font-size: .85rem; color: var(--dim); margin-top: .4rem; margin-bottom: 1.5rem; }
+    .plan-features { display: flex; flex-direction: column; gap: .65rem; margin-bottom: 2rem; }
+    .plan-feature { display: flex; align-items: flex-start; gap: .6rem; font-size: .85rem; }
+    .plan-check { width: 16px; height: 16px; border-radius: 50%; background: rgba(14,165,233,.2); display: grid; place-items: center; flex-shrink: 0; margin-top: .1rem; }
+    .plan-check svg { width: 9px; stroke: var(--sky); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .plan-btn {
+      display: block; width: 100%; text-align: center; padding: .7rem 1rem;
+      border-radius: 8px; font-weight: 600; font-size: .9rem; cursor: pointer;
+      transition: all .18s; text-decoration: none;
+    }
+    .plan-btn-primary { background: var(--sky); color: var(--white); }
+    .plan-btn-primary:hover { background: var(--sky-d); }
+    .plan-btn-outline { background: transparent; border: 1.5px solid rgba(255,255,255,.2); color: var(--white); }
+    .plan-btn-outline:hover { border-color: rgba(255,255,255,.4); }
+    .pricing-note { text-align: center; margin-top: 2rem; font-size: .82rem; color: var(--muted); }
+
+    /* ── Testimonials ─────────────────────────────────────────────────── */
+    .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+    .testi-card {
+      background: var(--slate); border: 1px solid rgba(255,255,255,.07); border-radius: var(--radius);
+      padding: 1.75rem;
+    }
+    .testi-stars { display: flex; gap: .2rem; margin-bottom: 1rem; }
+    .testi-star { color: #facc15; font-size: 1rem; }
+    .testi-quote { font-size: .9rem; line-height: 1.7; color: var(--dim); margin-bottom: 1.25rem; font-style: italic; }
+    .testi-author { display: flex; align-items: center; gap: .75rem; }
+    .testi-avatar {
+      width: 36px; height: 36px; border-radius: 50%; background: rgba(14,165,233,.2);
+      display: grid; place-items: center; font-weight: 700; font-size: .85rem; color: var(--sky);
+      flex-shrink: 0;
+    }
+    .testi-name { font-size: .85rem; font-weight: 600; }
+    .testi-role { font-size: .78rem; color: var(--muted); }
+
+    /* ── CTA Section ──────────────────────────────────────────────────── */
+    .cta-section {
+      text-align: center;
+      background: linear-gradient(135deg, rgba(14,165,233,.12) 0%, rgba(14,165,233,.04) 100%);
+      border: 1px solid rgba(14,165,233,.2); border-radius: 20px;
+      padding: 5rem 2rem; margin-block: 2rem;
+    }
+    .cta-section h2 { font-size: clamp(1.75rem, 4vw, 2.75rem); font-weight: 800; letter-spacing: -.03em; margin-block: .75rem 1rem; }
+    .cta-section p { color: var(--dim); max-width: 500px; margin-inline: auto; margin-bottom: 2.5rem; font-size: .95rem; }
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid rgba(255,255,255,.07); padding-block: 2.5rem;
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+    }
+    .footer-logo { display: flex; align-items: center; gap: .5rem; font-weight: 700; font-size: .95rem; }
+    .footer-links { display: flex; gap: 1.5rem; font-size: .83rem; color: var(--muted); }
+    .footer-links a:hover { color: var(--white); }
+    .footer-copy { font-size: .8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="container nav-inner">
+    <a href="#" class="nav-logo" aria-label="VolleyIQ">
+      <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="28" fill="#0ea5e9"/>
+        <text x="32" y="40" text-anchor="middle" font-size="28" font-family="Inter,sans-serif" fill="white" font-weight="700">V</text>
+      </svg>
+      VolleyIQ
+    </a>
+
+    <div class="nav-links" aria-label="Navegação principal">
+      <a href="#features" class="nav-link">Funcionalidades</a>
+      <a href="#scout" class="nav-link">Live Scout</a>
+      <a href="#ai" class="nav-link">IA</a>
+      <a href="#pricing" class="nav-link">Preços</a>
+    </div>
+
+    <div class="nav-cta">
+      <a href="/app" class="btn btn-outline">Entrar</a>
+      <a href="/app" class="btn btn-primary">Experimentar grátis</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">
+      <span class="badge badge-sky">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        Análise inteligente de voleibol
+      </span>
+    </div>
+
+    <h1>
+      Decisões baseadas<br/>
+      em <span>dados reais</span>
+    </h1>
+
+    <p>
+      Scouting em tempo real, padrões detectados por IA e relatórios automáticos.
+      Tudo o que precisas para treinar com vantagem sobre o adversário.
+    </p>
+
+    <div class="hero-actions">
+      <a href="/app" class="btn btn-primary btn-lg">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+        </svg>
+        Começar grátis
+      </a>
+      <a href="#scout" class="btn btn-outline btn-lg">Ver como funciona</a>
+    </div>
+
+    <p class="hero-note">Sem cartão de crédito · Plano Basic grátis para sempre</p>
+
+    <!-- App mockup -->
+    <div class="mockup-wrap">
+      <div class="mockup-browser" role="img" aria-label="Captura de ecrã do dashboard do VolleyIQ">
+        <div class="mockup-bar">
+          <div class="mockup-dot mockup-dot-r"></div>
+          <div class="mockup-dot mockup-dot-y"></div>
+          <div class="mockup-dot mockup-dot-g"></div>
+          <div class="mockup-url">app.volleyiq.pt/dashboard</div>
+        </div>
+        <div class="mockup-screen">
+          <!-- Sidebar simulada -->
+          <div class="mock-sidebar">
+            <div class="mock-logo">
+              <svg width="18" height="18" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="#0ea5e9"/><text x="32" y="40" text-anchor="middle" font-size="28" font-family="Inter" fill="white" font-weight="700">V</text></svg>
+              VolleyIQ
+            </div>
+            <div class="mock-nav-item active"><div class="mock-dot"></div>Dashboard</div>
+            <div class="mock-nav-item"><div class="mock-dot"></div>Live Scout</div>
+            <div class="mock-nav-item"><div class="mock-dot"></div>Jogos</div>
+            <div class="mock-nav-item"><div class="mock-dot"></div>Atletas</div>
+            <div class="mock-nav-item"><div class="mock-dot"></div>Adversários</div>
+            <div class="mock-nav-item"><div class="mock-dot"></div>Relatórios</div>
+          </div>
+          <!-- Conteúdo simulado -->
+          <div class="mock-main">
+            <div class="mock-header">
+              <div class="mock-title">Dashboard</div>
+              <div class="mock-tag">● AO VIVO</div>
+            </div>
+            <div class="mock-grid">
+              <div class="mock-card">
+                <div class="mock-card-label">Kill %</div>
+                <div class="mock-card-value sky">42%</div>
+              </div>
+              <div class="mock-card">
+                <div class="mock-card-label">Side-out %</div>
+                <div class="mock-card-value green">61%</div>
+              </div>
+              <div class="mock-card">
+                <div class="mock-card-label">Pass rating</div>
+                <div class="mock-card-value">2.4</div>
+              </div>
+            </div>
+            <div class="mock-chart">
+              <div class="mock-chart-bars">
+                <div class="mock-bar" style="height:45%;background:rgba(14,165,233,.4)"></div>
+                <div class="mock-bar" style="height:60%;background:rgba(14,165,233,.5)"></div>
+                <div class="mock-bar" style="height:52%;background:rgba(14,165,233,.4)"></div>
+                <div class="mock-bar" style="height:75%;background:rgba(14,165,233,.7)"></div>
+                <div class="mock-bar" style="height:68%;background:rgba(14,165,233,.6)"></div>
+                <div class="mock-bar" style="height:80%;background:rgba(14,165,233,.85)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats ────────────────────────────────────────────────────────────────── -->
+<div class="stats-row">
+  <div class="container stats-inner">
+    <div class="stat">
+      <div class="stat-value">10 000+</div>
+      <div class="stat-label">Acções analisadas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">98%</div>
+      <div class="stat-label">Treinadores satisfeitos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">&lt; 1s</div>
+      <div class="stat-label">Registo de acção</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">4</div>
+      <div class="stat-label">Idiomas suportados</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Features ─────────────────────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <div class="section-head">
+      <span class="badge badge-sky">Funcionalidades</span>
+      <h2>Tudo o que precisas numa só plataforma</h2>
+      <p>Do scouting ao relatório final, o VolleyIQ cobre todo o ciclo competitivo da tua equipa.</p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        </div>
+        <h3>Live Scout</h3>
+        <p>Regista acções em tempo real com ou sem teclado. Fluxo inteligente que sugere a próxima acção automaticamente.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <h3>Analytics em Profundidade</h3>
+        <p>Kill%, side-out%, eficiência de ataque, rotações fortes e fracas — tudo calculado automaticamente jogo a jogo.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+        </div>
+        <h3>Scouting de Adversários</h3>
+        <p>Catálogo completo de equipas e atletas adversários. Regista hábitos e padrões para preparar cada jogo.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+        </div>
+        <h3>Match Day</h3>
+        <p>Checklist de pré-jogo, lineup wizard com validação FIVB, registro de substituições e comunicação com a bancada.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Gestão de Plantel</h3>
+        <p>Perfis detalhados de cada atleta, histórico de performance e planos de treino personalizados gerados por IA.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <h3>Second Screen</h3>
+        <p>Projeta o scouting em tempo real num segundo ecrã para a bancada ou equipa técnica. Sincronização instantânea.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Scout demo ────────────────────────────────────────────────────────────── -->
+<section id="scout" style="padding-block: 1rem 5rem;">
+  <div class="container">
+    <div class="scout-strip">
+      <div class="scout-left">
+        <span class="badge badge-sky">Live Scout</span>
+        <h2>Regista tudo. Perde zero.</h2>
+        <p>
+          Interface desenhada para a velocidade do voleibol. Seleciona a jogadora, o tipo de acção e o resultado em menos de 1 segundo — com suporte a teclado e atalhos configuráveis.
+        </p>
+        <div class="scout-checks">
+          <div class="scout-check">
+            <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            Scouting da nossa equipa e do adversário em simultâneo
+          </div>
+          <div class="scout-check">
+            <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            Modo completo com zonas de origem e destino no campo
+          </div>
+          <div class="scout-check">
+            <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            Importação de ficheiros DataVolley (.dvw) e CSV
+          </div>
+          <div class="scout-check">
+            <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            Sugestões automáticas baseadas no contexto do rally
+          </div>
+        </div>
+        <a href="/app" class="btn btn-primary">Experimentar agora →</a>
+      </div>
+
+      <div class="scout-right">
+        <!-- Mockup do scout -->
+        <div class="score-row">
+          <div>
+            <div class="score-team">Sporting</div>
+            <div class="score-val">18</div>
+          </div>
+          <div class="score-sep">·</div>
+          <div style="text-align:right">
+            <div class="score-team">Benfica</div>
+            <div class="score-val">21</div>
+          </div>
+        </div>
+
+        <div class="court-visual" aria-label="Campo de voleibol com registo de acções">
+          <div class="court-net"></div>
+          <div class="court-grid">
+            <div class="court-cell"></div><div class="court-cell"></div><div class="court-cell"></div>
+            <div class="court-cell"></div><div class="court-cell"></div><div class="court-cell"></div>
+            <div class="court-cell"></div><div class="court-cell"></div><div class="court-cell"></div>
+          </div>
+          <!-- dots representando acções -->
+          <div class="court-dot" style="width:12px;height:12px;background:#0ea5e9;left:30%;top:25%;box-shadow:0 0 8px #0ea5e9;"></div>
+          <div class="court-dot" style="width:10px;height:10px;background:#4ade80;right:25%;top:65%;box-shadow:0 0 6px #4ade80;"></div>
+          <div class="court-dot" style="width:8px;height:8px;background:#f87171;left:60%;top:40%;"></div>
+          <!-- arrow svg -->
+          <svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible" aria-hidden="true">
+            <defs>
+              <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#0ea5e9" stroke-width="1.5"/>
+              </marker>
+            </defs>
+            <line x1="30%" y1="25%" x2="75%" y2="65%" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)" opacity=".6"/>
+          </svg>
+        </div>
+
+        <div class="action-row">
+          <div class="action-pill">Serviço</div>
+          <div class="action-pill active">Ataque ✓</div>
+          <div class="action-pill">Recepção</div>
+          <div class="action-pill">Bloco</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── AI Section ────────────────────────────────────────────────────────────── -->
+<section id="ai" style="background: rgba(255,255,255,.02); border-block: 1px solid rgba(255,255,255,.05);">
+  <div class="container">
+    <div class="ai-grid">
+      <div class="ai-left">
+        <span class="badge badge-sky">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+          Powered by Claude AI
+        </span>
+        <h2>Inteligência artificial ao serviço do teu jogo</h2>
+        <p>O VolleyIQ usa IA para analisar os teus dados e gerar insights que seriam impossíveis de calcular manualmente. Identifica padrões, prevê pontos fracos e sugere ajustes táticos.</p>
+        <a href="#pricing" class="btn btn-primary">Ver planos com IA →</a>
+      </div>
+
+      <div class="ai-card-stack">
+        <div class="ai-card">
+          <div class="ai-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          </div>
+          <div>
+            <h4>Detecção de Padrões</h4>
+            <p>Analisa jogos anteriores contra o mesmo adversário e identifica tendências de serviço, zonas de ataque preferidas e rotações vulneráveis.</p>
+            <div class="confidence-bar" style="margin-top:.6rem"><div class="confidence-fill" style="width:87%"></div></div>
+            <div style="font-size:.72rem;color:var(--dim);margin-top:.25rem">87% confiança no padrão detectado</div>
+          </div>
+        </div>
+
+        <div class="ai-card">
+          <div class="ai-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div>
+            <h4>Planos de Treino Personalizados</h4>
+            <p>Gera recomendações de treino individuais para cada atleta com base nos seus pontos fracos identificados nos últimos jogos.</p>
+            <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+              <span class="badge badge-green" style="font-size:.7rem">Recepção: alta prioridade</span>
+              <span class="badge badge-sky" style="font-size:.7rem">Serviço: média</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-card">
+          <div class="ai-card-icon">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div>
+            <h4>Sugestões em Tempo Real</h4>
+            <p>Durante o scouting, sugere substituições, identifica jogadoras em forma e alerta para alvos de serviço do adversário.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Testimonials ──────────────────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="section-head">
+      <span class="badge badge-sky">Testemunhos</span>
+      <h2>Usado por treinadores de todo o país</h2>
+    </div>
+
+    <div class="testimonials-grid">
+      <div class="testi-card">
+        <div class="testi-stars" aria-label="5 de 5 estrelas">
+          <span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span>
+        </div>
+        <p class="testi-quote">"O VolleyIQ mudou a forma como preparo os jogos. Em 20 minutos tenho um relatório completo do adversário que antes me levava horas a construir no Excel."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">MR</div>
+          <div>
+            <div class="testi-name">Miguel R.</div>
+            <div class="testi-role">Treinador Principal · Liga Feminina</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card">
+        <div class="testi-stars" aria-label="5 de 5 estrelas">
+          <span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span>
+        </div>
+        <p class="testi-quote">"O live scouting com teclado é fantástico. Consigo registar cada acção sem tirar os olhos do campo. As atletas notaram logo a diferença nos treinos seguintes."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">CS</div>
+          <div>
+            <div class="testi-name">Carla S.</div>
+            <div class="testi-role">Treinadora · Divisão de Honra</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card">
+        <div class="testi-stars" aria-label="5 de 5 estrelas">
+          <span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span>
+        </div>
+        <p class="testi-quote">"Usámos o VolleyIQ para gerir três equipas do clube. O painel de controlo unificado poupa imenso tempo à direcção técnica."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">PL</div>
+          <div>
+            <div class="testi-name">Pedro L.</div>
+            <div class="testi-role">Director Técnico · Clube da 1.ª Divisão</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ────────────────────────────────────────────────────────────────── -->
+<section id="pricing" style="background: rgba(255,255,255,.02); border-top: 1px solid rgba(255,255,255,.05);">
+  <div class="container">
+    <div class="section-head">
+      <span class="badge badge-sky">Preços simples</span>
+      <h2>Escolhe o plano certo para a tua equipa</h2>
+      <p>Começa grátis. Actualiza quando precisares de analytics avançado, IA ou gestão de clube.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Basic -->
+      <div class="plan-card">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price">Grátis</div>
+        <div class="plan-blurb">Para experimentar o produto</div>
+        <ul class="plan-features" aria-label="Funcionalidades do plano Basic">
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>1 equipa</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Live scouting</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Métricas básicas</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Limite de 10 jogos</li>
+        </ul>
+        <a href="/app" class="plan-btn plan-btn-outline">Começar grátis</a>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card featured">
+        <div class="plan-badge">Mais popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">€29 <span>/mês</span></div>
+        <div class="plan-blurb">Para treinadores e clubes pequenos</div>
+        <ul class="plan-features" aria-label="Funcionalidades do plano Pro">
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>5 equipas</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Analytics completo</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI pattern detection</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI training plans</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Relatórios PDF</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Scenario modeling</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Tagging de vídeo</li>
+        </ul>
+        <a href="/app" class="plan-btn plan-btn-primary">Começar com Pro</a>
+      </div>
+
+      <!-- Club -->
+      <div class="plan-card">
+        <div class="plan-name">Club</div>
+        <div class="plan-price">€79 <span>/mês</span></div>
+        <div class="plan-blurb">Para clubes com múltiplas equipas</div>
+        <ul class="plan-features" aria-label="Funcionalidades do plano Club">
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Equipas ilimitadas</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Tudo do Pro</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Gestão de quotas e presenças</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Acesso API</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Suporte prioritário</li>
+        </ul>
+        <a href="/app" class="plan-btn plan-btn-outline">Contactar-nos</a>
+      </div>
+    </div>
+
+    <p class="pricing-note">Todos os planos incluem actualizações automáticas · Cancela a qualquer momento</p>
+  </div>
+</section>
+
+<!-- ── CTA ──────────────────────────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="cta-section">
+      <span class="badge badge-sky">Pronto para começar?</span>
+      <h2>O teu próximo jogo começa aqui</h2>
+      <p>Junta-te a centenas de treinadores que já tomam decisões com dados. Plano Basic sempre grátis.</p>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+        <a href="/app" class="btn btn-primary btn-lg">Criar conta grátis</a>
+        <a href="mailto:hello@volleyiq.pt" class="btn btn-outline btn-lg">Falar connosco</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ──────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-logo">
+      <svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="28" fill="#0ea5e9"/>
+        <text x="32" y="40" text-anchor="middle" font-size="28" font-family="Inter" fill="white" font-weight="700">V</text>
+      </svg>
+      VolleyIQ
+    </div>
+    <nav class="footer-links" aria-label="Links do rodapé">
+      <a href="#features">Funcionalidades</a>
+      <a href="#pricing">Preços</a>
+      <a href="mailto:hello@volleyiq.pt">Contacto</a>
+      <a href="/app">Entrar</a>
+    </nav>
+    <div class="footer-copy">© 2026 VolleyIQ. Feito com ❤️ para o voleibol.</div>
+  </div>
+</footer>
+
+</body>
+</html>
