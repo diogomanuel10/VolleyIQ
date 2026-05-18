@@ -47,6 +47,7 @@ import type {
   TrainingPriority,
   TrainingRecommendation,
 } from "@shared/types";
+import { PlanGate } from "@/components/PlanGate";
 
 const PRIORITY_STYLE: Record<TrainingPriority, string> = {
   high: "bg-red-600 text-white hover:bg-red-600/90",
@@ -599,6 +600,7 @@ export default function PlayerDetail() {
 
             {/* ── Training ─────────────────────────────────────────────── */}
             <TabsContent value="training">
+              <PlanGate feature="aiTrainingPlans" overlay>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <CardTitle className="flex items-center gap-2">
@@ -650,6 +652,7 @@ export default function PlayerDetail() {
                   )}
                 </CardContent>
               </Card>
+              </PlanGate>
             </TabsContent>
           </Tabs>
         </>

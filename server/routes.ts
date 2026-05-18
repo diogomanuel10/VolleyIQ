@@ -24,6 +24,8 @@ import {
   buildTeamPlayerAggregates,
 } from "./stats";
 import type { PatternDetectionInput } from "@shared/types";
+import { PLAN_FEATURES, planMeetsMinimum } from "@shared/planFeatures";
+import type { Plan } from "@shared/types";
 
 export const router = Router();
 
@@ -51,11 +53,22 @@ router.post("/teams", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+  // Verificar limite de equipas para o plano do utilizador.
+  // Usamos o plano da primeira equipa que o utilizador possui como referência.
+  const existingTeams = await storage.listTeamsForUser(req.user!.uid);
+  const ownerTeam = existingTeams.find(t => t.ownerUid === req.user!.uid);
+  const currentPlan = (ownerTeam?.plan ?? "individual") as Plan;
+  const maxTeams = PLAN_FEATURES[currentPlan].maxTeams;
+  const ownedCount = await storage.countTeamsOwnedByUser(req.user!.uid);
+  if (maxTeams !== -1 && ownedCount >= maxTeams) {
+    res.status(403).json({ error: "plan_limit_teams", currentPlan, maxTeams });
+    return;
+  }
   const team = await storage.createTeam(req.user!.uid, parsed.data);
   res.status(201).json(team);
 });
 
-const updatePlanSchema = z.object({ plan: z.enum(["basic", "pro", "club"]) });
+const updatePlanSchema = z.object({ plan: z.enum(["individual", "basic", "pro", "club"]) });
 router.patch("/teams/:id/plan", async (req, res) => {
   const parsed = updatePlanSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
@@ -103,17 +116,37 @@ router.get("/teams/:id/members", async (req, res) => {
 });
 
 // Middleware para garantir que o utilizador pertence à equipa pedida.
+// Popula req.teamId e req.teamPlan.
 async function requireTeamAccess(req: any, res: any, next: any) {
   const teamId = (req.query.teamId ?? req.params.teamId) as string | undefined;
   if (!teamId) return res.status(400).json({ error: "teamId required" });
   const ok = await storage.userBelongsToTeam(req.user.uid, teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
   req.teamId = teamId;
+  if (!req.teamPlan) {
+    const team = await storage.getTeamById(teamId);
+    req.teamPlan = (team?.plan ?? "individual") as Plan;
+  }
   next();
 }
 
+// Middleware factory — garante que a equipa tem pelo menos o plano indicado.
+function requirePlan(minimum: Plan) {
+  return async (req: any, res: any, next: any) => {
+    const plan: Plan = req.teamPlan ?? "individual";
+    if (!planMeetsMinimum(plan, minimum)) {
+      return res.status(403).json({
+        error: "plan_required",
+        requiredPlan: minimum,
+        currentPlan: plan,
+      });
+    }
+    next();
+  };
+}
+
 // Middleware: verifica que o matchId pertence a uma equipa do utilizador.
-// Popula req.match e req.teamId.
+// Popula req.match, req.teamId e req.teamPlan.
 async function requireMatchAccess(req: any, res: any, next: any) {
   const matchId = req.params.matchId as string | undefined;
   if (!matchId) return res.status(400).json({ error: "matchId required" });
@@ -123,6 +156,10 @@ async function requireMatchAccess(req: any, res: any, next: any) {
   if (!ok) return res.status(403).json({ error: "forbidden" });
   req.match = match;
   req.teamId = match.teamId;
+  if (!req.teamPlan) {
+    const team = await storage.getTeamById(match.teamId);
+    req.teamPlan = (team?.plan ?? "individual") as Plan;
+  }
   next();
 }
 
@@ -252,6 +289,17 @@ router.post("/matches", async (req, res) => {
   }
   const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
+  // Verificar limite de jogos por plano.
+  const team = await storage.getTeamById(parsed.data.teamId);
+  const plan = (team?.plan ?? "individual") as Plan;
+  const maxMatches = PLAN_FEATURES[plan].maxMatchesPerTeam;
+  if (maxMatches !== -1) {
+    const matchCount = await storage.countMatchesForTeam(parsed.data.teamId);
+    if (matchCount >= maxMatches) {
+      res.status(403).json({ error: "plan_limit_matches", currentPlan: plan, maxMatches });
+      return;
+    }
+  }
   const match = await storage.createMatch(parsed.data);
   res.status(201).json(match);
 });
@@ -405,6 +453,12 @@ router.post("/ai/patterns", async (req, res) => {
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
   const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
+  // AI patterns — requer plano Pro ou superior
+  const team = await storage.getTeamById(parsed.data.teamId);
+  const plan = (team?.plan ?? "individual") as Plan;
+  if (!planMeetsMinimum(plan, "pro")) {
+    return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: plan });
+  }
   try {
     const patterns = await detectPatterns(parsed.data as PatternDetectionInput);
     res.json({ patterns });
@@ -461,6 +515,7 @@ router.get(
 router.post(
   "/ai/training/:playerId",
   requireTeamAccess,
+  requirePlan("club"),
   async (req: any, res) => {
     const summary = await buildPlayerSummary(req.teamId, req.params.playerId);
     if (!summary) return res.status(404).json({ error: "not found" });
@@ -488,8 +543,8 @@ router.post(
   },
 );
 
-// ── Opponent teams ──────────────────────────────────────────────────────────────────────────
-router.get("/opponents", requireTeamAccess, async (req: any, res) => {
+// ── Opponent teams — requer plano Pro ou superior ──────────────────────────────────────────
+router.get("/opponents", requireTeamAccess, requirePlan("pro"), async (req: any, res) => {
   res.json(await storage.listOpponentTeams(req.teamId));
 });
 
@@ -501,6 +556,11 @@ router.post("/opponents", async (req, res) => {
   }
   const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
+  const team = await storage.getTeamById(parsed.data.teamId);
+  const plan = (team?.plan ?? "individual") as Plan;
+  if (!planMeetsMinimum(plan, "pro")) {
+    return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: plan });
+  }
   const row = await storage.createOpponentTeam(parsed.data);
   res.status(201).json(row);
 });

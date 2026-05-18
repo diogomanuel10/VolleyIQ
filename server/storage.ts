@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "./db";
 import {
@@ -127,9 +127,30 @@ export async function userBelongsToTeam(uid: string, teamId: string) {
   return !!row;
 }
 
+export async function getTeamById(teamId: string) {
+  const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
+  return row ?? null;
+}
+
+export async function countTeamsOwnedByUser(uid: string) {
+  const [row] = await db
+    .select({ n: count() })
+    .from(teams)
+    .where(eq(teams.ownerUid, uid));
+  return row?.n ?? 0;
+}
+
+export async function countMatchesForTeam(teamId: string) {
+  const [row] = await db
+    .select({ n: count() })
+    .from(matches)
+    .where(eq(matches.teamId, teamId));
+  return row?.n ?? 0;
+}
+
 export async function updateTeamPlan(
   teamId: string,
-  plan: "basic" | "pro" | "club",
+  plan: "individual" | "basic" | "pro" | "club",
 ) {
   await db.update(teams).set({ plan }).where(eq(teams.id, teamId));
   const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
