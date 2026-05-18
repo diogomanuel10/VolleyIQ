@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { detectPatterns } from "./ai/patterns";
 import { recommendTraining } from "./ai/training";
+import { teamChat } from "./ai/chat";
 import { mirrorStatus } from "./firestore";
 import {
   buildDashboard,
@@ -557,6 +558,31 @@ router.post("/ai/patterns", async (req, res) => {
     res.json({ patterns });
   } catch (err) {
     console.error("AI patterns error", err);
+    res.status(500).json({ error: "ai_failed" });
+  }
+});
+
+// ── AI Chat ───────────────────────────────────────────────────────────────────────────────────
+router.post("/ai/chat", async (req: any, res) => {
+  const { teamId, question, history = [] } = req.body;
+  if (!teamId || !question) return res.status(400).json({ error: "missing_fields" });
+  const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+
+  const team = await storage.getTeamById(teamId);
+  const plan = (team?.plan ?? "individual") as Plan;
+  if (!planMeetsMinimum(plan, "pro")) {
+    return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: plan });
+  }
+  if (typeof question !== "string" || question.length > 1000) {
+    return res.status(400).json({ error: "question_too_long" });
+  }
+
+  try {
+    const answer = await teamChat(teamId, question, history);
+    res.json({ answer });
+  } catch (err: any) {
+    console.error("chat error", err);
     res.status(500).json({ error: "ai_failed" });
   }
 });

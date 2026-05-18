@@ -28,8 +28,11 @@ import { TeamRadar } from "@/components/charts/TeamRadar";
 import { RotationSideOut } from "@/components/charts/RotationSideOut";
 import { SetupGuide } from "@/components/SetupGuide";
 import { InsightsPanel } from "@/components/InsightsPanel";
+import { DataChat } from "@/components/DataChat";
 import { cn, formatPct } from "@/lib/utils";
 import type { Player, Match } from "@shared/schema";
+import { planMeetsMinimum } from "@shared/planFeatures";
+import type { Plan } from "@shared/types";
 
 // Shape exacto do que `/api/stats/team/:teamId/dashboard` devolve.
 interface DashboardStats {
@@ -489,6 +492,11 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
+
+      <DataChat
+        teamId={team.id}
+        isPro={planMeetsMinimum((team.plan ?? "individual") as Plan, "pro")}
+      />
     </div>
   );
 }
