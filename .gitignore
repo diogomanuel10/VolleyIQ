@@ -18,3 +18,4 @@ coverage
 *.sqlite-wal
 .vscode
 .idea
+.claude/
