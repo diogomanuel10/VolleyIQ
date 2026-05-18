@@ -225,6 +225,18 @@ export async function updateTeamPlan(
   return row;
 }
 
+export async function updateTeam(
+  teamId: string,
+  data: { name?: string; club?: string; category?: string; primaryColor?: string | null },
+) {
+  const [row] = await db
+    .update(teams)
+    .set(data)
+    .where(eq(teams.id, teamId))
+    .returning();
+  return row;
+}
+
 // ── Players ──────────────────────────────────────────────────────────────
 export async function listPlayers(teamId: string) {
   return db.select().from(players).where(eq(players.teamId, teamId));

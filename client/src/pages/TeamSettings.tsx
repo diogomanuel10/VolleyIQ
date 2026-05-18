@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Copy, RefreshCw, Users, Check } from "lucide-react";
+import { Copy, RefreshCw, Users, Check, Palette, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useTeam } from "@/hooks/useTeam";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { Team } from "@shared/schema";
 
 interface Membership {
@@ -33,9 +35,88 @@ export default function TeamSettings() {
         </p>
       </header>
 
+      <TeamInfoCard team={team} />
       <InviteCodeCard team={team} />
       <MembersCard teamId={team.id} />
     </div>
+  );
+}
+
+function TeamInfoCard({ team }: { team: Team }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState(team.name);
+  const [club, setClub] = useState(team.club ?? "");
+  const [category, setCategory] = useState(team.category ?? "");
+  const [color, setColor] = useState(team.primaryColor ?? "#6366f1");
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch<Team>(`/api/teams/${team.id}`, {
+        name: name.trim(),
+        club: club.trim(),
+        category: category.trim(),
+        primaryColor: color,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teams"] });
+      toast.success("Equipa actualizada.");
+    },
+    onError: () => toast.error("Erro ao actualizar a equipa."),
+  });
+
+  const isDirty =
+    name !== team.name ||
+    club !== (team.club ?? "") ||
+    category !== (team.category ?? "") ||
+    color !== (team.primaryColor ?? "#6366f1");
+
+  return (
+    <section className="rounded-xl border bg-card p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <Palette className="h-4 w-4 text-muted-foreground" />
+        <h2 className="font-semibold">Informação da equipa</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="ts-name">Nome da equipa</Label>
+          <Input id="ts-name" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="ts-club">Clube</Label>
+          <Input id="ts-club" value={club} onChange={(e) => setClub(e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="ts-category">Escalão</Label>
+          <Input id="ts-category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: Sub-18 Femininas" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="ts-color">Cor principal</Label>
+          <div className="flex items-center gap-2">
+            <input
+              id="ts-color"
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-9 w-14 rounded-md border cursor-pointer bg-background p-1"
+            />
+            <span className="font-mono text-sm text-muted-foreground">{color}</span>
+            <div
+              className="h-9 w-9 rounded-md border"
+              style={{ backgroundColor: color }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <Button
+        size="sm"
+        disabled={!isDirty || save.isPending || !name.trim()}
+        onClick={() => save.mutate()}
+      >
+        {save.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> A guardar…</> : "Guardar alterações"}
+      </Button>
+    </section>
   );
 }
 

@@ -110,6 +110,22 @@ router.post("/teams", async (req, res) => {
 });
 
 const updatePlanSchema = z.object({ plan: z.enum(["individual", "basic", "pro", "club"]) });
+const updateTeamBodySchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  club: z.string().max(100).optional(),
+  category: z.string().max(100).optional(),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+});
+
+router.patch("/teams/:id", async (req: any, res) => {
+  const parsed = updateTeamBodySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const team = await storage.updateTeam(req.params.id, parsed.data);
+  res.json(team);
+});
+
 router.patch("/teams/:id/plan", async (req, res) => {
   const parsed = updatePlanSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
