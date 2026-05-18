@@ -16,6 +16,7 @@ function makePlayer(id: string, position: Player["position"]): Player {
     dominantHand: null,
     birthDate: null,
     active: true,
+    createdAt: new Date(),
   };
 }
 

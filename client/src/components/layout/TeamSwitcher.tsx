@@ -1,6 +1,6 @@
-import { ChevronDown, Check, Plus, Loader2 } from "lucide-react";
+import { ChevronDown, Check, Plus, Loader2, KeyRound } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
@@ -24,6 +24,7 @@ export function TeamSwitcher({ collapsed = false }: Props) {
   const { teams, team, setTeam, isLoading } = useTeam();
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,6 +96,13 @@ export function TeamSwitcher({ collapsed = false }: Props) {
                 <Plus className="h-4 w-4" />
                 Nova equipa
               </button>
+              <button
+                onClick={() => { setOpen(false); setJoinOpen(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <KeyRound className="h-4 w-4" />
+                Entrar com código
+              </button>
             </div>
           </div>
         )}
@@ -106,6 +114,14 @@ export function TeamSwitcher({ collapsed = false }: Props) {
         onCreated={(newTeam) => {
           setTeam(newTeam.id);
           setCreateOpen(false);
+        }}
+      />
+      <JoinTeamDialog
+        open={joinOpen}
+        onClose={() => setJoinOpen(false)}
+        onJoined={(joinedTeam) => {
+          setTeam(joinedTeam.id);
+          setJoinOpen(false);
         }}
       />
     </>
@@ -197,6 +213,89 @@ function CreateTeamDialog({
               : "Criar equipa →"}
           </Button>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function JoinTeamDialog({
+  open,
+  onClose,
+  onJoined,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onJoined: (team: Team) => void;
+}) {
+  const qc = useQueryClient();
+  const [code, setCode] = useState("");
+  const normalized = code.trim().toUpperCase();
+
+  const preview = useQuery({
+    queryKey: ["team-join-preview", normalized],
+    queryFn: () => api.get<{ name: string; club: string }>(`/api/teams/join/${normalized}`),
+    enabled: normalized.length >= 6,
+    retry: false,
+  });
+
+  const join = useMutation({
+    mutationFn: () => api.post<Team>("/api/teams/join", { code: normalized }),
+    onSuccess: (joinedTeam) => {
+      qc.invalidateQueries({ queryKey: ["teams"] });
+      toast.success(`Entraste em ${joinedTeam.name}!`);
+      setCode("");
+      onJoined(joinedTeam);
+    },
+    onError: (err: any) => {
+      const code = err?.body?.error;
+      if (code === "already_member") toast.error("Já és membro desta equipa.");
+      else if (code === "not_found") toast.error("Código inválido ou expirado.");
+      else toast.error("Não foi possível entrar na equipa.");
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); setCode(""); } }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Entrar com código</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="join-code">Código de convite</Label>
+            <Input
+              id="join-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Ex: ABC123"
+              className="font-mono uppercase tracking-widest"
+              maxLength={12}
+            />
+          </div>
+          {normalized.length >= 6 && (
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              {preview.isLoading ? (
+                <span className="text-muted-foreground">A verificar…</span>
+              ) : preview.data ? (
+                <span>
+                  <span className="font-semibold">{preview.data.name}</span>
+                  {preview.data.club ? ` · ${preview.data.club}` : ""}
+                </span>
+              ) : (
+                <span className="text-destructive">Código inválido</span>
+              )}
+            </div>
+          )}
+          <Button
+            className="w-full"
+            disabled={!preview.data || join.isPending}
+            onClick={() => join.mutate()}
+          >
+            {join.isPending
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> A entrar…</>
+              : "Entrar na equipa →"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -48,6 +48,13 @@ const STATUS_VARIANT: Record<Status, "secondary" | "success" | "warning"> = {
   cancelled: "secondary",
 };
 
+const STATUS_LABEL: Record<Status, string> = {
+  scheduled: "Agendado",
+  live: "A decorrer",
+  finished: "Terminado",
+  cancelled: "Cancelado",
+};
+
 export default function Matches() {
   const { team } = useTeam();
   const { t } = useTranslation();
