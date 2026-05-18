@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { actions, matches, players } from "@shared/schema";
+import { actions, matches, players, sets } from "@shared/schema";
 import type { Action, Match, Player } from "@shared/schema";
 import type {
   PatternDetectionInput,
@@ -539,6 +539,15 @@ export interface PostMatchSummary {
   serveHeatmap: Heatmap;
   receptionHeatmap: Heatmap;
   setters: SetterDistribution[];
+  setStats: Array<{
+    setNumber: number;
+    homeScore: number;
+    awayScore: number;
+    killPct: number;
+    sideOutPct: number;
+    passRating: number;
+    totalActions: number;
+  }>;
 }
 
 export async function buildPostMatch(
@@ -654,6 +663,25 @@ export async function buildPostMatch(
   const receptionHeatmap = buildHeatmap(sortedRows, "reception");
   const setters = buildSetterDistribution(sortedRows, rosterById);
 
+  // Per-set breakdown
+  const matchSets = await db
+    .select()
+    .from(sets)
+    .where(eq(sets.matchId, matchId));
+  matchSets.sort((a, b) => a.number - b.number);
+  const setStats = matchSets.map((s) => {
+    const setRows = rows.filter((a) => a.setId === s.id);
+    return {
+      setNumber: s.number,
+      homeScore: s.homeScore,
+      awayScore: s.awayScore,
+      killPct: round1(killPct(setRows)),
+      sideOutPct: round1(sideOutPct(setRows)),
+      passRating: round2(passRating(setRows)),
+      totalActions: setRows.length,
+    };
+  });
+
   return {
     matchId,
     opponent: match.opponent,
@@ -677,6 +705,7 @@ export async function buildPostMatch(
     serveHeatmap,
     receptionHeatmap,
     setters,
+    setStats,
   };
 }
 

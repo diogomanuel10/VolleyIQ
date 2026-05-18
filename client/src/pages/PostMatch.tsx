@@ -112,6 +112,15 @@ interface PostMatchSummary {
   serveHeatmap: { zones: HeatmapZone[]; total: number; maxCount: number };
   receptionHeatmap: { zones: HeatmapZone[]; total: number; maxCount: number };
   setters: SetterRow[];
+  setStats: Array<{
+    setNumber: number;
+    homeScore: number;
+    awayScore: number;
+    killPct: number;
+    sideOutPct: number;
+    passRating: number;
+    totalActions: number;
+  }>;
 }
 
 const ACTION_SHORT: Record<string, string> = {
@@ -512,6 +521,55 @@ function Summary({
           </motion.div>
         ))}
       </section>
+
+      {/* Per-set breakdown */}
+      {s.setStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" /> Por set
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="text-left py-2 pr-4">Set</th>
+                    <th className="text-center py-2 px-2">Resultado</th>
+                    <th className="text-right py-2 px-2">Kill %</th>
+                    <th className="text-right py-2 px-2">Side-Out %</th>
+                    <th className="text-right py-2 px-2">Pass</th>
+                    <th className="text-right py-2 pl-2">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {s.setStats.map((st) => {
+                    const won = st.homeScore > st.awayScore;
+                    return (
+                      <tr key={st.setNumber} className="border-b last:border-0">
+                        <td className="py-2 pr-4 font-semibold">Set {st.setNumber}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={cn(
+                            "font-mono font-bold",
+                            won ? "text-green-600 dark:text-green-400" : "text-red-500",
+                          )}>
+                            {st.homeScore}–{st.awayScore}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums">{st.killPct}%</td>
+                        <td className="py-2 px-2 text-right tabular-nums">{st.sideOutPct}%</td>
+                        <td className="py-2 px-2 text-right tabular-nums">{st.passRating.toFixed(2)}</td>
+                        <td className="py-2 pl-2 text-right tabular-nums text-muted-foreground">{st.totalActions}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Highlights */}
       {s.highlights.length > 0 && (
