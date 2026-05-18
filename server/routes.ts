@@ -36,7 +36,7 @@ const SUPPORTED_LANGUAGES = ["pt-PT", "en", "es", "fr"] as const;
 router.use(requireAuth);
 
 router.get("/config", (_req, res) => {
-  res.json({ mirror: mirrorStatus() });
+  res.json({ mirror: mirrorStatus(), paymentsEnabled: easypay.isConfigured() });
 });
 
 // ── Teams ──────────────────────────────────────────────────────────────────────────
