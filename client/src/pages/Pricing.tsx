@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Check, Loader2, Sparkles, Zap, CreditCard, Smartphone, Building2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, Loader2, Sparkles, Zap, CreditCard, Smartphone, Building2, Mail } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,6 +101,13 @@ export default function Pricing() {
   const qc = useQueryClient();
   const [annual, setAnnual] = useState(false);
   const [checkout, setCheckout] = useState<CheckoutState | null>(null);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
+
+  const configQuery = useQuery({
+    queryKey: ["config"],
+    queryFn: () => api.get<{ paymentsEnabled: boolean }>("/api/config"),
+  });
+  const paymentsEnabled = configQuery.data?.paymentsEnabled ?? false;
   const [payMethod, setPayMethod] = useState<PayMethod>("multibanco");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -247,7 +254,10 @@ export default function Pricing() {
                   className="mt-6 w-full gap-2"
                   variant={"popular" in p && p.popular ? "default" : "outline"}
                   disabled={!team || isCurrent}
-                  onClick={() => setCheckout({ plan: p.id, period: annual ? "annual" : "monthly" })}
+                  onClick={() => {
+                    if (!paymentsEnabled) { setComingSoonOpen(true); return; }
+                    setCheckout({ plan: p.id, period: annual ? "annual" : "monthly" });
+                  }}
                 >
                   <Zap className="h-4 w-4" />
                   {isCurrent
@@ -263,7 +273,9 @@ export default function Pricing() {
       </section>
 
       <p className="text-center text-xs text-muted-foreground">
-        Pagamento via MB WAY, Referência Multibanco ou Cartão. Powered by EasyPay.
+        {paymentsEnabled
+          ? "Pagamento via MB WAY, Referência Multibanco ou Cartão. Powered by EasyPay."
+          : "Pagamentos em breve — contacta-nos para subscrever antecipadamente."}
       </p>
 
       {/* Checkout dialog */}
@@ -353,6 +365,34 @@ export default function Pricing() {
               )}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Coming soon dialog — shown when EasyPay is not yet configured */}
+      <Dialog open={comingSoonOpen} onOpenChange={setComingSoonOpen}>
+        <DialogContent className="max-w-sm text-center space-y-4">
+          <DialogHeader>
+            <DialogTitle>Pagamentos em breve</DialogTitle>
+            <DialogDescription>
+              O sistema de pagamentos ainda não está disponível. Contacta-nos directamente para
+              activar o teu plano.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border p-4 space-y-3 text-sm">
+            <a
+              href="mailto:hello@volleyiq.pt"
+              className="flex items-center justify-center gap-2 text-primary hover:underline"
+            >
+              <Mail className="h-4 w-4" />
+              hello@volleyiq.pt
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Responderemos em menos de 24 horas e activamos o teu plano manualmente.
+          </p>
+          <Button variant="outline" className="w-full" onClick={() => setComingSoonOpen(false)}>
+            Fechar
+          </Button>
         </DialogContent>
       </Dialog>
 
