@@ -600,9 +600,11 @@ router.post("/ai/chat", async (req: any, res) => {
   if (!ok) return res.status(403).json({ error: "forbidden" });
 
   const team = await storage.getTeamById(teamId);
-  const plan = (team?.plan ?? "individual") as Plan;
-  if (!planMeetsMinimum(plan, "pro")) {
-    return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: plan });
+  const basePlan = (team?.plan ?? "individual") as Plan;
+  const onTrial = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
+  const effectivePlan: Plan = onTrial ? "club" : basePlan;
+  if (!planMeetsMinimum(effectivePlan, "pro")) {
+    return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: basePlan });
   }
   if (typeof question !== "string" || question.length > 1000) {
     return res.status(400).json({ error: "question_too_long" });

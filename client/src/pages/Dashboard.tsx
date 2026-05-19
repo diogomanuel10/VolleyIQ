@@ -21,6 +21,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
+import { usePlanGuard } from "@/hooks/usePlanGuard";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,6 +131,7 @@ const MOCK: DashboardStats = {
 export default function Dashboard() {
   const { team } = useTeam();
   const { t } = useTranslation();
+  const guard = usePlanGuard();
   const [exporting, setExporting] = useState(false);
 
   const statsQuery = useQuery({
@@ -530,7 +532,7 @@ export default function Dashboard() {
 
       <DataChat
         teamId={team.id}
-        isPro={planMeetsMinimum((team.plan ?? "individual") as Plan, "pro")}
+        isPro={guard.meetsMinimum("pro")}
       />
     </div>
   );
