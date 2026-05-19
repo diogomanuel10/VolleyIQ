@@ -30,6 +30,7 @@ import type { PatternDetectionInput } from "@shared/types";
 import { PLAN_FEATURES, planMeetsMinimum } from "@shared/planFeatures";
 import type { Plan } from "@shared/types";
 import * as easypay from "./easypay";
+import { fireMatchFinishedWebhooks, testWebhook } from "./webhooks";
 
 export const router = Router();
 
@@ -427,6 +428,9 @@ router.patch(
       parsed.data,
     );
     if (!match) return res.status(404).json({ error: "not found" });
+    if (match.status === "finished") {
+      fireMatchFinishedWebhooks(match.teamId, match.id).catch(console.error);
+    }
     res.json(match);
   },
 );
@@ -1070,4 +1074,58 @@ router.delete("/teams/:id/api-keys/:keyId", async (req: any, res) => {
   if (!ok) return res.status(403).json({ error: "forbidden" });
   await storage.revokeApiKey(req.params.keyId, req.params.id);
   res.status(204).send();
+});
+
+// ── Webhooks ──────────────────────────────────────────────────────────────
+router.get("/teams/:id/webhooks", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const hooks = await storage.listWebhooks(req.params.id);
+  res.json(hooks);
+});
+
+const webhookBodySchema = z.object({
+  name: z.string().min(1).max(80),
+  url: z.string().url().max(512),
+  secret: z.string().max(256).optional(),
+});
+
+router.post("/teams/:id/webhooks", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const team = await storage.getTeamById(req.params.id);
+  if (!planMeetsMinimum((team?.plan ?? "individual") as Plan, "pro")) {
+    return res.status(403).json({ error: "plan_required", requiredPlan: "pro" });
+  }
+  const parsed = webhookBodySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const existing = await storage.listWebhooks(req.params.id);
+  if (existing.length >= 10) return res.status(409).json({ error: "max_webhooks_reached" });
+  const hook = await storage.createWebhook(req.params.id, parsed.data);
+  res.status(201).json(hook);
+});
+
+router.delete("/teams/:id/webhooks/:hookId", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  await storage.deleteWebhook(req.params.hookId, req.params.id);
+  res.status(204).send();
+});
+
+router.patch("/teams/:id/webhooks/:hookId/toggle", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+  const hook = await storage.toggleWebhook(req.params.hookId, req.params.id, enabled);
+  res.json(hook);
+});
+
+router.post("/teams/:id/webhooks/:hookId/test", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const hooks = await storage.listWebhooks(req.params.id);
+  const hook = hooks.find((h) => h.id === req.params.hookId);
+  if (!hook) return res.status(404).json({ error: "not_found" });
+  const result = await testWebhook(hook, req.params.id);
+  res.json(result);
 });

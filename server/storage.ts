@@ -17,6 +17,7 @@ import {
   substitutions,
   userPreferences,
   apiKeys,
+  webhooks,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
@@ -861,4 +862,31 @@ export async function getTeamByApiKey(
   // fire-and-forget lastUsedAt update
   db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id)).catch(() => {});
   return row.teamId;
+}
+
+// ── Webhooks ──────────────────────────────────────────────────────────────
+
+export async function listWebhooks(teamId: string) {
+  return db.select().from(webhooks).where(eq(webhooks.teamId, teamId)).orderBy(desc(webhooks.createdAt));
+}
+
+export async function createWebhook(teamId: string, data: { name: string; url: string; secret?: string }) {
+  const [row] = await db
+    .insert(webhooks)
+    .values({ id: nanoid(), teamId, name: data.name, url: data.url, secret: data.secret ?? null })
+    .returning();
+  return row;
+}
+
+export async function deleteWebhook(id: string, teamId: string) {
+  await db.delete(webhooks).where(and(eq(webhooks.id, id), eq(webhooks.teamId, teamId)));
+}
+
+export async function toggleWebhook(id: string, teamId: string, enabled: boolean) {
+  const [row] = await db
+    .update(webhooks)
+    .set({ enabled })
+    .where(and(eq(webhooks.id, id), eq(webhooks.teamId, teamId)))
+    .returning();
+  return row;
 }

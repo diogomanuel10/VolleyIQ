@@ -431,6 +431,22 @@ export const apiKeys = pgTable("api_keys", {
 
 export type ApiKey = typeof apiKeys.$inferSelect;
 
+// ── Webhooks ──────────────────────────────────────────────────────────────
+export const webhooks = pgTable("webhooks", {
+  id: text("id").primaryKey(),
+  teamId: text("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  secret: text("secret"),           // optional HMAC signing secret
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastFiredAt: timestamp("last_fired_at"),
+  lastStatus: integer("last_status"),   // HTTP status of last delivery
+  lastError: text("last_error"),
+});
+
+export type Webhook = typeof webhooks.$inferSelect;
+
 // ── User preferences (language, etc.) ────────────────────────────────────
 export const userPreferences = pgTable("user_preferences", {
   uid: text("uid").primaryKey(),

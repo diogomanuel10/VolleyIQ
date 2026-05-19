@@ -13,6 +13,7 @@ import {
   Settings,
   Building2,
   KeyRound,
+  Webhook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -49,7 +50,10 @@ export function Sidebar() {
       ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const }]
       : []),
     ...(guard.meetsMinimum("pro")
-      ? [{ href: "/settings/api-keys", icon: KeyRound, key: "apiKeys" as const }]
+      ? [
+          { href: "/settings/api-keys", icon: KeyRound, key: "apiKeys" as const },
+          { href: "/settings/webhooks", icon: Webhook, key: "webhooks" as const },
+        ]
       : []),
   ];
 
@@ -107,6 +111,8 @@ export function Sidebar() {
               ? "Club Dashboard"
               : it.key === "apiKeys"
               ? "Chaves de API"
+              : it.key === "webhooks"
+              ? "Webhooks"
               : t(`nav.${it.key}`);
           const active =
             it.href === "/"
