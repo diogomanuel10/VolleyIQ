@@ -7,8 +7,11 @@ export function usePlanGuard() {
   const { team, isSubscribed, isTrialExpired } = useTeam();
   const onTrial = !isSubscribed && !isTrialExpired && Boolean(team);
   // Durante o trial o utilizador tem acesso total (equivalente a Club).
-  const plan: Plan = onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
-  const features = PLAN_FEATURES[plan];
+  const rawPlan = team?.plan ?? "individual";
+  const plan: Plan = onTrial
+    ? "club"
+    : (rawPlan in PLAN_FEATURES ? (rawPlan as Plan) : "individual");
+  const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES["individual"];
 
   function can(feature: keyof PlanLimits): boolean {
     const val = features[feature];
