@@ -1680,6 +1680,3 @@ export async function buildPlayerEvolution(
   };
 }
 
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
