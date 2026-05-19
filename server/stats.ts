@@ -1516,3 +1516,170 @@ export async function buildInsights(teamId: string): Promise<Insight[]> {
   insights.sort((a, b) => order.indexOf(a.level) - order.indexOf(b.level));
   return insights.slice(0, 6);
 }
+
+// ── Player Evolution ──────────────────────────────────────────────────────────
+
+export interface PlayerMatchEvolution {
+  matchId: string;
+  label: string;       // short label, e.g. "Benfica" or "J12"
+  date: string;        // ISO date string
+  result: "win" | "loss" | "draw" | null;
+  attackTotal: number;
+  kills: number;
+  attackErrors: number;
+  killPct: number | null;
+  attackEff: number | null;
+  serveTotal: number;
+  aces: number;
+  serveErrors: number;
+  serveAcePct: number | null;
+  recTotal: number;
+  passRating: number | null;
+  points: number;      // kills + aces + blocks
+}
+
+export interface PlayerEvolution {
+  playerId: string;
+  playerName: string;
+  position: string;
+  number: number;
+  matches: PlayerMatchEvolution[];
+  seasonAvg: {
+    killPct: number | null;
+    serveAcePct: number | null;
+    passRating: number | null;
+    attackEff: number | null;
+  };
+  last3Avg: {
+    killPct: number | null;
+    serveAcePct: number | null;
+    passRating: number | null;
+    attackEff: number | null;
+  };
+  trend: "improving" | "declining" | "stable" | "insufficient_data";
+}
+
+export async function buildPlayerEvolution(
+  teamId: string,
+  playerId: string,
+): Promise<PlayerEvolution | null> {
+  const [player] = await db
+    .select()
+    .from(players)
+    .where(and(eq(players.teamId, teamId), eq(players.id, playerId)));
+  if (!player) return null;
+
+  const allMatches = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.teamId, teamId))
+    .orderBy(matches.date);
+
+  const matchById = new Map(allMatches.map((m) => [m.id, m]));
+
+  const allActions = await db
+    .select()
+    .from(actions)
+    .where(eq(actions.playerId, playerId));
+
+  // Group by matchId
+  const byMatch = new Map<string, Action[]>();
+  for (const a of allActions) {
+    const bucket = byMatch.get(a.matchId) ?? [];
+    bucket.push(a);
+    byMatch.set(a.matchId, bucket);
+  }
+
+  const matchStats: PlayerMatchEvolution[] = [];
+
+  for (const [matchId, acts] of byMatch) {
+    const match = matchById.get(matchId);
+    if (!match) continue;
+
+    const atks = acts.filter((a) => a.type === "attack");
+    const killCount = atks.filter((a) => a.result === "kill").length;
+    const atkErr = atks.filter((a) => a.result === "error" || a.result === "blocked").length;
+
+    const srvs = acts.filter((a) => a.type === "serve");
+    const aceCount = srvs.filter((a) => a.result === "ace").length;
+    const srvErr = srvs.filter((a) => a.result === "error").length;
+
+    const recs = acts.filter((a) => a.type === "reception");
+    const recPts = recs.reduce((s, a) => {
+      if (a.result === "perfect") return s + 3;
+      if (a.result === "good") return s + 2;
+      if (a.result === "poor") return s + 1;
+      return s;
+    }, 0);
+
+    const blks = acts.filter((a) => a.type === "block" && a.result === "stuff").length;
+
+    matchStats.push({
+      matchId,
+      label: match.opponent.length > 12 ? match.opponent.slice(0, 12) + "…" : match.opponent,
+      date: match.date ? match.date.toISOString() : "",
+      result:
+        match.status !== "finished" ? null
+        : match.setsWon > match.setsLost ? "win"
+        : match.setsWon < match.setsLost ? "loss"
+        : "draw",
+      attackTotal: atks.length,
+      kills: killCount,
+      attackErrors: atkErr,
+      killPct: atks.length >= 3 ? round1((killCount / atks.length) * 100) : null,
+      attackEff: atks.length >= 3 ? round3((killCount - atkErr) / atks.length) : null,
+      serveTotal: srvs.length,
+      aces: aceCount,
+      serveErrors: srvErr,
+      serveAcePct: srvs.length >= 3 ? round1((aceCount / srvs.length) * 100) : null,
+      recTotal: recs.length,
+      passRating: recs.length >= 3 ? round2(recPts / recs.length) : null,
+      points: killCount + aceCount + blks,
+    });
+  }
+
+  // Sort chronologically
+  matchStats.sort((a, b) => a.date.localeCompare(b.date));
+
+  function avg(vals: (number | null)[]): number | null {
+    const valid = vals.filter((v): v is number => v !== null);
+    return valid.length ? round2(valid.reduce((s, v) => s + v, 0) / valid.length) : null;
+  }
+
+  const seasonAvg = {
+    killPct: avg(matchStats.map((m) => m.killPct)),
+    serveAcePct: avg(matchStats.map((m) => m.serveAcePct)),
+    passRating: avg(matchStats.map((m) => m.passRating)),
+    attackEff: avg(matchStats.map((m) => m.attackEff)),
+  };
+
+  const last3 = matchStats.slice(-3);
+  const last3Avg = {
+    killPct: avg(last3.map((m) => m.killPct)),
+    serveAcePct: avg(last3.map((m) => m.serveAcePct)),
+    passRating: avg(last3.map((m) => m.passRating)),
+    attackEff: avg(last3.map((m) => m.attackEff)),
+  };
+
+  // Trend: compare last 3 avg kill% vs season avg
+  let trend: PlayerEvolution["trend"] = "insufficient_data";
+  if (matchStats.length >= 5 && seasonAvg.killPct !== null && last3Avg.killPct !== null) {
+    const delta = last3Avg.killPct - seasonAvg.killPct;
+    trend = delta >= 3 ? "improving" : delta <= -3 ? "declining" : "stable";
+  }
+
+  return {
+    playerId,
+    playerName: `${player.firstName} ${player.lastName}`,
+    position: player.position,
+    number: player.number,
+    matches: matchStats,
+    seasonAvg,
+    last3Avg,
+    trend,
+  };
+}
+
+function round3(n: number): number {
+  return Math.round(n * 1000) / 1000;
+}

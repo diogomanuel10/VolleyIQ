@@ -14,6 +14,7 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  BarChart2,
 } from "lucide-react";
 import {
   LineChart,
@@ -92,6 +93,34 @@ interface TrendEntry {
   passRating: number;
 }
 
+interface PlayerMatchEvolution {
+  matchId: string;
+  label: string;
+  date: string;
+  result: "win" | "loss" | "draw" | null;
+  attackTotal: number;
+  kills: number;
+  killPct: number | null;
+  attackEff: number | null;
+  serveTotal: number;
+  aces: number;
+  serveAcePct: number | null;
+  recTotal: number;
+  passRating: number | null;
+  points: number;
+}
+
+interface PlayerEvolution {
+  playerId: string;
+  playerName: string;
+  position: string;
+  number: number;
+  matches: PlayerMatchEvolution[];
+  seasonAvg: { killPct: number | null; serveAcePct: number | null; passRating: number | null; attackEff: number | null };
+  last3Avg:  { killPct: number | null; serveAcePct: number | null; passRating: number | null; attackEff: number | null };
+  trend: "improving" | "declining" | "stable" | "insufficient_data";
+}
+
 interface TeamKpis {
   killPct: number;
   attackEff: number;
@@ -145,6 +174,15 @@ export default function PlayerDetail() {
     queryFn: () =>
       api.get<PlayerSummary>(
         `/api/players/${params.id}/summary?teamId=${team!.id}`,
+      ),
+    enabled: !!team && !!params.id,
+  });
+
+  const evolutionQuery = useQuery({
+    queryKey: ["player-evolution", team?.id, params.id],
+    queryFn: () =>
+      api.get<PlayerEvolution>(
+        `/api/players/${params.id}/evolution?teamId=${team!.id}`,
       ),
     enabled: !!team && !!params.id,
   });
@@ -233,6 +271,7 @@ export default function PlayerDetail() {
               <TabsTrigger value="attack">{t("playerDetail.tabs.attack")}</TabsTrigger>
               <TabsTrigger value="serve-reception">{t("playerDetail.tabs.serveReception")}</TabsTrigger>
               <TabsTrigger value="history">{t("playerDetail.tabs.history")}</TabsTrigger>
+              <TabsTrigger value="evolution" className="flex items-center gap-1.5"><BarChart2 className="h-3.5 w-3.5" />Evolução</TabsTrigger>
               <TabsTrigger value="training">{t("playerDetail.tabs.training")}</TabsTrigger>
             </TabsList>
 
@@ -595,6 +634,154 @@ export default function PlayerDetail() {
                     <TrendChart data={summary!.trend} />
                   </CardContent>
                 </Card>
+              )}
+            </TabsContent>
+
+            {/* ── Evolução ─────────────────────────────────────────────── */}
+            <TabsContent value="evolution" className="space-y-4">
+              {evolutionQuery.isLoading && <Skeleton className="h-64 w-full" />}
+              {evolutionQuery.data && (() => {
+                const evo = evolutionQuery.data;
+                const ms = evo.matches;
+
+                const TREND_META = {
+                  improving: { label: "Em melhoria", color: "text-emerald-600", icon: ArrowUp },
+                  declining:  { label: "Em queda",    color: "text-red-500",     icon: ArrowDown },
+                  stable:     { label: "Estável",     color: "text-amber-500",   icon: Minus },
+                  insufficient_data: { label: "Dados insuficientes", color: "text-muted-foreground", icon: Minus },
+                };
+                const trendMeta = TREND_META[evo.trend];
+                const TrendIcon = trendMeta.icon;
+
+                function delta(last3: number | null, season: number | null) {
+                  if (last3 === null || season === null) return null;
+                  const d = last3 - season;
+                  return { value: Math.abs(d).toFixed(1), positive: d >= 0 };
+                }
+
+                const statCards = [
+                  { label: "Kill %",       season: evo.seasonAvg.killPct,    last3: evo.last3Avg.killPct,    suffix: "%" },
+                  { label: "Pass Rating",  season: evo.seasonAvg.passRating, last3: evo.last3Avg.passRating, suffix: "" },
+                  { label: "Ace %",        season: evo.seasonAvg.serveAcePct,last3: evo.last3Avg.serveAcePct,suffix: "%" },
+                  { label: "Efic. Ataque", season: evo.seasonAvg.attackEff,  last3: evo.last3Avg.attackEff,  suffix: "" },
+                ].filter((s) => s.season !== null);
+
+                return (
+                  <>
+                    {/* Trend + stat cards */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center justify-between text-sm">
+                          <span className="flex items-center gap-2"><BarChart2 className="h-4 w-4" />Evolução na Época</span>
+                          <span className={`flex items-center gap-1 text-xs font-medium ${trendMeta.color}`}>
+                            <TrendIcon className="h-3.5 w-3.5" />{trendMeta.label}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                          {statCards.map((s) => {
+                            const d = delta(s.last3, s.season);
+                            return (
+                              <div key={s.label} className="rounded-lg border p-3 space-y-1">
+                                <p className="text-xs text-muted-foreground">{s.label}</p>
+                                <p className="text-lg font-bold tabular-nums">{s.last3 ?? s.season}{s.suffix}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  época: {s.season}{s.suffix}
+                                  {d && (
+                                    <span className={d.positive ? " text-emerald-600" : " text-red-500"}>
+                                      {" "}{d.positive ? "▲" : "▼"}{d.value}
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Kill% chart */}
+                        {ms.some((m) => m.killPct !== null) && (
+                          <div className="mb-6">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Kill % por jogo</p>
+                            <ResponsiveContainer width="100%" height={160}>
+                              <LineChart data={ms.filter((m) => m.killPct !== null)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                                <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} unit="%" />
+                                <ReTooltip formatter={(v: number) => [`${v}%`, "Kill%"]} labelFormatter={(l) => `vs ${l}`} />
+                                {evo.seasonAvg.killPct !== null && (
+                                  <Line type="monotone" dataKey={() => evo.seasonAvg.killPct} stroke="#94a3b8" strokeDasharray="4 4" dot={false} name="Média época" />
+                                )}
+                                <Line type="monotone" dataKey="killPct" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} name="Kill%" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+
+                        {/* Pass Rating chart */}
+                        {ms.some((m) => m.passRating !== null) && (
+                          <div className="mb-6">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Pass Rating por jogo</p>
+                            <ResponsiveContainer width="100%" height={140}>
+                              <LineChart data={ms.filter((m) => m.passRating !== null)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                                <YAxis tick={{ fontSize: 10 }} domain={[0, 3]} />
+                                <ReTooltip formatter={(v: number) => [v.toFixed(2), "Pass Rating"]} labelFormatter={(l) => `vs ${l}`} />
+                                {evo.seasonAvg.passRating !== null && (
+                                  <Line type="monotone" dataKey={() => evo.seasonAvg.passRating} stroke="#94a3b8" strokeDasharray="4 4" dot={false} name="Média época" />
+                                )}
+                                <Line type="monotone" dataKey="passRating" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} name="Pass Rating" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+
+                        {/* Match-by-match table */}
+                        {ms.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Jogo a jogo</p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="border-b">
+                                    <th className="text-left py-1.5 pr-3 font-medium text-muted-foreground">Adversário</th>
+                                    <th className="text-right py-1.5 pr-3 font-medium text-muted-foreground">Res.</th>
+                                    <th className="text-right py-1.5 pr-3 font-medium text-muted-foreground">Kill%</th>
+                                    <th className="text-right py-1.5 pr-3 font-medium text-muted-foreground">Ataques</th>
+                                    <th className="text-right py-1.5 pr-3 font-medium text-muted-foreground">Ace%</th>
+                                    <th className="text-right py-1.5 pr-3 font-medium text-muted-foreground">Pass Rtg</th>
+                                    <th className="text-right py-1.5 font-medium text-muted-foreground">Pts</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {[...ms].reverse().map((m) => (
+                                    <tr key={m.matchId} className="border-b border-border/50 hover:bg-muted/30">
+                                      <td className="py-1.5 pr-3">{m.label}</td>
+                                      <td className="py-1.5 pr-3 text-right">
+                                        {m.result === "win" ? <span className="text-emerald-600 font-medium">V</span>
+                                        : m.result === "loss" ? <span className="text-red-500 font-medium">D</span>
+                                        : "—"}
+                                      </td>
+                                      <td className="py-1.5 pr-3 text-right tabular-nums">{m.killPct !== null ? `${m.killPct}%` : "—"}</td>
+                                      <td className="py-1.5 pr-3 text-right tabular-nums text-muted-foreground">{m.attackTotal || "—"}</td>
+                                      <td className="py-1.5 pr-3 text-right tabular-nums">{m.serveAcePct !== null ? `${m.serveAcePct}%` : "—"}</td>
+                                      <td className="py-1.5 pr-3 text-right tabular-nums">{m.passRating !== null ? m.passRating : "—"}</td>
+                                      <td className="py-1.5 text-right tabular-nums font-medium">{m.points || "—"}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
+                );
+              })()}
+              {!evolutionQuery.isLoading && !evolutionQuery.data && (
+                <p className="text-sm text-muted-foreground text-center py-8">Sem dados de evolução disponíveis.</p>
               )}
             </TabsContent>
 

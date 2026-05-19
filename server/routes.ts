@@ -23,6 +23,7 @@ import {
   buildDashboard,
   buildInsights,
   buildPlayerSummary,
+  buildPlayerEvolution,
   buildPostMatch,
   buildScoutingReport,
   buildTeamPlayerAggregates,
@@ -662,6 +663,16 @@ router.get(
     const summary = await buildPlayerSummary(req.teamId, req.params.id);
     if (!summary) return res.status(404).json({ error: "not found" });
     res.json(summary);
+  },
+);
+
+router.get(
+  "/players/:id/evolution",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const data = await buildPlayerEvolution(req.teamId, req.params.id);
+    if (!data) return res.status(404).json({ error: "not found" });
+    res.json(data);
   },
 );
 
