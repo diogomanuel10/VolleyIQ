@@ -17,25 +17,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePlanGuard } from "@/hooks/usePlanGuard";
 import { Building2 } from "lucide-react";
-
-const NAV_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  liveScout: "Live Scout",
-  matches: "Jogos",
-  players: "Jogadores",
-  athletes: "Atletas",
-  opponents: "Adversários",
-  matchDay: "Match Day",
-  scoutingReport: "Scouting Report",
-  scenario: "Scenario",
-  postMatch: "Post-Match",
-  pricing: "Pricing",
-  settings: "Definições",
-  profile: "Perfil",
-  reports: "Relatório",
-};
 
 const primaryNavKeys = [
   { href: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -63,6 +47,7 @@ const allNavKeys = [
 export function MobileNav() {
   const [location] = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { t } = useTranslation();
   const guard = usePlanGuard();
   const clubNav = guard.meetsMinimum("club")
     ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const, label: "Club Dashboard" }]
@@ -89,7 +74,7 @@ export function MobileNav() {
                   )}
                 >
                   <it.icon className="h-5 w-5" />
-                  {NAV_LABELS[it.key] ?? it.key}
+                  {t(`nav.${it.key}`)}
                 </Link>
               </li>
             );
@@ -101,7 +86,7 @@ export function MobileNav() {
               className="w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] text-muted-foreground"
             >
               <Menu className="h-5 w-5" />
-              Mais
+              {t("nav.more")}
             </button>
           </li>
         </ul>
@@ -127,7 +112,7 @@ export function MobileNav() {
               <button
                 onClick={() => setDrawerOpen(false)}
                 className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
-                aria-label="Fechar"
+                aria-label={t("common.close")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -140,7 +125,7 @@ export function MobileNav() {
                   it.href === "/"
                     ? location === "/"
                     : location === it.href || location.startsWith(it.href + "/");
-                const label = "label" in it ? String(it.label) : (NAV_LABELS[it.key] ?? it.key);
+                const label = "label" in it ? String(it.label) : t(`nav.${it.key}`);
                 return (
                   <li key={it.href}>
                     <Link
