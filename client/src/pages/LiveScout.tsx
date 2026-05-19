@@ -61,6 +61,7 @@ import { TabletScout } from "@/components/scout/TabletScout";
 import { LastActionPill } from "@/components/scout/LastActionPill";
 import { StepProgress } from "@/components/scout/StepProgress";
 import { SuggestionsPanel } from "@/components/scout/SuggestionsPanel";
+import { TacticalAssistantPanel } from "@/components/scout/TacticalAssistantPanel";
 import { PlanGate } from "@/components/PlanGate";
 import {
   buildSuggestions,
@@ -572,6 +573,18 @@ function Scout({
       api.get<PlayerAggregate[]>(`/api/stats/team/${teamId}/player-aggregates`),
     enabled: Boolean(teamId),
     staleTime: 10 * 60 * 1000,
+  });
+
+  const rotationStatsQuery = useQuery({
+    queryKey: ["rotationStats", teamId],
+    queryFn: () =>
+      api
+        .get<{ rotationStats?: Array<{ rotation: number; sideOutPct: number }> }>(
+          `/api/stats/team/${teamId}/dashboard?teamId=${teamId}`,
+        )
+        .then((d) => d.rotationStats ?? []),
+    enabled: Boolean(teamId),
+    staleTime: 5 * 60_000,
   });
 
   const suggestions = useMemo(
@@ -1086,6 +1099,21 @@ function Scout({
 
         {/* Sugestões + Log lateral + vídeo (opcional) */}
         <aside className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:overflow-hidden">
+          <div className="lg:shrink-0">
+            <TacticalAssistantPanel
+              teamId={teamId}
+              matchId={matchId}
+              opponent={match.opponent}
+              setNumber={state.setNumber}
+              homeScore={state.homeScore}
+              awayScore={state.awayScore}
+              servingTeam={state.servingTeam}
+              rotation={state.rotation}
+              log={state.log}
+              onCourt={onCourt}
+              rotationStats={rotationStatsQuery.data ?? []}
+            />
+          </div>
           <div className="lg:shrink-0">
             <PlanGate feature="aiLiveSuggestions" overlay>
               <SuggestionsPanel
