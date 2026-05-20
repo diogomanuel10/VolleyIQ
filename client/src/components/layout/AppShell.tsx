@@ -5,6 +5,7 @@ import { MobileNav } from "./MobileNav";
 import { TrialBanner } from "@/components/TrialBanner";
 import { TrialExpiredGate } from "@/components/TrialExpiredGate";
 import { DataChat } from "@/components/DataChat";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { useTeam } from "@/hooks/useTeam";
 import { usePlanGuard } from "@/hooks/usePlanGuard";
 
@@ -36,6 +37,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <DataChat teamId={team.id} isPro={guard.meetsMinimum("pro")} />
         </div>
       )}
+      <div className="print-hide">
+        <InstallPrompt />
+      </div>
     </div>
   );
 }
