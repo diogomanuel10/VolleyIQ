@@ -11,19 +11,26 @@ const ADMIN_UIDS = (process.env.ADMIN_UIDS ?? "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+function isAdmin(uid: string): boolean {
+  return ADMIN_UIDS.length === 0 || ADMIN_UIDS.includes(uid);
+}
+
 function requireAdmin(req: any, res: any, next: any) {
   const uid = req.user?.uid;
-  if (!uid || (ADMIN_UIDS.length > 0 && !ADMIN_UIDS.includes(uid))) {
+  if (!uid || !isAdmin(uid)) {
     return res.status(403).json({ error: "forbidden" });
   }
   next();
 }
 
-adminRouter.use(requireAuth, requireAdmin);
-
-adminRouter.get("/me", (_req, res) => {
-  res.json({ admin: true });
+// /me — só requer auth, devolve o UID e se é admin (útil para debug)
+adminRouter.get("/me", requireAuth, (req: any, res) => {
+  const uid = req.user?.uid ?? null;
+  res.json({ uid, admin: uid ? isAdmin(uid) : false });
 });
+
+// Todas as rotas abaixo requerem auth + ser admin
+adminRouter.use(requireAuth, requireAdmin);
 
 adminRouter.get("/teams", async (_req, res) => {
   const rows = await storage.listAllTeams();
