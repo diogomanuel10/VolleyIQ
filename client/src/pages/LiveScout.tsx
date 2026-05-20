@@ -788,6 +788,7 @@ function Scout({
           dispatch={dispatch}
           onCourt={onCourt}
           bench={bench}
+          lineup={lineup}
           homeScore={state.homeScore}
           awayScore={state.awayScore}
           setNumber={state.setNumber}
