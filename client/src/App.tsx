@@ -25,6 +25,7 @@ import ApiKeysPage from "@/pages/ApiKeysPage";
 import WebhooksPage from "@/pages/WebhooksPage";
 import ApiDocsPage from "@/pages/ApiDocsPage";
 import GettingStartedPage from "@/pages/GettingStartedPage";
+import Admin from "@/pages/Admin";
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
@@ -89,6 +90,7 @@ function AuthedApp() {
           <Route path="/profile" component={Profile} />
           <Route path="/getting-started" component={GettingStartedPage} />
           <Route path="/docs/api" component={ApiDocsPage} />
+          <Route path="/admin" component={Admin} />
           <Route>
             <div className="p-8 text-muted-foreground">Página não encontrada.</div>
           </Route>

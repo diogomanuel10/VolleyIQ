@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import { router } from "./routes";
 import { publicRouter } from "./publicApi";
+import { adminRouter } from "./adminRoutes";
 
 // Evita que uma promise rejeitada num handler derrube o processo. Em Express 4
 // os erros async não são auto-propagados — sem este guarda, uma query SQL que
@@ -72,6 +73,7 @@ app.get("/api/health", (_req, res) => {
 // Public API — uses API key auth, NOT Firebase. Must be before requireAuth.
 app.use("/api/public/v1", publicRouter);
 
+app.use("/api/admin", adminRouter);
 app.use("/api", router);
 
 // Error handler de último recurso para erros síncronos ou chamadas `next(err)`.

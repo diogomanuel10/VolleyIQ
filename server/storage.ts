@@ -890,3 +890,20 @@ export async function toggleWebhook(id: string, teamId: string, enabled: boolean
     .returning();
   return row;
 }
+
+// ── Admin ─────────────────────────────────────────────────────────────────
+export async function listAllTeams() {
+  return db.select().from(teams).orderBy(desc(teams.createdAt));
+}
+
+export async function adminUpdateTeam(
+  teamId: string,
+  data: { plan?: string; subscribedAt?: Date | null; trialEndsAt?: Date | null },
+) {
+  const [row] = await db
+    .update(teams)
+    .set(data as any)
+    .where(eq(teams.id, teamId))
+    .returning();
+  return row ?? null;
+}
