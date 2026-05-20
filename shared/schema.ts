@@ -456,3 +456,16 @@ export const userPreferences = pgTable("user_preferences", {
 
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences);
 export type UserPreferences = InferSelectModel<typeof userPreferences>;
+
+// ── Push subscriptions (Web Push / VAPID) ────────────────────────────────
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: text("id").primaryKey(),
+  uid: text("uid").notNull(),
+  teamId: text("team_id").references(() => teams.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PushSubscription = InferSelectModel<typeof pushSubscriptions>;

@@ -2,13 +2,15 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Copy, RefreshCw, Users, Check, Palette, Loader2 } from "lucide-react";
+import { Bell, BellOff, Copy, RefreshCw, Users, Check, Palette, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useTeam } from "@/hooks/useTeam";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Team } from "@shared/schema";
 
 interface Membership {
@@ -38,6 +40,7 @@ export default function TeamSettings() {
       <TeamInfoCard team={team} />
       <InviteCodeCard team={team} />
       <MembersCard teamId={team.id} />
+      <NotificationsCard teamId={team.id} />
     </div>
   );
 }
@@ -264,5 +267,90 @@ function MembersCard({ teamId }: { teamId: string }) {
         {t("teamSettings.members.rolesNote")}
       </p>
     </section>
+  );
+}
+
+function NotificationsCard({ teamId }: { teamId: string }) {
+  const { state, isVapidConfigured, subscribe, unsubscribe, isLoading } =
+    usePushNotifications(teamId);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Bell className="h-4 w-4" />
+          Notificações push
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!isVapidConfigured && (
+          <p className="text-sm text-muted-foreground">
+            Notificações push não estão configuradas neste ambiente.
+            Adiciona as variáveis{" "}
+            <code className="text-xs bg-muted px-1 rounded">VAPID_PUBLIC_KEY</code> e{" "}
+            <code className="text-xs bg-muted px-1 rounded">VAPID_PRIVATE_KEY</code>{" "}
+            no Railway.
+          </p>
+        )}
+
+        {isVapidConfigured && state === "unsupported" && (
+          <p className="text-sm text-muted-foreground">
+            O teu browser não suporta notificações push.
+          </p>
+        )}
+
+        {isVapidConfigured && state === "denied" && (
+          <p className="text-sm text-amber-600">
+            Notificações bloqueadas pelo browser. Vai às definições do browser e
+            permite notificações para este site.
+          </p>
+        )}
+
+        {isVapidConfigured && (state === "subscribed" || state === "unsubscribed") && (
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">
+                {state === "subscribed" ? "Notificações activas" : "Notificações desactivadas"}
+              </p>
+              <ul className="text-xs text-muted-foreground space-y-0.5">
+                <li>• Lembrete 24h antes de cada jogo agendado</li>
+                <li>• Aviso quando o relatório pós-jogo fica disponível</li>
+                <li>• Lembrete semanal se não houver actividade recente</li>
+              </ul>
+            </div>
+            {state === "subscribed" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                onClick={unsubscribe}
+                className="shrink-0"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <BellOff className="h-4 w-4" />
+                )}
+                <span className="ml-1.5">Desactivar</span>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                disabled={isLoading}
+                onClick={subscribe}
+                className="shrink-0"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Bell className="h-4 w-4" />
+                )}
+                <span className="ml-1.5">Activar</span>
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

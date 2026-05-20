@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { requireAuth } from "./middleware/auth";
 import * as storage from "./storage";
 import {
@@ -12,7 +13,9 @@ import {
   insertOpponentCoachSchema,
   insertLineupSchema,
   insertSubstitutionSchema,
+  pushSubscriptions,
 } from "@shared/schema";
+import { db } from "./db";
 import { detectPatterns } from "./ai/patterns";
 import { recommendTraining } from "./ai/training";
 import { teamChat } from "./ai/chat";
@@ -33,6 +36,10 @@ import { PLAN_FEATURES, planMeetsMinimum } from "@shared/planFeatures";
 import type { Plan } from "@shared/types";
 import * as easypay from "./easypay";
 import { fireMatchFinishedWebhooks, testWebhook } from "./webhooks";
+import {
+  VAPID_PUBLIC,
+  sendAnalysisReadyNotification,
+} from "./notifications";
 
 export const router = Router();
 
@@ -435,6 +442,7 @@ router.patch(
     if (!match) return res.status(404).json({ error: "not found" });
     if (match.status === "finished") {
       fireMatchFinishedWebhooks(match.teamId, match.id).catch(console.error);
+      sendAnalysisReadyNotification(match.id, match.teamId, match.opponent).catch(console.error);
     }
     res.json(match);
   },
@@ -1166,4 +1174,55 @@ router.post("/teams/:id/webhooks/:hookId/test", async (req: any, res) => {
   if (!hook) return res.status(404).json({ error: "not_found" });
   const result = await testWebhook(hook, req.params.id);
   res.json(result);
+});
+
+// ── Push notifications (Web Push / VAPID) ──────────────────────────────────
+router.get("/push/vapid-public-key", (_req, res) => {
+  res.json({ key: VAPID_PUBLIC || null });
+});
+
+const pushSubscribeSchema = z.object({
+  teamId: z.string().optional(),
+  endpoint: z.string().url(),
+  keys: z.object({ p256dh: z.string(), auth: z.string() }),
+});
+
+router.post("/push/subscribe", async (req: any, res) => {
+  const parsed = pushSubscribeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const { endpoint, keys, teamId } = parsed.data;
+  const uid = req.user!.uid;
+
+  // Upsert: update teamId if subscription already exists for this endpoint
+  const existing = await db
+    .select()
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.endpoint, endpoint));
+
+  if (existing.length > 0) {
+    await db
+      .update(pushSubscriptions)
+      .set({ teamId: teamId ?? null })
+      .where(eq(pushSubscriptions.endpoint, endpoint));
+    return res.json({ ok: true });
+  }
+
+  const id = crypto.randomUUID();
+  await db.insert(pushSubscriptions).values({
+    id,
+    uid,
+    teamId: teamId ?? null,
+    endpoint,
+    p256dh: keys.p256dh,
+    auth: keys.auth,
+  });
+  res.status(201).json({ ok: true });
+});
+
+router.delete("/push/subscribe", async (req: any, res) => {
+  const { endpoint } = z.object({ endpoint: z.string() }).parse(req.body);
+  await db
+    .delete(pushSubscriptions)
+    .where(eq(pushSubscriptions.endpoint, endpoint));
+  res.status(204).end();
 });

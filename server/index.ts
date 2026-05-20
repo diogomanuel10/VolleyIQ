@@ -9,6 +9,7 @@ import fs from "node:fs";
 import { router } from "./routes";
 import { publicRouter } from "./publicApi";
 import { adminRouter } from "./adminRoutes";
+import { sendPrematchReminders, sendRegistrationReminders } from "./notifications";
 
 // Evita que uma promise rejeitada num handler derrube o processo. Em Express 4
 // os erros async não são auto-propagados — sem este guarda, uma query SQL que
@@ -111,3 +112,33 @@ const port = Number(process.env.PORT ?? 3000);
 app.listen(port, () => {
   console.log(`[server] VolleyIQ em http://localhost:${port}`);
 });
+
+// ── Cron jobs (polling via setInterval) ─────────────────────────────────
+// Daily at ~08:00: pre-match reminders for games in the next 24h
+function scheduleDailyAt8() {
+  const now = new Date();
+  const next8 = new Date(now);
+  next8.setHours(8, 0, 0, 0);
+  if (next8 <= now) next8.setDate(next8.getDate() + 1);
+  const msToNext8 = next8.getTime() - now.getTime();
+  setTimeout(() => {
+    sendPrematchReminders().catch(console.error);
+    setInterval(() => sendPrematchReminders().catch(console.error), 24 * 60 * 60 * 1000);
+  }, msToNext8);
+}
+scheduleDailyAt8();
+
+// Weekly on Monday: registration reminder for inactive teams
+function scheduleWeeklyMonday() {
+  const now = new Date();
+  const next = new Date(now);
+  const daysUntilMonday = (1 - now.getDay() + 7) % 7 || 7;
+  next.setDate(now.getDate() + daysUntilMonday);
+  next.setHours(9, 0, 0, 0);
+  const msToNext = next.getTime() - now.getTime();
+  setTimeout(() => {
+    sendRegistrationReminders().catch(console.error);
+    setInterval(() => sendRegistrationReminders().catch(console.error), 7 * 24 * 60 * 60 * 1000);
+  }, msToNext);
+}
+scheduleWeeklyMonday();

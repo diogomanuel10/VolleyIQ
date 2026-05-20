@@ -1,6 +1,6 @@
-// VolleyIQ service worker — app-shell cache + stale-while-revalidate para GETs.
+// VolleyIQ service worker — app-shell cache + stale-while-revalidate + Web Push.
 // Mantido propositadamente simples (sem Workbox) para caber no PWA sem build step.
-const VERSION = "volleyiq-v1";
+const VERSION = "volleyiq-v2";
 const SHELL = [
   "/",
   "/index.html",
@@ -69,4 +69,42 @@ self.addEventListener("fetch", (event) => {
       }),
     );
   }
+});
+
+// ── Web Push ─────────────────────────────────────────────────────────────
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: "VolleyIQ", body: event.data.text() };
+  }
+  const { title, body, icon = "/manifest.webmanifest", tag, url } = payload;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      tag,
+      badge: "/manifest.webmanifest",
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/";
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((list) => {
+        const existing = list.find((c) => c.url.includes(self.location.origin));
+        if (existing) {
+          existing.focus();
+          return existing.navigate(url);
+        }
+        return clients.openWindow(url);
+      }),
+  );
 });
