@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut, User as UserIcon, Globe, ChevronDown } from "lucide-react";
+import { LogOut, User as UserIcon, Globe, ChevronDown, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -8,6 +8,8 @@ import { useLanguage, LANGUAGE_LABEL, LANGUAGE_SHORT, type Language } from "@/ho
 import { logout } from "@/lib/firebase";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 function LanguageSelector() {
   const { t } = useTranslation();
@@ -68,6 +70,14 @@ export function TopBar() {
   const { user } = useAuth();
   const { t } = useTranslation();
 
+  const { data: adminMe } = useQuery({
+    queryKey: ["admin-me"],
+    queryFn: () => api.get<{ uid: string; admin: boolean }>("/api/admin/me"),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const isAdmin = adminMe?.admin === true;
+
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 md:px-6">
       <div className="lg:hidden font-semibold">VolleyIQ</div>
@@ -75,6 +85,14 @@ export function TopBar() {
         {t("topbar.welcome")}
       </div>
       <div className="flex items-center gap-3">
+        {isAdmin && (
+          <Link href="/admin">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-amber-500 hover:text-amber-600">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs font-semibold">Admin</span>
+            </Button>
+          </Link>
+        )}
         <Link
           href="/profile"
           className="hidden sm:flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
