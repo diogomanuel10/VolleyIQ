@@ -21,7 +21,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
-import { usePlanGuard } from "@/hooks/usePlanGuard";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +32,6 @@ import { TeamRadar } from "@/components/charts/TeamRadar";
 import { RotationSideOut } from "@/components/charts/RotationSideOut";
 import { SetupGuide } from "@/components/SetupGuide";
 import { InsightsPanel } from "@/components/InsightsPanel";
-import { DataChat } from "@/components/DataChat";
 import { cn, formatPct } from "@/lib/utils";
 import type { Player, Match } from "@shared/schema";
 import { planMeetsMinimum } from "@shared/planFeatures";
@@ -131,7 +129,6 @@ const MOCK: DashboardStats = {
 export default function Dashboard() {
   const { team } = useTeam();
   const { t } = useTranslation();
-  const guard = usePlanGuard();
   const [exporting, setExporting] = useState(false);
 
   const statsQuery = useQuery({
@@ -530,10 +527,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      <DataChat
-        teamId={team.id}
-        isPro={guard.meetsMinimum("pro")}
-      />
     </div>
   );
 }
