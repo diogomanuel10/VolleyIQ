@@ -4,8 +4,14 @@ import { TopBar } from "./TopBar";
 import { MobileNav } from "./MobileNav";
 import { TrialBanner } from "@/components/TrialBanner";
 import { TrialExpiredGate } from "@/components/TrialExpiredGate";
+import { DataChat } from "@/components/DataChat";
+import { useTeam } from "@/hooks/useTeam";
+import { usePlanGuard } from "@/hooks/usePlanGuard";
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const { team } = useTeam();
+  const guard = usePlanGuard();
+
   return (
     <div className="flex h-full overflow-x-hidden">
       <div className="print-hide contents">
@@ -25,6 +31,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <MobileNav />
         </div>
       </div>
+      {team && (
+        <div className="print-hide">
+          <DataChat teamId={team.id} isPro={guard.meetsMinimum("pro")} />
+        </div>
+      )}
     </div>
   );
 }
