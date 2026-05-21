@@ -50,6 +50,9 @@ import {
   type TextBoardElement,
   type ShapeBoardElement,
   type ArrowBoardElement,
+  type RotationChartBoardElement,
+  type PlayerStatsBoardElement,
+  type ZoneHeatmapBoardElement,
   type StatCardBoardElement,
 } from "@shared/boardTypes";
 
@@ -336,6 +339,145 @@ function ArrowEl({
   );
 }
 
+// ─── Rotation chart ──────────────────────────────────────────────────────────
+
+function RotationChartEl({
+  element, selected, onPointerDown,
+}: {
+  element: RotationChartBoardElement;
+  selected: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+}) {
+  const { rotations, bgColor, textColor, title } = element;
+  const maxVal = Math.max(...rotations.map((r) => r.value), 1);
+  const svgH = element.height - 28;
+  const svgW = element.width - 16;
+  const barW = svgW / rotations.length - 4;
+
+  return (
+    <div
+      className={`absolute cursor-move select-none rounded-xl shadow-lg overflow-hidden ${selected ? "ring-2 ring-white ring-offset-1" : ""}`}
+      style={{ left: element.x, top: element.y, width: element.width, height: element.height, background: bgColor, zIndex: element.zIndex }}
+      onPointerDown={onPointerDown}
+    >
+      <div className="text-xs font-semibold px-2 pt-1.5 truncate" style={{ color: textColor }}>{title}</div>
+      <svg width={svgW} height={svgH} className="mx-2">
+        {rotations.map((r, i) => {
+          const barH = Math.max(4, (svgH - 24) * (r.value / 100));
+          const x = i * (svgW / rotations.length) + 2;
+          const y = svgH - 16 - barH;
+          const color = r.rallies === 0 ? "#6b7280" : r.value >= 60 ? "#22c55e" : r.value < 40 ? "#ef4444" : "#f59e0b";
+          return (
+            <g key={r.rotation}>
+              <rect x={x} y={y} width={barW} height={barH} fill={color} opacity={0.85} rx={2} />
+              <text x={x + barW / 2} y={svgH - 4} textAnchor="middle" fill={textColor} fontSize={9} opacity={0.7}>
+                R{r.rotation}
+              </text>
+              {r.rallies > 0 && (
+                <text x={x + barW / 2} y={Math.max(10, y - 2)} textAnchor="middle" fill={textColor} fontSize={8} opacity={0.9}>
+                  {r.value}%
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ─── Player stats ─────────────────────────────────────────────────────────────
+
+function PlayerStatsEl({
+  element, selected, onPointerDown,
+}: {
+  element: PlayerStatsBoardElement;
+  selected: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+}) {
+  const { bgColor, textColor, playerName, playerNumber, playerPosition, metrics } = element;
+  return (
+    <div
+      className={`absolute cursor-move select-none rounded-xl shadow-lg overflow-hidden ${selected ? "ring-2 ring-white ring-offset-1" : ""}`}
+      style={{ left: element.x, top: element.y, width: element.width, height: element.height, background: bgColor, zIndex: element.zIndex }}
+      onPointerDown={onPointerDown}
+    >
+      <div className="px-3 pt-2 pb-1 flex items-center gap-2">
+        <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center shrink-0" style={{ fontSize: 11, fontWeight: 700, color: textColor }}>
+          {playerNumber}
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-bold leading-tight truncate" style={{ color: textColor }}>{playerName}</div>
+          <div className="text-xs opacity-60" style={{ color: textColor }}>{playerPosition}</div>
+        </div>
+      </div>
+      <div className="px-2 pb-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(metrics.length, 3)}, 1fr)` }}>
+        {metrics.map((m) => (
+          <div key={m.label} className="rounded-lg px-1 py-1 text-center" style={{ background: "rgba(255,255,255,0.1)" }}>
+            <div className="font-black tabular-nums" style={{ color: textColor, fontSize: Math.min(18, element.width / metrics.length / 2) }}>
+              {m.value}
+            </div>
+            <div className="text-[9px] opacity-60 truncate" style={{ color: textColor }}>{m.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Zone heatmap ─────────────────────────────────────────────────────────────
+
+const ZONE_GRID_MAP: Record<number, { col: number; row: number }> = {
+  4: { col: 0, row: 0 }, 3: { col: 1, row: 0 }, 2: { col: 2, row: 0 },
+  7: { col: 0, row: 1 }, 8: { col: 1, row: 1 }, 9: { col: 2, row: 1 },
+  5: { col: 0, row: 2 }, 6: { col: 1, row: 2 }, 1: { col: 2, row: 2 },
+};
+
+function ZoneHeatmapEl({
+  element, selected, onPointerDown,
+}: {
+  element: ZoneHeatmapBoardElement;
+  selected: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+}) {
+  const { bgColor, title, zones, maxCount } = element;
+  const zoneMap = new Map(zones.map((z) => [z.zone, z]));
+  const svgW = element.width - 8;
+  const svgH = element.height - 26;
+  const cellW = svgW / 3;
+  const cellH = svgH / 3;
+
+  return (
+    <div
+      className={`absolute cursor-move select-none rounded-xl shadow-lg overflow-hidden ${selected ? "ring-2 ring-white ring-offset-1" : ""}`}
+      style={{ left: element.x, top: element.y, width: element.width, height: element.height, background: bgColor, zIndex: element.zIndex }}
+      onPointerDown={onPointerDown}
+    >
+      <div className="text-xs font-semibold px-2 pt-1.5 truncate text-white/80">{title}</div>
+      <svg width={svgW} height={svgH} className="mx-1">
+        {([1, 2, 3, 4, 5, 6, 7, 8, 9] as number[]).map((zone) => {
+          const g = ZONE_GRID_MAP[zone];
+          const zd = zoneMap.get(zone);
+          const opacity = zd && maxCount > 0 ? 0.1 + (zd.count / maxCount) * 0.75 : 0.06;
+          return (
+            <g key={zone}>
+              <rect x={g.col * cellW + 1} y={g.row * cellH + 1} width={cellW - 2} height={cellH - 2} fill="#22c55e" opacity={opacity} rx={3} />
+              <text x={g.col * cellW + cellW / 2} y={g.row * cellH + cellH / 2 + (zd ? -3 : 4)} textAnchor="middle" fill="white" fontSize={10} opacity={0.6}>
+                {zone}
+              </text>
+              {zd && (
+                <text x={g.col * cellW + cellW / 2} y={g.row * cellH + cellH / 2 + 9} textAnchor="middle" fill="white" fontSize={9} opacity={0.9} fontWeight="bold">
+                  {zd.pct}%
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 // ─── Stat card ───────────────────────────────────────────────────────────────
 
 function StatCardEl({
@@ -541,6 +683,15 @@ function BoardCanvas({
             />
           );
         }
+        if (el.type === "rotation-chart") {
+          return <RotationChartEl key={el.id} element={el} selected={selectedId === el.id} onPointerDown={pDown} />;
+        }
+        if (el.type === "player-stats") {
+          return <PlayerStatsEl key={el.id} element={el} selected={selectedId === el.id} onPointerDown={pDown} />;
+        }
+        if (el.type === "zone-heatmap") {
+          return <ZoneHeatmapEl key={el.id} element={el} selected={selectedId === el.id} onPointerDown={pDown} />;
+        }
         return null;
       })}
     </div>
@@ -583,6 +734,29 @@ function PropertiesPanel({
           <Trash2 className="h-3 w-3" />
         </Button>
       </div>
+
+      {element.type === "stat-card" && (
+        <>
+          <div>
+            <Label className="text-xs">Fundo</Label>
+            <input
+              type="color"
+              value={element.bgColor}
+              onChange={(e) => onUpdate({ bgColor: e.target.value } as any)}
+              className="mt-1 h-8 w-full rounded border cursor-pointer"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Texto</Label>
+            <input
+              type="color"
+              value={element.textColor}
+              onChange={(e) => onUpdate({ textColor: e.target.value } as any)}
+              className="mt-1 h-8 w-full rounded border cursor-pointer"
+            />
+          </div>
+        </>
+      )}
 
       {element.type === "player" && (
         <>
@@ -761,27 +935,24 @@ function PropertiesPanel({
         </>
       )}
 
-      {element.type === "stat-card" && (
+      {(element.type === "rotation-chart" || element.type === "player-stats") && (
         <>
           <div>
             <Label className="text-xs">Fundo</Label>
-            <input
-              type="color"
-              value={element.bgColor}
-              onChange={(e) => onUpdate({ bgColor: e.target.value } as any)}
-              className="mt-1 h-8 w-full rounded border cursor-pointer"
-            />
+            <input type="color" value={(element as any).bgColor} onChange={(e) => onUpdate({ bgColor: e.target.value } as any)} className="mt-1 h-8 w-full rounded border cursor-pointer" />
           </div>
           <div>
             <Label className="text-xs">Texto</Label>
-            <input
-              type="color"
-              value={element.textColor}
-              onChange={(e) => onUpdate({ textColor: e.target.value } as any)}
-              className="mt-1 h-8 w-full rounded border cursor-pointer"
-            />
+            <input type="color" value={(element as any).textColor} onChange={(e) => onUpdate({ textColor: e.target.value } as any)} className="mt-1 h-8 w-full rounded border cursor-pointer" />
           </div>
         </>
+      )}
+
+      {element.type === "zone-heatmap" && (
+        <div>
+          <Label className="text-xs">Fundo</Label>
+          <input type="color" value={element.bgColor} onChange={(e) => onUpdate({ bgColor: e.target.value } as any)} className="mt-1 h-8 w-full rounded border cursor-pointer" />
+        </div>
       )}
 
       {/* Size */}
@@ -961,82 +1132,263 @@ function AddStatsDialog({
   teamName,
   onClose,
   onAdd,
+  onAddRotation,
+  onAddPlayerStats,
+  onAddZoneHeatmap,
 }: {
   open: boolean;
   teamId: string;
   teamName: string;
   onClose: () => void;
   onAdd: (opt: StatOption) => void;
+  onAddRotation: (title: string, metric: "sideOut" | "breakPoint", rotations: RotationChartBoardElement["rotations"]) => void;
+  onAddPlayerStats: (playerName: string, playerNumber: number, playerPosition: string, metrics: Array<{ label: string; value: string }>) => void;
+  onAddZoneHeatmap: (title: string, actionType: "attack" | "serve" | "reception", zones: Array<{ zone: number; count: number; pct: number }>, maxCount: number) => void;
 }) {
+  const [tab, setTab] = useState<"kpi" | "rotations" | "player" | "zones">("kpi");
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+
   const statsQuery = useQuery({
     queryKey: ["stats", teamId, "dashboard"],
     queryFn: () => api.get<{
       sampleMatches: number;
       kpis: { killPct: number; sideOutPct: number; passRating: number; serveAcePct: number; attackEfficiency: number; record: string };
-      topScorers: Array<{ playerId: string; name: string; number: number; kills: number; aces: number; blocks: number; points: number }>;
+      topScorers: Array<{ playerId: string; name: string; number: number; position: string; kills: number; aces: number; blocks: number; points: number }>;
+      rotationStats: Array<{ rotation: number; totalRallies: number; sideOutPct: number; breakPointPct: number; serveRallies: number; receiveRallies: number }>;
     }>(`/api/stats/team/${teamId}/dashboard?teamId=${teamId}`),
     enabled: open,
   });
 
-  const options: StatOption[] = [];
+  const playerSummaryQuery = useQuery({
+    queryKey: ["player-summary", selectedPlayerId],
+    queryFn: () => api.get<{
+      kpis: { killPct: number; attackEff: number; passRating: number; serveAcePct: number; blocks: number };
+      attackHeatmap: { zones: Array<{ zone: number; count: number; kills?: number }>; total: number; maxCount: number };
+      serveHeatmap: { zones: Array<{ zone: number; count: number; kills?: number }>; total: number; maxCount: number };
+      receptionHeatmap: { zones: Array<{ zone: number; count: number }>; total: number; maxCount: number };
+    }>(`/api/players/${selectedPlayerId}/summary`),
+    enabled: !!selectedPlayerId,
+  });
 
-  if (statsQuery.data) {
-    const { kpis, topScorers, sampleMatches } = statsQuery.data;
-    const sub = `${teamName} · ${sampleMatches} jogo${sampleMatches !== 1 ? "s" : ""}`;
-    options.push(
-      { group: "Equipa", label: "Kill %",       value: `${kpis.killPct.toFixed(1)}%`,          sublabel: sub },
-      { group: "Equipa", label: "Side-Out %",   value: `${kpis.sideOutPct.toFixed(1)}%`,       sublabel: sub },
-      { group: "Equipa", label: "Pass Rating",  value: kpis.passRating.toFixed(2),             sublabel: sub },
-      { group: "Equipa", label: "Serve Ace %",  value: `${kpis.serveAcePct.toFixed(1)}%`,      sublabel: sub },
-      { group: "Equipa", label: "Attack Eff.",  value: kpis.attackEfficiency.toFixed(3),       sublabel: sub },
-      { group: "Equipa", label: "Record",       value: kpis.record,                            sublabel: sub },
+  const stats = statsQuery.data;
+
+  // KPI options (same as before)
+  const kpiOptions: StatOption[] = [];
+  if (stats) {
+    const sub = `${teamName} · ${stats.sampleMatches} jogo${stats.sampleMatches !== 1 ? "s" : ""}`;
+    kpiOptions.push(
+      { group: "Equipa", label: "Kill %", value: `${stats.kpis.killPct.toFixed(1)}%`, sublabel: sub },
+      { group: "Equipa", label: "Side-Out %", value: `${stats.kpis.sideOutPct.toFixed(1)}%`, sublabel: sub },
+      { group: "Equipa", label: "Pass Rating", value: stats.kpis.passRating.toFixed(2), sublabel: sub },
+      { group: "Equipa", label: "Serve Ace %", value: `${stats.kpis.serveAcePct.toFixed(1)}%`, sublabel: sub },
+      { group: "Equipa", label: "Attack Eff.", value: stats.kpis.attackEfficiency.toFixed(3), sublabel: sub },
+      { group: "Equipa", label: "Record", value: stats.kpis.record, sublabel: sub },
     );
-    for (const p of topScorers) {
+    for (const p of stats.topScorers) {
       const ps = `#${p.number} ${p.name}`;
-      options.push(
-        { group: p.name, label: "Pontos",  value: String(p.points), sublabel: ps },
-        { group: p.name, label: "Kills",   value: String(p.kills),  sublabel: ps },
-        { group: p.name, label: "Aces",    value: String(p.aces),   sublabel: ps },
-        { group: p.name, label: "Blocos",  value: String(p.blocks), sublabel: ps },
+      kpiOptions.push(
+        { group: p.name, label: "Pontos", value: String(p.points), sublabel: ps },
+        { group: p.name, label: "Kills", value: String(p.kills), sublabel: ps },
+        { group: p.name, label: "Aces", value: String(p.aces), sublabel: ps },
+        { group: p.name, label: "Blocos", value: String(p.blocks), sublabel: ps },
       );
     }
   }
+  const kpiGroups = [...new Set(kpiOptions.map((o) => o.group))];
 
-  const groups = [...new Set(options.map((o) => o.group))];
+  function handleClose() {
+    setSelectedPlayerId(null);
+    onClose();
+  }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Inserir estatística</DialogTitle>
         </DialogHeader>
-        {statsQuery.isLoading && (
-          <p className="text-sm text-muted-foreground text-center py-6">A carregar…</p>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b pb-2">
+          {(["kpi", "rotations", "player", "zones"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => { setTab(t); setSelectedPlayerId(null); }}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+            >
+              {t === "kpi" ? "Número" : t === "rotations" ? "Rotações" : t === "player" ? "Jogador" : "Zonas"}
+            </button>
+          ))}
+        </div>
+
+        {statsQuery.isLoading && <p className="text-sm text-muted-foreground text-center py-6">A carregar…</p>}
+
+        {/* KPI tab */}
+        {!statsQuery.isLoading && tab === "kpi" && (
+          <div className="max-h-72 overflow-y-auto space-y-4 mt-1">
+            {kpiOptions.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Ainda não há dados suficientes.</p>}
+            {kpiGroups.map((group) => (
+              <div key={group}>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 px-1">{group}</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {kpiOptions.filter((o) => o.group === group).map((opt) => (
+                    <button
+                      key={`${opt.group}-${opt.label}`}
+                      onClick={() => { onAdd(opt); handleClose(); }}
+                      className="flex flex-col items-start p-2.5 rounded-lg border hover:bg-accent text-left transition-colors"
+                    >
+                      <span className="text-xs text-muted-foreground">{opt.label}</span>
+                      <span className="text-xl font-black tabular-nums leading-tight">{opt.value}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
-        {!statsQuery.isLoading && options.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            Ainda não há dados suficientes para mostrar estatísticas.
-          </p>
+
+        {/* Rotations tab */}
+        {!statsQuery.isLoading && tab === "rotations" && (
+          <div className="space-y-3 mt-1">
+            {(!stats?.rotationStats?.length) && <p className="text-sm text-muted-foreground text-center py-6">Ainda não há dados de rotações.</p>}
+            {stats?.rotationStats && stats.rotationStats.length > 0 && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["sideOut", "breakPoint"] as const).map((metric) => {
+                    const label = metric === "sideOut" ? "Side-Out por Rotação" : "Break Point por Rotação";
+                    const rotations = stats.rotationStats.map((r) => ({
+                      rotation: r.rotation,
+                      value: metric === "sideOut" ? r.sideOutPct : r.breakPointPct,
+                      rallies: metric === "sideOut" ? r.receiveRallies : r.serveRallies,
+                    }));
+                    return (
+                      <button
+                        key={metric}
+                        onClick={() => { onAddRotation(label, metric, rotations); handleClose(); }}
+                        className="p-3 rounded-lg border hover:bg-accent text-left transition-colors"
+                      >
+                        <p className="text-xs font-semibold mb-2">{label}</p>
+                        <div className="flex items-end gap-1 h-12">
+                          {rotations.map((r) => {
+                            const h = r.rallies === 0 ? 4 : Math.max(4, (r.value / 100) * 40);
+                            const col = r.rallies === 0 ? "#6b7280" : r.value >= 60 ? "#22c55e" : r.value < 40 ? "#ef4444" : "#f59e0b";
+                            return (
+                              <div key={r.rotation} className="flex-1 flex flex-col items-center gap-0.5">
+                                <div className="w-full rounded-sm" style={{ height: h, background: col, opacity: 0.85 }} />
+                                <span className="text-[8px] text-muted-foreground">R{r.rotation}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         )}
-        <div className="max-h-72 overflow-y-auto space-y-4 mt-1">
-          {groups.map((group) => (
-            <div key={group}>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 px-1">{group}</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {options.filter((o) => o.group === group).map((opt) => (
+
+        {/* Player tab */}
+        {!statsQuery.isLoading && tab === "player" && (
+          <div className="max-h-72 overflow-y-auto space-y-1 mt-1">
+            {(!stats?.topScorers?.length) && <p className="text-sm text-muted-foreground text-center py-6">Ainda não há dados de jogadores.</p>}
+            {stats?.topScorers?.map((p) => {
+              const metrics = [
+                { label: "Kills", value: String(p.kills) },
+                { label: "Aces", value: String(p.aces) },
+                { label: "Blocos", value: String(p.blocks) },
+                { label: "Pontos", value: String(p.points) },
+              ];
+              return (
+                <button
+                  key={p.playerId}
+                  onClick={() => { onAddPlayerStats(p.name, p.number, p.position, metrics); handleClose(); }}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-lg border hover:bg-accent text-left transition-colors"
+                >
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold shrink-0">
+                    #{p.number}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.position} · {p.points} pts · {p.kills} kills</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Zones tab */}
+        {!statsQuery.isLoading && tab === "zones" && (
+          <div className="mt-1">
+            {!selectedPlayerId ? (
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                <p className="text-xs text-muted-foreground mb-2">Seleciona um jogador:</p>
+                {(!stats?.topScorers?.length) && <p className="text-sm text-muted-foreground text-center py-6">Ainda não há dados de jogadores.</p>}
+                {stats?.topScorers?.map((p) => (
                   <button
-                    key={`${opt.group}-${opt.label}`}
-                    onClick={() => { onAdd(opt); onClose(); }}
-                    className="flex flex-col items-start p-2.5 rounded-lg border hover:bg-accent text-left transition-colors"
+                    key={p.playerId}
+                    onClick={() => setSelectedPlayerId(p.playerId)}
+                    className="w-full flex items-center gap-3 p-2.5 rounded-lg border hover:bg-accent text-left transition-colors"
                   >
-                    <span className="text-xs text-muted-foreground">{opt.label}</span>
-                    <span className="text-xl font-black tabular-nums leading-tight">{opt.value}</span>
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold shrink-0">#{p.number}</div>
+                    <span className="text-sm font-medium">{p.name}</span>
                   </button>
                 ))}
               </div>
-            </div>
-          ))}
-        </div>
+            ) : (
+              <div className="space-y-2">
+                <button onClick={() => setSelectedPlayerId(null)} className="text-xs text-muted-foreground hover:underline flex items-center gap-1">
+                  ← Voltar
+                </button>
+                {playerSummaryQuery.isLoading && <p className="text-sm text-muted-foreground text-center py-4">A carregar…</p>}
+                {playerSummaryQuery.data && (() => {
+                  const ps = playerSummaryQuery.data;
+                  const player = stats?.topScorers?.find((p) => p.playerId === selectedPlayerId);
+                  const playerName = player?.name ?? "Jogador";
+                  const heatmaps: Array<{ key: "attack" | "serve" | "reception"; label: string; data: typeof ps.attackHeatmap }> = [
+                    { key: "attack", label: "Ataque", data: ps.attackHeatmap },
+                    { key: "serve", label: "Serviço", data: ps.serveHeatmap },
+                    { key: "reception", label: "Receção", data: ps.receptionHeatmap },
+                  ];
+                  return (
+                    <div className="grid grid-cols-3 gap-2">
+                      {heatmaps.map(({ key, label, data }) => {
+                        if (!data || data.total === 0) return null;
+                        const zones = data.zones
+                          .filter((z) => z.count > 0)
+                          .map((z) => ({ zone: z.zone, count: z.count, pct: Math.round((z.count / data.total) * 100) }));
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => { onAddZoneHeatmap(`${playerName} · ${label}`, key, zones, data.maxCount); handleClose(); }}
+                            className="p-2 rounded-lg border hover:bg-accent text-left transition-colors"
+                          >
+                            <p className="text-xs font-semibold mb-1">{label}</p>
+                            <div className="grid grid-cols-3 gap-0.5">
+                              {([4,3,2,7,8,9,5,6,1] as number[]).map((zone) => {
+                                const zd = data.zones.find((z) => z.zone === zone);
+                                const op = zd && data.maxCount > 0 ? 0.1 + (zd.count / data.maxCount) * 0.8 : 0.05;
+                                return (
+                                  <div key={zone} className="aspect-square rounded-sm flex items-center justify-center text-[8px] text-white/70"
+                                    style={{ background: `rgba(34,197,94,${op})` }}>
+                                    {zone}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <p className="text-[9px] text-muted-foreground mt-1">{data.total} ações</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -1441,6 +1793,58 @@ export default function BoardEditor() {
     } as StatCardBoardElement);
   }
 
+  function addRotationChartElement(title: string, metric: "sideOut" | "breakPoint", rotations: RotationChartBoardElement["rotations"]) {
+    addElement({
+      id: nanoid(8),
+      type: "rotation-chart",
+      title,
+      metric,
+      rotations,
+      x: CANVAS_W / 2 - 160,
+      y: CANVAS_H / 2 - 100,
+      width: 320,
+      height: 200,
+      zIndex: maxZIndex() + 1,
+      bgColor: "#1e293b",
+      textColor: "#ffffff",
+    } as RotationChartBoardElement);
+  }
+
+  function addPlayerStatsElement(playerName: string, playerNumber: number, playerPosition: string, metrics: Array<{ label: string; value: string }>) {
+    addElement({
+      id: nanoid(8),
+      type: "player-stats",
+      playerName,
+      playerNumber,
+      playerPosition,
+      metrics,
+      x: CANVAS_W / 2 - 140,
+      y: CANVAS_H / 2 - 70,
+      width: 280,
+      height: 140,
+      zIndex: maxZIndex() + 1,
+      bgColor: team?.primaryColor ?? "#1e40af",
+      textColor: "#ffffff",
+    } as PlayerStatsBoardElement);
+  }
+
+  function addZoneHeatmapElement(title: string, actionType: "attack" | "serve" | "reception", zones: Array<{ zone: number; count: number; pct: number }>, maxCount: number) {
+    addElement({
+      id: nanoid(8),
+      type: "zone-heatmap",
+      title,
+      actionType,
+      zones,
+      maxCount,
+      x: CANVAS_W / 2 - 110,
+      y: CANVAS_H / 2 - 110,
+      width: 220,
+      height: 220,
+      zIndex: maxZIndex() + 1,
+      bgColor: "#0f172a",
+    } as ZoneHeatmapBoardElement);
+  }
+
   // ── Keyboard shortcuts ───────────────────────────────────────────────────
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -1722,6 +2126,9 @@ export default function BoardEditor() {
           teamName={team.name}
           onClose={() => setAddStatsOpen(false)}
           onAdd={addStatCardElement}
+          onAddRotation={addRotationChartElement}
+          onAddPlayerStats={addPlayerStatsElement}
+          onAddZoneHeatmap={addZoneHeatmapElement}
         />
       )}
 
