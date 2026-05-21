@@ -14,16 +14,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const guard = usePlanGuard();
 
   return (
-    <div className="flex h-full overflow-x-hidden">
-      <div className="print-hide contents">
+    <div className="flex min-h-full overflow-x-hidden">
+      <div className="print-hide">
         <Sidebar />
       </div>
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="print-hide">
+        <div className="print-hide sticky top-0 z-20">
           <TrialBanner />
           <TopBar />
         </div>
-        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 lg:pb-0 print-area">
+        <main className="flex-1 overflow-x-hidden pb-16 lg:pb-0 print-area">
           <TrialExpiredGate>
             {children}
           </TrialExpiredGate>

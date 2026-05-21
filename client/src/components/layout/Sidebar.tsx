@@ -9,13 +9,10 @@ import {
   Shuffle,
   Trophy,
   ClipboardCheck,
-  Sparkles,
   Settings,
   Building2,
   KeyRound,
   Webhook,
-  BookOpen,
-  Code2,
   LayoutPanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,8 +33,6 @@ const NAV_ITEMS = [
   { href: "/scenario", icon: Shuffle, key: "scenario" },
   { href: "/boards", icon: LayoutPanelLeft, key: "boards" },
   { href: "/post-match", icon: CalendarDays, key: "postMatch" },
-  { href: "/getting-started", icon: BookOpen, key: "gettingStarted" },
-  { href: "/pricing", icon: Sparkles, key: "pricing" },
   { href: "/settings", icon: Settings, key: "settings" },
 ];
 
@@ -60,7 +55,6 @@ export function Sidebar() {
           { href: "/settings/webhooks", icon: Webhook, key: "webhooks" as const },
         ]
       : []),
-    { href: "/docs/api", icon: Code2, key: "apiDocs" as const },
   ];
 
   // Expande se não estiver collapsed (pin) OU se estiver em hover
@@ -80,7 +74,7 @@ export function Sidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "hidden lg:flex shrink-0 flex-col border-r bg-card transition-[width] duration-200 z-30",
+        "hidden lg:flex shrink-0 flex-col border-r bg-card transition-[width] duration-200 z-30 sticky top-0 h-screen",
         expanded ? "w-60" : "w-16",
       )}
     >
@@ -121,10 +115,6 @@ export function Sidebar() {
               ? "Webhooks"
               : it.key === "boards"
               ? "Apresentações"
-              : it.key === "gettingStarted"
-              ? "Como Começar"
-              : it.key === "apiDocs"
-              ? "API Docs"
               : t(`nav.${it.key}`);
           const active =
             it.href === "/"

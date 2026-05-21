@@ -9,7 +9,6 @@ import {
   CalendarDays,
   FileText,
   Shuffle,
-  Sparkles,
   Settings,
   UserCircle,
   Menu,
@@ -41,7 +40,6 @@ const allNavKeys = [
   { href: "/scenario", icon: Shuffle, key: "scenario" },
   { href: "/boards", icon: LayoutPanelLeft, key: "boards" },
   { href: "/post-match", icon: CalendarDays, key: "postMatch" },
-  { href: "/pricing", icon: Sparkles, key: "pricing" },
   { href: "/settings", icon: Settings, key: "settings" },
   { href: "/profile", icon: UserCircle, key: "profile" },
 ];
