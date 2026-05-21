@@ -50,11 +50,21 @@ export interface ArrowBoardElement extends BoardElementBase {
   dashed: boolean;
 }
 
+export interface StatCardBoardElement extends BoardElementBase {
+  type: "stat-card";
+  label: string;      // e.g. "Kill %"
+  value: string;      // valor estático no momento da inserção, e.g. "46.2%"
+  sublabel?: string;  // e.g. "Equipa · 6 jogos"
+  bgColor: string;
+  textColor: string;
+}
+
 export type BoardElement =
   | PlayerBoardElement
   | TextBoardElement
   | ShapeBoardElement
-  | ArrowBoardElement;
+  | ArrowBoardElement
+  | StatCardBoardElement;
 
 /** Cor hex, ou "court" para campo de voleibol, ou "half-court" para meio-campo. */
 export type BoardBackground = string;
