@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const guard = usePlanGuard();
 
   return (
-    <div className="flex min-h-full">
+    <div className="flex h-screen">
       <div className="print-hide contents">
         <Sidebar />
       </div>

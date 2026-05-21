@@ -50,6 +50,34 @@ export interface ArrowBoardElement extends BoardElementBase {
   dashed: boolean;
 }
 
+export interface RotationChartBoardElement extends BoardElementBase {
+  type: "rotation-chart";
+  title: string;
+  metric: "sideOut" | "breakPoint";
+  rotations: Array<{ rotation: number; value: number; rallies: number }>;
+  bgColor: string;
+  textColor: string;
+}
+
+export interface PlayerStatsBoardElement extends BoardElementBase {
+  type: "player-stats";
+  playerName: string;
+  playerNumber: number;
+  playerPosition: string;
+  metrics: Array<{ label: string; value: string }>;
+  bgColor: string;
+  textColor: string;
+}
+
+export interface ZoneHeatmapBoardElement extends BoardElementBase {
+  type: "zone-heatmap";
+  title: string;
+  actionType: "attack" | "serve" | "reception";
+  zones: Array<{ zone: number; count: number; pct: number }>;
+  maxCount: number;
+  bgColor: string;
+}
+
 export interface StatCardBoardElement extends BoardElementBase {
   type: "stat-card";
   label: string;      // e.g. "Kill %"
@@ -64,6 +92,9 @@ export type BoardElement =
   | TextBoardElement
   | ShapeBoardElement
   | ArrowBoardElement
+  | RotationChartBoardElement
+  | PlayerStatsBoardElement
+  | ZoneHeatmapBoardElement
   | StatCardBoardElement;
 
 /** Cor hex, ou "court" para campo de voleibol, ou "half-court" para meio-campo. */
