@@ -56,7 +56,7 @@
     color: hsl(var(--foreground));
     font-feature-settings: "cv11", "ss01", "ss03";
   }
-  html, body, #root { height: 100%; }
+  html, body, #root { min-height: 100%; }
 }
 
 @layer utilities {
