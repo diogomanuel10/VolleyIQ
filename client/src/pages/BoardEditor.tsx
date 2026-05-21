@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   GripVertical,
+  BarChart3,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getLastKnownToken } from "@/lib/firebase";
@@ -49,6 +50,7 @@ import {
   type TextBoardElement,
   type ShapeBoardElement,
   type ArrowBoardElement,
+  type StatCardBoardElement,
 } from "@shared/boardTypes";
 
 // ─── Volleyball court SVG background ─────────────────────────────────────────
@@ -334,6 +336,47 @@ function ArrowEl({
   );
 }
 
+// ─── Stat card ───────────────────────────────────────────────────────────────
+
+function StatCardEl({
+  element,
+  selected,
+  onPointerDown,
+}: {
+  element: StatCardBoardElement;
+  selected: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+}) {
+  return (
+    <div
+      className={`absolute cursor-move select-none rounded-xl flex flex-col items-center justify-center gap-1 shadow-lg ${
+        selected ? "ring-2 ring-white ring-offset-1 shadow-xl" : ""
+      }`}
+      style={{
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        background: element.bgColor,
+        zIndex: element.zIndex,
+      }}
+      onPointerDown={onPointerDown}
+    >
+      <div className="text-xs font-semibold uppercase tracking-wide opacity-70 px-2 text-center" style={{ color: element.textColor }}>
+        {element.label}
+      </div>
+      <div className="font-black tabular-nums leading-none px-2 text-center" style={{ color: element.textColor, fontSize: Math.round(element.height * 0.32) }}>
+        {element.value}
+      </div>
+      {element.sublabel && (
+        <div className="text-xs opacity-50 px-2 text-center truncate w-full" style={{ color: element.textColor }}>
+          {element.sublabel}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 
 interface DragState {
@@ -481,6 +524,16 @@ function BoardCanvas({
         if (el.type === "arrow") {
           return (
             <ArrowEl
+              key={el.id}
+              element={el}
+              selected={selectedId === el.id}
+              onPointerDown={pDown}
+            />
+          );
+        }
+        if (el.type === "stat-card") {
+          return (
+            <StatCardEl
               key={el.id}
               element={el}
               selected={selectedId === el.id}
@@ -708,6 +761,29 @@ function PropertiesPanel({
         </>
       )}
 
+      {element.type === "stat-card" && (
+        <>
+          <div>
+            <Label className="text-xs">Fundo</Label>
+            <input
+              type="color"
+              value={element.bgColor}
+              onChange={(e) => onUpdate({ bgColor: e.target.value } as any)}
+              className="mt-1 h-8 w-full rounded border cursor-pointer"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Texto</Label>
+            <input
+              type="color"
+              value={element.textColor}
+              onChange={(e) => onUpdate({ textColor: e.target.value } as any)}
+              className="mt-1 h-8 w-full rounded border cursor-pointer"
+            />
+          </div>
+        </>
+      )}
+
       {/* Size */}
       <div className="grid grid-cols-2 gap-2 border-t pt-2">
         <div>
@@ -870,6 +946,102 @@ function AddPlayerDialog({
   );
 }
 
+// ─── Add Stats dialog ─────────────────────────────────────────────────────────
+
+interface StatOption {
+  group: string;
+  label: string;
+  value: string;
+  sublabel: string;
+}
+
+function AddStatsDialog({
+  open,
+  teamId,
+  teamName,
+  onClose,
+  onAdd,
+}: {
+  open: boolean;
+  teamId: string;
+  teamName: string;
+  onClose: () => void;
+  onAdd: (opt: StatOption) => void;
+}) {
+  const statsQuery = useQuery({
+    queryKey: ["stats", teamId, "dashboard"],
+    queryFn: () => api.get<{
+      sampleMatches: number;
+      kpis: { killPct: number; sideOutPct: number; passRating: number; serveAcePct: number; attackEfficiency: number; record: string };
+      topScorers: Array<{ playerId: string; name: string; number: number; kills: number; aces: number; blocks: number; points: number }>;
+    }>(`/api/stats/team/${teamId}/dashboard?teamId=${teamId}`),
+    enabled: open,
+  });
+
+  const options: StatOption[] = [];
+
+  if (statsQuery.data) {
+    const { kpis, topScorers, sampleMatches } = statsQuery.data;
+    const sub = `${teamName} · ${sampleMatches} jogo${sampleMatches !== 1 ? "s" : ""}`;
+    options.push(
+      { group: "Equipa", label: "Kill %",       value: `${kpis.killPct.toFixed(1)}%`,          sublabel: sub },
+      { group: "Equipa", label: "Side-Out %",   value: `${kpis.sideOutPct.toFixed(1)}%`,       sublabel: sub },
+      { group: "Equipa", label: "Pass Rating",  value: kpis.passRating.toFixed(2),             sublabel: sub },
+      { group: "Equipa", label: "Serve Ace %",  value: `${kpis.serveAcePct.toFixed(1)}%`,      sublabel: sub },
+      { group: "Equipa", label: "Attack Eff.",  value: kpis.attackEfficiency.toFixed(3),       sublabel: sub },
+      { group: "Equipa", label: "Record",       value: kpis.record,                            sublabel: sub },
+    );
+    for (const p of topScorers) {
+      const ps = `#${p.number} ${p.name}`;
+      options.push(
+        { group: p.name, label: "Pontos",  value: String(p.points), sublabel: ps },
+        { group: p.name, label: "Kills",   value: String(p.kills),  sublabel: ps },
+        { group: p.name, label: "Aces",    value: String(p.aces),   sublabel: ps },
+        { group: p.name, label: "Blocos",  value: String(p.blocks), sublabel: ps },
+      );
+    }
+  }
+
+  const groups = [...new Set(options.map((o) => o.group))];
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Inserir estatística</DialogTitle>
+        </DialogHeader>
+        {statsQuery.isLoading && (
+          <p className="text-sm text-muted-foreground text-center py-6">A carregar…</p>
+        )}
+        {!statsQuery.isLoading && options.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            Ainda não há dados suficientes para mostrar estatísticas.
+          </p>
+        )}
+        <div className="max-h-72 overflow-y-auto space-y-4 mt-1">
+          {groups.map((group) => (
+            <div key={group}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 px-1">{group}</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {options.filter((o) => o.group === group).map((opt) => (
+                  <button
+                    key={`${opt.group}-${opt.label}`}
+                    onClick={() => { onAdd(opt); onClose(); }}
+                    className="flex flex-col items-start p-2.5 rounded-lg border hover:bg-accent text-left transition-colors"
+                  >
+                    <span className="text-xs text-muted-foreground">{opt.label}</span>
+                    <span className="text-xl font-black tabular-nums leading-tight">{opt.value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Background picker ────────────────────────────────────────────────────────
 
 const BG_PRESETS = [
@@ -935,6 +1107,7 @@ export default function BoardEditor() {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [addPlayerOpen, setAddPlayerOpen] = useState(false);
+  const [addStatsOpen, setAddStatsOpen] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [undoStack, setUndoStack] = useState<BoardSlideData[][]>([]);
 
@@ -1251,6 +1424,23 @@ export default function BoardEditor() {
     } as ArrowBoardElement);
   }
 
+  function addStatCardElement(opt: StatOption) {
+    addElement({
+      id: nanoid(8),
+      type: "stat-card",
+      label: opt.label,
+      value: opt.value,
+      sublabel: opt.sublabel,
+      x: CANVAS_W / 2 - 100,
+      y: CANVAS_H / 2 - 60,
+      width: 200,
+      height: 120,
+      zIndex: maxZIndex() + 1,
+      bgColor: team?.primaryColor ?? "#1e40af",
+      textColor: "#ffffff",
+    } as StatCardBoardElement);
+  }
+
   // ── Keyboard shortcuts ───────────────────────────────────────────────────
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -1363,6 +1553,9 @@ export default function BoardEditor() {
         </Button>
         <Button size="sm" variant="outline" onClick={addArrowElement} className="text-xs shrink-0">
           <Minus className="h-3.5 w-3.5 mr-1" /> Seta
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setAddStatsOpen(true)} className="text-xs shrink-0">
+          <BarChart3 className="h-3.5 w-3.5 mr-1" /> Stats
         </Button>
 
         <div className="w-px h-5 bg-border mx-1 shrink-0" />
@@ -1521,6 +1714,16 @@ export default function BoardEditor() {
         onClose={() => setAddPlayerOpen(false)}
         onAdd={addPlayerElement}
       />
+
+      {team && (
+        <AddStatsDialog
+          open={addStatsOpen}
+          teamId={team.id}
+          teamName={team.name}
+          onClose={() => setAddStatsOpen(false)}
+          onAdd={addStatCardElement}
+        />
+      )}
 
       {/* Print styles */}
       <style>{`
