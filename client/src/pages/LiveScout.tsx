@@ -41,6 +41,8 @@ import { ResultBar } from "@/components/scout/ResultBar";
 import { ScorePanel } from "@/components/scout/ScorePanel";
 import { ActionLog } from "@/components/scout/ActionLog";
 import { VideoPanel, type VideoPanelHandle } from "@/components/scout/VideoPanel";
+import { ZoneKeypad } from "@/components/scout/ZoneKeypad";
+import { LivePlayerStatsPanel } from "@/components/scout/LivePlayerStatsPanel";
 import type {
   Match,
   Player,
@@ -1076,16 +1078,18 @@ function Scout({
                 }
               />
             )}
-            {step === "zone" && (
-              <div className="flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => dispatch({ kind: "skipZone" })}
-                >
-                  <SkipForward className="h-4 w-4" /> {t("livescout.skipZone")}
-                </Button>
-              </div>
+            {(step === "zone" || step === "zoneFrom" || step === "zoneTo") && (
+              <ZoneKeypad
+                step={step}
+                selectedZone={step === "zoneFrom" ? state.zoneFrom : state.zoneTo}
+                color={step === "zoneFrom" ? "amber" : "blue"}
+                onSelect={(zone) => {
+                  if (step === "zoneFrom") dispatch({ kind: "selectZoneFrom", zone });
+                  else if (step === "zoneTo") dispatch({ kind: "selectZoneTo", zone });
+                  else dispatch({ kind: "selectZone", zone });
+                }}
+                onSkip={step === "zone" ? () => dispatch({ kind: "skipZone" }) : undefined}
+              />
             )}
             {step === "result" && state.actionType && (
               <div className="space-y-1">
@@ -1201,6 +1205,12 @@ function Scout({
               </p>
             </div>
           )}
+          <LivePlayerStatsPanel
+            log={state.log}
+            players={activePlayers}
+            onCourt={onCourt}
+            currentSet={state.setNumber}
+          />
           <div className="rounded-xl border bg-card p-3 md:p-4 flex flex-col max-h-[55vh] lg:max-h-none lg:flex-1 lg:min-h-0">
             <ActionLog
               log={state.log}
