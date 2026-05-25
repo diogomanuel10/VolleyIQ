@@ -794,7 +794,7 @@ function Scout({
 
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="p-3 md:p-6 mx-auto flex flex-col gap-3 md:gap-4 lg:h-[100dvh] lg:overflow-hidden">
+    <div className={cn("p-3 md:p-6 mx-auto flex flex-col gap-3 md:gap-4", !videoFocusMode && "lg:h-[100dvh] lg:overflow-hidden")}>
       {!welcomeDismissed && (
         <WelcomeBanner
           onOpenHelp={() => {
@@ -1024,9 +1024,9 @@ function Scout({
 
       {/* ── Modo Vídeo: vídeo grande na coluna principal, controlos à direita ── */}
       {videoFocusMode && match.videoUrl ? (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-3 md:gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-3 md:gap-4">
           {/* Coluna principal: vídeo + fluxo de acção */}
-          <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
+          <div className="flex flex-col gap-3">
             {/* Vídeo grande */}
             <div className="rounded-xl overflow-hidden border bg-black">
               <VideoPanel ref={videoRef} url={match.videoUrl} className="w-full" />
@@ -1151,14 +1151,14 @@ function Scout({
           </div>
 
           {/* Sidebar direita: stats + log */}
-          <aside className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:overflow-hidden">
+          <aside className="flex flex-col gap-3 min-w-0">
             <LivePlayerStatsPanel
               log={state.log}
               players={activePlayers}
               onCourt={onCourt}
               currentSet={state.setNumber}
             />
-            <div className="rounded-xl border bg-card p-3 md:p-4 flex flex-col max-h-[55vh] lg:max-h-none lg:flex-1 lg:min-h-0">
+            <div className="rounded-xl border bg-card p-3 md:p-4 flex flex-col">
               <ActionLog
                 log={state.log}
                 players={activePlayers}
