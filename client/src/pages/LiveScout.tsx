@@ -8,6 +8,8 @@ import {
   Crown,
   Keyboard,
   Loader2,
+  Maximize2,
+  Minimize2,
   Monitor,
   MoreHorizontal,
   Radio,
@@ -210,6 +212,24 @@ function Scout({
       return false;
     }
   });
+
+  const [videoFocusMode, setVideoFocusMode] = useState(() => {
+    try {
+      return window.localStorage.getItem("volleyiq:scout:videoFocus") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  function toggleVideoFocus() {
+    setVideoFocusMode((v) => {
+      const next = !v;
+      try {
+        window.localStorage.setItem("volleyiq:scout:videoFocus", next ? "1" : "0");
+      } catch { /* ignora */ }
+      return next;
+    });
+  }
 
   // Banner de primeira visita: aparece se não estiver na flag local. Lemos
   // de forma lazy para evitar acessos a window durante SSR/hidratação.
@@ -890,6 +910,24 @@ function Scout({
               <Tablet className="h-4 w-4" />
               <span className="hidden sm:inline ml-1">Tablet</span>
             </Button>
+            {match.videoUrl && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant={videoFocusMode ? "secondary" : "ghost"}
+                    onClick={toggleVideoFocus}
+                    title="Modo vídeo"
+                  >
+                    {videoFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                    <span className="hidden sm:inline ml-1">Vídeo</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {videoFocusMode ? "Voltar ao layout normal" : "Expandir vídeo para acompanhar o jogo"}
+                </TooltipContent>
+              </Tooltip>
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -983,6 +1021,154 @@ function Scout({
           )}
         </div>
       </header>
+
+      {/* ── Modo Vídeo: vídeo grande na coluna principal, controlos à direita ── */}
+      {videoFocusMode && match.videoUrl ? (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-3 md:gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+          {/* Coluna principal: vídeo + fluxo de acção */}
+          <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
+            {/* Vídeo grande */}
+            <div className="rounded-xl overflow-hidden border bg-black">
+              <VideoPanel ref={videoRef} url={match.videoUrl} className="w-full" />
+            </div>
+            <p className="text-[11px] text-muted-foreground -mt-1 px-1">
+              {t("livescout.videoTimestamp")}
+            </p>
+
+            {/* Score compacto */}
+            <ScorePanel
+              homeScore={state.homeScore}
+              awayScore={state.awayScore}
+              setNumber={state.setNumber}
+              rotation={state.rotation}
+              servingTeam={state.servingTeam}
+              onAdjust={(side, delta) => dispatch({ kind: "adjustScore", side, delta })}
+              onRotate={(direction) => dispatch({ kind: "rotate", direction })}
+              onSetServingTeam={(team) => dispatch({ kind: "setServingTeam", team })}
+              onPrevSet={() => dispatch({ kind: "prevSet" })}
+              onNextSet={() => dispatch({ kind: "nextSet" })}
+            />
+
+            {state.scoutScope !== "home" && (
+              <TeamToggle
+                activeSide={state.activeSide}
+                suggestedSide={deriveNextSide(state.log, state.servingTeam)}
+                homeName={match.competition ?? "Nossa equipa"}
+                awayName={match.opponent}
+                disabled={step !== "idle" && step !== "player"}
+                onChange={(side) => dispatch({ kind: "selectSide", side })}
+              />
+            )}
+
+            {/* Passo actual */}
+            <div className="rounded-xl border bg-card px-3 py-2 space-y-1.5">
+              <StepProgress steps={progressSteps} current={stepNumber - 1} />
+              <p className="text-xs text-muted-foreground text-center">{hint}</p>
+            </div>
+
+            {/* Selector compacto de jogadoras em campo (substitui o SVG do campo) */}
+            {state.activeSide === "home" && (step === "idle" || step === "player") && (
+              <CompactPlayerPicker
+                players={onCourt}
+                selectedId={state.playerId}
+                onSelect={(id) => dispatch({ kind: "selectPlayer", playerId: id })}
+              />
+            )}
+
+            {/* Fluxo de acção */}
+            <div className="space-y-2">
+              {step === "idle" && (
+                <>
+                  <LastActionPill
+                    last={lastLogged}
+                    player={lastLogged ? activePlayers.find((p) => p.id === lastLogged.playerId) ?? null : null}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline" size="sm"
+                      className="flex-1 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                      onClick={() => dispatch({ kind: "quickPoint", winner: "home" })}
+                      title={t("livescout.quickPointHomeTitle")}
+                    >
+                      <span className="text-base leading-none mr-1">✓</span>
+                      {t("livescout.quickPointHome")}
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      className="flex-1 border-red-400/40 text-red-700 hover:bg-red-50 hover:border-red-400 dark:text-red-400 dark:hover:bg-red-950/30"
+                      onClick={() => dispatch({ kind: "quickPoint", winner: "away" })}
+                      title={t("livescout.quickPointAwayTitle")}
+                    >
+                      <span className="text-base leading-none mr-1">✗</span>
+                      {t("livescout.quickPointAway")}
+                    </Button>
+                  </div>
+                </>
+              )}
+              {(step === "action" || step === "zone" || step === "zoneFrom" || step === "zoneTo" || step === "result") && (
+                <ActionBar
+                  value={state.actionType}
+                  onChange={(t) => dispatch({ kind: "selectAction", actionType: t })}
+                  disabled={step === "result"}
+                  suggested={step === "action" && mode === "complete" ? suggested : null}
+                />
+              )}
+              {(step === "zone" || step === "zoneFrom" || step === "zoneTo") && (
+                <ZoneKeypad
+                  step={step}
+                  selectedZone={step === "zoneFrom" ? state.zoneFrom : state.zoneTo}
+                  color={step === "zoneFrom" ? "amber" : "blue"}
+                  onSelect={(zone) => {
+                    if (step === "zoneFrom") dispatch({ kind: "selectZoneFrom", zone });
+                    else if (step === "zoneTo") dispatch({ kind: "selectZoneTo", zone });
+                    else dispatch({ kind: "selectZone", zone });
+                  }}
+                  onSkip={step === "zone" ? () => dispatch({ kind: "skipZone" }) : undefined}
+                />
+              )}
+              {step === "result" && state.actionType && (
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">
+                    {t("livescout.resultLabel", { action: ACTION_LABEL[state.actionType].toLowerCase() })}
+                    {state.zoneFrom != null ? ` (Z${state.zoneFrom} → Z${state.zoneTo})` : state.zoneTo != null ? ` Z${state.zoneTo}` : ""}
+                  </div>
+                  <ResultBar
+                    actionType={state.actionType}
+                    onResult={(r) => dispatch({ kind: "selectResult", result: r })}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Adversário */}
+            {state.activeSide === "away" && state.scoutScope !== "home" && (step === "idle" || step === "player") && (
+              <OpponentPlayerGrid
+                players={opponentPlayers}
+                selectedId={state.opponentPlayerId}
+                onSelect={(id) => dispatch({ kind: "selectOpponentPlayer", opponentPlayerId: id })}
+              />
+            )}
+          </div>
+
+          {/* Sidebar direita: stats + log */}
+          <aside className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:overflow-hidden">
+            <LivePlayerStatsPanel
+              log={state.log}
+              players={activePlayers}
+              onCourt={onCourt}
+              currentSet={state.setNumber}
+            />
+            <div className="rounded-xl border bg-card p-3 md:p-4 flex flex-col max-h-[55vh] lg:max-h-none lg:flex-1 lg:min-h-0">
+              <ActionLog
+                log={state.log}
+                players={activePlayers}
+                onUndo={handleKeyboardUndo}
+                pendingSync={pendingSync}
+              />
+            </div>
+          </aside>
+        </div>
+      ) : (
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-3 md:gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
         <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
@@ -1221,6 +1407,7 @@ function Scout({
           </div>
         </aside>
       </div>
+      )}
 
       <LineupWizard
         open={lineupOpen}
@@ -1395,6 +1582,50 @@ function TeamToggle({
       {suggestedSide !== activeSide && !disabled && (
         <span className="text-[10px] text-muted-foreground">{t("livescout.teamSuggestion")}</span>
       )}
+    </div>
+  );
+}
+
+// ── Compact player picker (usado no modo vídeo) ─────────────────────────────
+function CompactPlayerPicker({
+  players,
+  selectedId,
+  onSelect,
+}: {
+  players: Player[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  if (players.length === 0) return null;
+  return (
+    <div className="rounded-xl border bg-card p-2.5 space-y-1.5">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        Jogadoras em campo
+      </p>
+      <div className="grid grid-cols-6 gap-1">
+        {players.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelect(p.id)}
+            className={cn(
+              "flex flex-col items-center py-1.5 px-1 rounded-lg border text-center transition-all",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              selectedId === p.id
+                ? "bg-primary/15 border-primary/50 text-primary"
+                : "bg-muted/30 border-border/50 hover:bg-accent",
+            )}
+          >
+            <span className="text-sm font-bold leading-none">{p.number}</span>
+            <span className="text-[9px] text-muted-foreground mt-0.5 truncate w-full leading-tight">
+              {p.firstName.slice(0, 6)}
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground/50">
+        ou digita o nº da camisola
+      </p>
     </div>
   );
 }
