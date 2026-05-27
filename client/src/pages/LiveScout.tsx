@@ -428,6 +428,12 @@ function Scout({
           awayScore={state.awayScore}
           setNumber={state.setNumber}
           opponentName={match.opponent}
+          teamId={teamId}
+          matchId={matchId}
+          suggestions={suggestions}
+          hasHistory={Boolean(historyData)}
+          rotationStats={rotationStats}
+          players={activePlayers}
           onClose={() => {
             setTabletMode(false);
             try {
