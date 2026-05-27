@@ -434,6 +434,10 @@ function Scout({
           hasHistory={Boolean(historyData)}
           rotationStats={rotationStats}
           players={activePlayers}
+          onSubCreated={() => {
+            lineupsRefetch();
+            subsRefetch();
+          }}
           onClose={() => {
             setTabletMode(false);
             try {
