@@ -53,20 +53,24 @@ function usePlayerDetailStats(log: LoggedAction[], playerId: string | null, setF
     if (!playerId) return null;
     const filtered = setFilter != null ? log.filter((a) => a.setNumber === setFilter) : log;
     const s = {
-      attacks: 0, kills: 0, errors: 0, aces: 0, stuffs: 0,
-      serves: 0, receptions: 0, recPerfect: 0, recGood: 0, recPoor: 0, recError: 0,
-      blocks: 0, digs: 0, pts: 0,
+      attacks: 0, kills: 0, attackErrors: 0, attackBlocked: 0,
+      serves: 0, aces: 0, serveErrors: 0,
+      receptions: 0, recPerfect: 0, recGood: 0, recPoor: 0, recError: 0,
+      blocks: 0, stuffs: 0, blockTouches: 0, blockErrors: 0,
+      digs: 0, digSuccess: 0, digError: 0,
+      pts: 0, errors: 0,
     };
     for (const a of filtered) {
       if (a.playerId !== playerId || a.side !== "home") continue;
       if (a.type === "attack") {
         s.attacks++;
         if (a.result === "kill") { s.kills++; s.pts++; }
-        else if (a.result === "error" || a.result === "blocked") s.errors++;
+        else if (a.result === "error") { s.attackErrors++; s.errors++; }
+        else if (a.result === "blocked") { s.attackBlocked++; s.errors++; }
       } else if (a.type === "serve") {
         s.serves++;
         if (a.result === "ace") { s.aces++; s.pts++; }
-        else if (a.result === "error") s.errors++;
+        else if (a.result === "error") { s.serveErrors++; s.errors++; }
       } else if (a.type === "reception") {
         s.receptions++;
         if (a.result === "perfect") s.recPerfect++;
@@ -76,18 +80,23 @@ function usePlayerDetailStats(log: LoggedAction[], playerId: string | null, setF
       } else if (a.type === "block") {
         s.blocks++;
         if (a.result === "stuff") { s.stuffs++; s.pts++; }
-        else if (a.result === "error") s.errors++;
+        else if (a.result === "error") { s.blockErrors++; s.errors++; }
+        else s.blockTouches++;
       } else if (a.type === "dig") {
         s.digs++;
+        if (a.result === "error") { s.digError++; s.errors++; }
+        else s.digSuccess++;
       }
     }
     const recTotal = s.recPerfect + s.recGood + s.recPoor + s.recError;
+    const attackInPlay = s.attacks - s.kills - s.attackErrors - s.attackBlocked;
+    const serveInPlay = s.serves - s.aces - s.serveErrors;
     const killPct = s.attacks > 0 ? Math.round((s.kills / s.attacks) * 100) : null;
     const passRating = recTotal > 0
       ? Math.round(((s.recPerfect * 3 + s.recGood * 2 + s.recPoor * 1) / (recTotal * 3)) * 10) / 10
       : null;
     const hasData = s.attacks + s.serves + s.receptions + s.blocks + s.digs > 0;
-    return hasData ? { ...s, killPct, passRating, recTotal } : null;
+    return hasData ? { ...s, killPct, passRating, recTotal, attackInPlay, serveInPlay } : null;
   }, [log, playerId, setFilter]);
 }
 
@@ -150,6 +159,11 @@ export function TabletScout({
   const [subSheetOpen, setSubSheetOpen] = useState(false);
   const [subOut, setSubOut] = useState<Player | null>(null);
   const [statsSetFilter, setStatsSetFilter] = useState<number | null>(null);
+  const [statsHidden, setStatsHidden] = useState(false);
+  const [openedChip, setOpenedChip] = useState<string | null>(null);
+
+  // Reset collapse/chip when player changes
+  useEffect(() => { setStatsHidden(false); setOpenedChip(null); }, [playerId]);
 
   const availableSets = useMemo(() => {
     const s = new Set(state.log.map((a) => a.setNumber));
@@ -539,7 +553,7 @@ export function TabletScout({
 
           {/* Selected player detail */}
           <AnimatePresence>
-            {selectedPlayer && playerDetail && (
+            {selectedPlayer && playerDetail && !statsHidden && (
               <motion.div
                 key={selectedPlayer.id}
                 initial={{ opacity: 0, height: 0 }}
@@ -549,39 +563,137 @@ export function TabletScout({
                 className="overflow-hidden"
               >
                 <div className="px-3 py-2 bg-primary/5 border-b border-border/40">
+                  {/* Header row */}
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="font-black text-sm text-primary tabular-nums">#{selectedPlayer.number}</span>
                     <span className="text-xs font-semibold">{selectedPlayer.firstName} {selectedPlayer.lastName}</span>
-                    <span className="ml-auto text-xs font-bold text-emerald-600 tabular-nums">{playerDetail.pts} pts</span>
+                    <span className="text-xs font-bold text-emerald-600 tabular-nums">{playerDetail.pts} pts</span>
+                    <button
+                      className="ml-auto h-5 w-5 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+                      onClick={() => { setStatsHidden(true); setOpenedChip(null); }}
+                    >
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
                   </div>
+
+                  {/* Clickable stat chips */}
                   <div className="flex flex-wrap gap-1.5">
                     {playerDetail.attacks > 0 && (
                       <StatChip label="Ataque" main={`${playerDetail.kills}/${playerDetail.attacks}`}
-                        sub={playerDetail.killPct != null ? `${playerDetail.killPct}% K` : undefined} color="emerald" />
+                        sub={playerDetail.killPct != null ? `${playerDetail.killPct}% K` : undefined}
+                        color="emerald" active={openedChip === "attack"}
+                        onClick={() => setOpenedChip(openedChip === "attack" ? null : "attack")} />
                     )}
                     {playerDetail.serves > 0 && (
                       <StatChip label="Serviço" main={`${playerDetail.serves}`}
-                        sub={playerDetail.aces > 0 ? `${playerDetail.aces} ace` : undefined} color="sky" />
+                        sub={playerDetail.aces > 0 ? `${playerDetail.aces} ace` : undefined}
+                        color="sky" active={openedChip === "serve"}
+                        onClick={() => setOpenedChip(openedChip === "serve" ? null : "serve")} />
                     )}
                     {playerDetail.receptions > 0 && (
                       <StatChip label="Recepção" main={`${playerDetail.receptions}`}
-                        sub={playerDetail.passRating != null ? `★ ${playerDetail.passRating.toFixed(1)}` : undefined} color="violet" />
+                        sub={playerDetail.passRating != null ? `★ ${playerDetail.passRating.toFixed(1)}` : undefined}
+                        color="violet" active={openedChip === "reception"}
+                        onClick={() => setOpenedChip(openedChip === "reception" ? null : "reception")} />
                     )}
                     {playerDetail.blocks > 0 && (
                       <StatChip label="Bloco" main={`${playerDetail.blocks}`}
-                        sub={playerDetail.stuffs > 0 ? `${playerDetail.stuffs} pt` : undefined} color="slate" />
+                        sub={playerDetail.stuffs > 0 ? `${playerDetail.stuffs} pt` : undefined}
+                        color="slate" active={openedChip === "block"}
+                        onClick={() => setOpenedChip(openedChip === "block" ? null : "block")} />
                     )}
                     {playerDetail.digs > 0 && (
-                      <StatChip label="Defesa" main={`${playerDetail.digs}`} color="teal" />
+                      <StatChip label="Defesa" main={`${playerDetail.digs}`}
+                        color="teal" active={openedChip === "dig"}
+                        onClick={() => setOpenedChip(openedChip === "dig" ? null : "dig")} />
                     )}
                     {playerDetail.errors > 0 && (
-                      <StatChip label="Erros" main={`${playerDetail.errors}`} color="red" />
+                      <StatChip label="Erros" main={`${playerDetail.errors}`}
+                        color="red" active={openedChip === "errors"}
+                        onClick={() => setOpenedChip(openedChip === "errors" ? null : "errors")} />
                     )}
                   </div>
+
+                  {/* Chip breakdown */}
+                  <AnimatePresence>
+                    {openedChip && (
+                      <motion.div
+                        key={openedChip}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.12 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-2 pt-2 border-t border-border/40 space-y-1">
+                          {openedChip === "attack" && <>
+                            <BreakdownBar label="Kill" value={playerDetail.kills} total={playerDetail.attacks} color="bg-emerald-500" />
+                            <BreakdownBar label="Em jogo" value={playerDetail.attackInPlay} total={playerDetail.attacks} color="bg-blue-400" />
+                            <BreakdownBar label="Bloqueado" value={playerDetail.attackBlocked} total={playerDetail.attacks} color="bg-orange-400" />
+                            <BreakdownBar label="Erro" value={playerDetail.attackErrors} total={playerDetail.attacks} color="bg-red-500" />
+                          </>}
+                          {openedChip === "serve" && <>
+                            <BreakdownBar label="Ace" value={playerDetail.aces} total={playerDetail.serves} color="bg-sky-500" />
+                            <BreakdownBar label="Em jogo" value={playerDetail.serveInPlay} total={playerDetail.serves} color="bg-blue-400" />
+                            <BreakdownBar label="Erro" value={playerDetail.serveErrors} total={playerDetail.serves} color="bg-red-500" />
+                          </>}
+                          {openedChip === "reception" && <>
+                            <BreakdownBar label="Perfeito (3)" value={playerDetail.recPerfect} total={playerDetail.receptions} color="bg-emerald-500" />
+                            <BreakdownBar label="Bom (2)" value={playerDetail.recGood} total={playerDetail.receptions} color="bg-lime-500" />
+                            <BreakdownBar label="Razoável (1)" value={playerDetail.recPoor} total={playerDetail.receptions} color="bg-amber-500" />
+                            <BreakdownBar label="Erro (0)" value={playerDetail.recError} total={playerDetail.receptions} color="bg-red-500" />
+                            {playerDetail.passRating != null && (
+                              <p className="text-[10px] text-muted-foreground pt-0.5">
+                                Rating médio: <span className="font-bold text-foreground">★ {playerDetail.passRating.toFixed(2)}</span>
+                              </p>
+                            )}
+                          </>}
+                          {openedChip === "block" && <>
+                            <BreakdownBar label="Ponto (stuff)" value={playerDetail.stuffs} total={playerDetail.blocks} color="bg-emerald-500" />
+                            <BreakdownBar label="Toque" value={playerDetail.blockTouches} total={playerDetail.blocks} color="bg-blue-400" />
+                            <BreakdownBar label="Erro" value={playerDetail.blockErrors} total={playerDetail.blocks} color="bg-red-500" />
+                          </>}
+                          {openedChip === "dig" && <>
+                            <BreakdownBar label="Sucesso" value={playerDetail.digSuccess} total={playerDetail.digs} color="bg-teal-500" />
+                            <BreakdownBar label="Erro" value={playerDetail.digError} total={playerDetail.digs} color="bg-red-500" />
+                          </>}
+                          {openedChip === "errors" && <>
+                            {playerDetail.attackErrors + playerDetail.attackBlocked > 0 && (
+                              <BreakdownBar label="Ataque" value={playerDetail.attackErrors + playerDetail.attackBlocked} total={playerDetail.errors} color="bg-rose-500" />
+                            )}
+                            {playerDetail.serveErrors > 0 && (
+                              <BreakdownBar label="Serviço" value={playerDetail.serveErrors} total={playerDetail.errors} color="bg-orange-500" />
+                            )}
+                            {playerDetail.recError > 0 && (
+                              <BreakdownBar label="Recepção" value={playerDetail.recError} total={playerDetail.errors} color="bg-amber-500" />
+                            )}
+                            {playerDetail.blockErrors > 0 && (
+                              <BreakdownBar label="Bloco" value={playerDetail.blockErrors} total={playerDetail.errors} color="bg-slate-500" />
+                            )}
+                            {playerDetail.digError > 0 && (
+                              <BreakdownBar label="Defesa" value={playerDetail.digError} total={playerDetail.errors} color="bg-teal-600" />
+                            )}
+                          </>}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Re-open button when stats are hidden */}
+          {selectedPlayer && playerDetail && statsHidden && (
+            <div className="px-3 py-1 border-b border-border/40">
+              <button
+                onClick={() => setStatsHidden(false)}
+                className="text-[10px] text-primary font-medium hover:underline"
+              >
+                #{selectedPlayer.number} {selectedPlayer.firstName} — ver stats ▾
+              </button>
+            </div>
+          )}
 
           {/* Compact strip — all players */}
           {compactStats.length > 0 && (
@@ -805,14 +917,43 @@ const CHIP_TEXT: Record<ChipColor, string> = {
   red:     "text-red-600 dark:text-red-400",
 };
 
-function StatChip({ label, main, sub, color }: {
+function StatChip({ label, main, sub, color, onClick, active }: {
   label: string; main: string; sub?: string; color: ChipColor;
+  onClick?: () => void; active?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col rounded border px-2 py-1 min-w-[52px]", CHIP_COLOR[color])}>
-      <span className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none mb-0.5">{label}</span>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-col rounded border px-2 py-1 min-w-[52px] text-left transition-all",
+        CHIP_COLOR[color],
+        onClick && "hover:brightness-95 active:scale-95",
+        active && "ring-2 ring-primary",
+      )}
+    >
+      <span className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none mb-0.5">
+        {label}{onClick && <span className="ml-0.5 opacity-50">{active ? "▴" : "▾"}</span>}
+      </span>
       <span className={cn("text-sm font-bold tabular-nums leading-none", CHIP_TEXT[color])}>{main}</span>
       {sub && <span className="text-[10px] text-muted-foreground mt-0.5 leading-none">{sub}</span>}
+    </button>
+  );
+}
+
+function BreakdownBar({ label, value, total, color }: {
+  label: string; value: number; total: number; color: string;
+}) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <span className="w-20 text-muted-foreground shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-14 text-right tabular-nums font-medium shrink-0">
+        {value} <span className="text-muted-foreground/60">({pct}%)</span>
+      </span>
     </div>
   );
 }
