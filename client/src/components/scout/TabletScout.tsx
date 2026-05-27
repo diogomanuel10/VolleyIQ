@@ -1,21 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  BarChart3,
-  Brain,
-  RotateCw,
-  Sparkles,
-  Undo2,
-  Volleyball,
-  X,
-} from "lucide-react";
+import { Brain, RotateCw, Sparkles, Undo2, Volleyball, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PlanGate } from "@/components/PlanGate";
-import { LivePlayerStatsPanel } from "@/components/scout/LivePlayerStatsPanel";
 import { SuggestionsPanel } from "@/components/scout/SuggestionsPanel";
 import { TacticalAssistantPanel } from "@/components/scout/TacticalAssistantPanel";
-import type { ScoutDispatch, ScoutState } from "@/hooks/useScoutState";
+import type { LoggedAction, ScoutDispatch, ScoutState } from "@/hooks/useScoutState";
 import type { Player } from "@shared/schema";
 import {
   ACTION_LABEL,
@@ -45,16 +36,9 @@ interface TabletScoutProps {
   players: Player[];
 }
 
-type SheetTab = "suggestions" | "stats";
-
 const ACTION_ICON: Record<ActionType, string> = {
-  serve: "S",
-  reception: "R",
-  set: "E",
-  attack: "A",
-  block: "B",
-  dig: "D",
-  freeball: "F",
+  serve: "S", reception: "R", set: "E",
+  attack: "A", block: "B", dig: "D", freeball: "F",
 };
 
 const ACTION_BG: Record<ActionType, string> = {
@@ -66,6 +50,30 @@ const ACTION_BG: Record<ActionType, string> = {
   dig:       "bg-teal-600 hover:bg-teal-500",
   freeball:  "bg-emerald-600 hover:bg-emerald-500",
 };
+
+// Stats compactas por jogadora para a strip inferior
+function useCompactStats(log: LoggedAction[], players: Player[], setNumber: number) {
+  return useMemo(() => {
+    const setLog = log.filter((a) => a.setNumber === setNumber && a.playerId);
+    const map = new Map<string, { pts: number; kills: number; errors: number; aces: number }>();
+    for (const a of setLog) {
+      if (!a.playerId) continue;
+      const s = map.get(a.playerId) ?? { pts: 0, kills: 0, errors: 0, aces: 0 };
+      if ((a.type === "attack" && a.result === "kill") || (a.type === "block" && a.result === "stuff")) {
+        s.kills++; s.pts++;
+      } else if (a.type === "serve" && a.result === "ace") {
+        s.aces++; s.pts++;
+      } else if (a.result === "error" || (a.type === "attack" && a.result === "blocked")) {
+        s.errors++;
+      }
+      map.set(a.playerId, s);
+    }
+    return players
+      .filter((p) => map.has(p.id))
+      .map((p) => ({ player: p, ...map.get(p.id)! }))
+      .sort((a, b) => b.pts - a.pts || b.kills - a.kills);
+  }, [log, players, setNumber]);
+}
 
 export function TabletScout({
   state,
@@ -87,9 +95,10 @@ export function TabletScout({
 }: TabletScoutProps) {
   const { step, playerId, actionType } = state;
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetTab, setSheetTab] = useState<SheetTab>("suggestions");
 
-  // Tablet mode não usa o campo — salta os passos de zona automaticamente.
+  const compactStats = useCompactStats(state.log, players, setNumber);
+
+  // Tablet mode não usa o campo — salta os passos de zona.
   useEffect(() => {
     if (step === "zone" || step === "zoneFrom" || step === "zoneTo") {
       dispatch({ kind: "skipZone" });
@@ -97,8 +106,6 @@ export function TabletScout({
   }, [step, dispatch]);
 
   const results = actionType ? RESULTS_BY_ACTION[actionType] : [];
-
-  const playerActive = step === "idle" || step === "player";
   const actionActive = step === "action";
   const resultActive = step === "result";
 
@@ -109,7 +116,6 @@ export function TabletScout({
 
       {/* ── Score bar ─────────────────────────────────────────────── */}
       <div className="flex flex-col border-b bg-card shrink-0">
-        {/* Top row */}
         <div className="flex items-center gap-3 px-4 py-2">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <span className="text-sm font-medium text-muted-foreground">Set {setNumber}</span>
@@ -161,7 +167,6 @@ export function TabletScout({
               {state.servingTeam === "home" ? "A servir" : "A receber"}
             </span>
           </div>
-          {/* Mini court */}
           <div className="flex flex-col gap-0.5 mx-2">
             <div className="flex gap-1">
               {[4, 3, 2].map((pos) => {
@@ -183,14 +188,14 @@ export function TabletScout({
             <div className="flex gap-1">
               {[5, 6, 1].map((pos) => {
                 const player = lineup[(pos - state.rotation + 6) % 6];
-                const isServePos = pos === 1;
+                const isServe = pos === 1 && state.servingTeam === "home";
                 return (
                   <div
                     key={pos}
                     className={cn(
                       "w-9 h-7 rounded flex items-center justify-center text-xs font-bold tabular-nums border",
                       player ? "bg-card border-border text-foreground" : "bg-muted border-border text-muted-foreground",
-                      isServePos && state.servingTeam === "home" && "ring-1 ring-amber-400 bg-amber-50 dark:bg-amber-950/20",
+                      isServe && "ring-1 ring-amber-400 bg-amber-50 dark:bg-amber-950/20",
                     )}
                     title={player ? `${player.firstName} ${player.lastName} (P${pos})` : `P${pos} vazio`}
                   >
@@ -202,11 +207,9 @@ export function TabletScout({
           </div>
           <span className="text-[10px] text-muted-foreground/50 uppercase tracking-widest -ml-1 hidden sm:block">rede ↑</span>
           <Button
-            size="sm"
-            variant="ghost"
+            size="sm" variant="ghost"
             className="h-8 px-2 ml-auto shrink-0"
             onClick={() => dispatch({ kind: "rotate", direction: 1 })}
-            title="Rodar"
           >
             <RotateCw className="h-3.5 w-3.5 mr-1" />
             <span className="text-xs">Rodar</span>
@@ -214,7 +217,7 @@ export function TabletScout({
         </div>
       </div>
 
-      {/* ── Quick points (só no passo idle) ───────────────────────── */}
+      {/* ── Quick points (idle only) ───────────────────────────────── */}
       <AnimatePresence>
         {step === "idle" && (
           <motion.div
@@ -228,15 +231,13 @@ export function TabletScout({
               className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 transition-all"
               onClick={() => dispatch({ kind: "quickPoint", winner: "home" })}
             >
-              <span className="text-lg leading-none">✓</span>
-              Ponto nosso
+              <span className="text-lg leading-none">✓</span> Ponto nosso
             </button>
             <button
               className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-sm bg-red-600 hover:bg-red-500 text-white active:scale-95 transition-all"
               onClick={() => dispatch({ kind: "quickPoint", winner: "away" })}
             >
-              <span className="text-lg leading-none">✗</span>
-              Ponto deles
+              <span className="text-lg leading-none">✗</span> Ponto deles
             </button>
           </motion.div>
         )}
@@ -245,8 +246,8 @@ export function TabletScout({
       {/* ── 3-column grid ─────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 divide-x">
 
-        {/* Column 1 — Players (grid) ──────────────────────────────── */}
-        <div className={cn(colBase, "w-[34%]", !playerActive && "opacity-40 pointer-events-none")}>
+        {/* Column 1 — Players (sempre activa para permitir correcções) ── */}
+        <div className={cn(colBase, "w-[34%]")}>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1 shrink-0">
             Jogadora
           </p>
@@ -338,7 +339,7 @@ export function TabletScout({
                 className={cn(
                   "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all text-white active:scale-95",
                   ACTION_BG[at],
-                  selected ? "ring-2 ring-white ring-offset-2 ring-offset-background scale-[1.02]" : "",
+                  selected && "ring-2 ring-white ring-offset-2 ring-offset-background scale-[1.02]",
                 )}
               >
                 <span className="text-xl font-bold w-7 text-center shrink-0">{ACTION_ICON[at]}</span>
@@ -364,7 +365,7 @@ export function TabletScout({
               className={cn(
                 "w-full rounded-xl px-4 py-4 text-left font-bold text-base transition-all active:scale-95",
                 RESULT_COLOR[r],
-                resultActive ? "" : "cursor-default",
+                !resultActive && "cursor-default",
               )}
             >
               {RESULT_LABEL[r]}
@@ -373,17 +374,46 @@ export function TabletScout({
         </div>
       </div>
 
+      {/* ── Stats em jogo ─────────────────────────────────────────── */}
+      {compactStats.length > 0 && (
+        <div className="shrink-0 border-t bg-muted/20 px-3 py-1.5 overflow-x-auto">
+          <div className="flex gap-2 min-w-max">
+            {compactStats.map(({ player, kills, errors, aces, pts }) => {
+              const isOnCourt = onCourt.some((p) => p.id === player.id);
+              return (
+                <div
+                  key={player.id}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-2.5 py-1 border text-xs",
+                    isOnCourt ? "bg-card border-border" : "bg-muted/40 border-border/50 opacity-60",
+                  )}
+                >
+                  <span className="font-bold text-primary tabular-nums w-5 text-center">{player.number}</span>
+                  <span className="text-muted-foreground truncate max-w-[56px]">{player.firstName}</span>
+                  <div className="flex items-center gap-1.5 font-medium tabular-nums">
+                    {kills > 0 && <span className="text-emerald-600">{kills}K</span>}
+                    {aces > 0 && <span className="text-sky-500">{aces}A</span>}
+                    {errors > 0 && <span className="text-red-500">{errors}E</span>}
+                    <span className="text-muted-foreground/60 font-normal">{pts}pts</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Step hint bar ─────────────────────────────────────────── */}
       <div className="shrink-0 px-4 py-1.5 border-t bg-muted/40 flex items-center gap-2 text-xs text-muted-foreground">
-        <StepDot active={playerActive} done={step === "action" || step === "result"} label="Jogadora" />
+        <StepDot active={step === "idle" || step === "player"} done={step === "action" || step === "result"} label="Jogadora" />
         <span className="opacity-30">›</span>
-        <StepDot active={actionActive} done={step === "result"} label="Acção" />
+        <StepDot active={step === "action"} done={step === "result"} label="Acção" />
         <span className="opacity-30">›</span>
-        <StepDot active={resultActive} done={false} label="Resultado" />
+        <StepDot active={step === "result"} done={false} label="Resultado" />
         <span className="ml-auto font-medium">{state.log.length} acções</span>
       </div>
 
-      {/* ── Bottom sheet ──────────────────────────────────────────── */}
+      {/* ── Bottom sheet (só sugestões) ───────────────────────────── */}
       <AnimatePresence>
         {sheetOpen && (
           <>
@@ -402,74 +432,34 @@ export function TabletScout({
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
             >
-              {/* Sheet header */}
-              <div className="flex items-center gap-1 px-4 py-3 border-b shrink-0">
-                <button
-                  onClick={() => setSheetTab("suggestions")}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                    sheetTab === "suggestions"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent",
-                  )}
-                >
-                  <Sparkles className="h-3.5 w-3.5" /> Sugestões
-                </button>
-                <button
-                  onClick={() => setSheetTab("stats")}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                    sheetTab === "stats"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent",
-                  )}
-                >
-                  <BarChart3 className="h-3.5 w-3.5" /> Estatísticas
-                </button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="ml-auto h-8 w-8 p-0"
-                  onClick={() => setSheetOpen(false)}
-                >
+              <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">Assistente tático</span>
+                <Button size="sm" variant="ghost" className="ml-auto h-8 w-8 p-0" onClick={() => setSheetOpen(false)}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-
-              {/* Sheet content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {sheetTab === "suggestions" && (
-                  <>
-                    <TacticalAssistantPanel
-                      teamId={teamId}
-                      matchId={matchId}
-                      opponent={opponentName}
-                      setNumber={state.setNumber}
-                      homeScore={state.homeScore}
-                      awayScore={state.awayScore}
-                      servingTeam={state.servingTeam}
-                      rotation={state.rotation}
-                      log={state.log}
-                      onCourt={onCourt}
-                      rotationStats={rotationStats}
-                    />
-                    <PlanGate feature="aiLiveSuggestions" overlay>
-                      <SuggestionsPanel
-                        suggestions={suggestions}
-                        hasLog={state.log.length > 0}
-                        hasHistory={hasHistory}
-                      />
-                    </PlanGate>
-                  </>
-                )}
-                {sheetTab === "stats" && (
-                  <LivePlayerStatsPanel
-                    log={state.log}
-                    players={players}
-                    onCourt={onCourt}
-                    currentSet={state.setNumber}
+                <TacticalAssistantPanel
+                  teamId={teamId}
+                  matchId={matchId}
+                  opponent={opponentName}
+                  setNumber={state.setNumber}
+                  homeScore={state.homeScore}
+                  awayScore={state.awayScore}
+                  servingTeam={state.servingTeam}
+                  rotation={state.rotation}
+                  log={state.log}
+                  onCourt={onCourt}
+                  rotationStats={rotationStats}
+                />
+                <PlanGate feature="aiLiveSuggestions" overlay>
+                  <SuggestionsPanel
+                    suggestions={suggestions}
+                    hasLog={state.log.length > 0}
+                    hasHistory={hasHistory}
                   />
-                )}
+                </PlanGate>
               </div>
             </motion.div>
           </>
@@ -481,16 +471,10 @@ export function TabletScout({
 
 function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
   return (
-    <span
-      className={cn(
-        "px-2 py-0.5 rounded-full font-medium transition-colors",
-        active
-          ? "bg-primary text-primary-foreground"
-          : done
-            ? "text-emerald-600"
-            : "text-muted-foreground/50",
-      )}
-    >
+    <span className={cn(
+      "px-2 py-0.5 rounded-full font-medium transition-colors",
+      active ? "bg-primary text-primary-foreground" : done ? "text-emerald-600" : "text-muted-foreground/50",
+    )}>
       {label}
     </span>
   );
