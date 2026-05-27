@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Brain, RotateCw, Sparkles, Undo2, Volleyball, X } from "lucide-react";
+import {
+  ArrowLeftRight, Brain, ChevronLeft, ChevronRight,
+  RotateCw, Sparkles, Undo2, Volleyball, X,
+} from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { PlanGate } from "@/components/PlanGate";
 import { SuggestionsPanel } from "@/components/scout/SuggestionsPanel";
 import { TacticalAssistantPanel } from "@/components/scout/TacticalAssistantPanel";
 import type { LoggedAction, ScoutDispatch, ScoutState } from "@/hooks/useScoutState";
-import type { Player } from "@shared/schema";
+import type { Player, Substitution } from "@shared/schema";
 import {
   ACTION_LABEL,
   ACTION_TYPES,
@@ -17,7 +23,7 @@ import {
   type ActionType,
 } from "@shared/types";
 
-// ── Compact strip stats (all players) ──────────────────────────────────────
+// ── Compact strip stats (all players) ─────────────────────────────────────
 function useCompactStats(log: LoggedAction[], players: Player[], setFilter: number | null) {
   return useMemo(() => {
     const filtered = setFilter != null ? log.filter((a) => a.setNumber === setFilter) : log;
@@ -102,6 +108,7 @@ interface TabletScoutProps {
   hasHistory: boolean;
   rotationStats: Array<{ rotation: number; sideOutPct: number }>;
   players: Player[];
+  onSubCreated?: (sub: Substitution) => void;
 }
 
 const ACTION_ICON: Record<ActionType, string> = {
@@ -136,9 +143,12 @@ export function TabletScout({
   hasHistory,
   rotationStats,
   players,
+  onSubCreated,
 }: TabletScoutProps) {
   const { step, playerId, actionType } = state;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [subSheetOpen, setSubSheetOpen] = useState(false);
+  const [subOut, setSubOut] = useState<Player | null>(null);
   const [statsSetFilter, setStatsSetFilter] = useState<number | null>(null);
 
   const availableSets = useMemo(() => {
@@ -150,7 +160,26 @@ export function TabletScout({
   const selectedPlayer = players.find((p) => p.id === playerId) ?? null;
   const playerDetail = usePlayerDetailStats(state.log, playerId, statsSetFilter);
 
-  // Tablet mode não usa o campo — salta os passos de zona.
+  // Substitution mutation
+  const subMutation = useMutation({
+    mutationFn: ({ outId, inId }: { outId: string; inId: string }) =>
+      api.post<Substitution>(`/api/matches/${matchId}/substitutions`, {
+        setNumber: state.setNumber,
+        homeScore: state.homeScore,
+        awayScore: state.awayScore,
+        playerOutId: outId,
+        playerInId: inId,
+      }),
+    onSuccess: (sub) => {
+      toast.success("Substituição registada");
+      onSubCreated?.(sub);
+      setSubOut(null);
+      setSubSheetOpen(false);
+    },
+    onError: () => toast.error("Erro ao registar substituição"),
+  });
+
+  // Tablet mode — skip zone steps
   useEffect(() => {
     if (step === "zone" || step === "zoneFrom" || step === "zoneTo") {
       dispatch({ kind: "skipZone" });
@@ -160,8 +189,13 @@ export function TabletScout({
   const results = actionType ? RESULTS_BY_ACTION[actionType] : [];
   const actionActive = step === "action";
   const resultActive = step === "result";
-
   const colBase = "flex flex-col gap-2 overflow-y-auto p-3 h-full";
+
+  // Last 6 actions reversed (most recent first)
+  const recentActions = useMemo(
+    () => [...state.log].reverse().slice(0, 7),
+    [state.log],
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground select-none">
@@ -170,7 +204,25 @@ export function TabletScout({
       <div className="flex flex-col border-b bg-card shrink-0">
         <div className="flex items-center gap-3 px-4 py-2">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <span className="text-sm font-medium text-muted-foreground">Set {setNumber}</span>
+            {/* Set navigation */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted transition-colors disabled:opacity-30"
+                onClick={() => dispatch({ kind: "prevSet" })}
+                disabled={state.setNumber <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-semibold px-1 tabular-nums">Set {setNumber}</span>
+              <button
+                className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted transition-colors disabled:opacity-30"
+                onClick={() => dispatch({ kind: "nextSet" })}
+                disabled={state.setNumber >= 5}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
             <div className="flex items-center gap-2 text-3xl font-bold tabular-nums">
               <span className="text-emerald-600">{homeScore}</span>
               <span className="text-muted-foreground/50 text-xl">–</span>
@@ -180,7 +232,18 @@ export function TabletScout({
               vs {opponentName}
             </span>
           </div>
+
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-10 px-3 gap-1.5"
+              onClick={() => { setSubSheetOpen(true); setSubOut(null); }}
+              title="Substituição"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs">Sub</span>
+            </Button>
             <Button
               size="sm"
               variant={sheetOpen ? "secondary" : "outline"}
@@ -298,7 +361,7 @@ export function TabletScout({
       {/* ── 3-column grid ─────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 divide-x">
 
-        {/* Column 1 — Players (sempre activa para permitir correcções) ── */}
+        {/* Column 1 — Players ─────────────────────────────────────── */}
         <div className={cn(colBase, "w-[34%]")}>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1 shrink-0">
             Jogadora
@@ -377,28 +440,33 @@ export function TabletScout({
           )}
         </div>
 
-        {/* Column 2 — Actions ──────────────────────────────────────── */}
+        {/* Column 2 — Actions (square grid) ───────────────────────── */}
         <div className={cn(colBase, "w-[33%]", !actionActive && "opacity-40 pointer-events-none")}>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1 shrink-0">
             Acção
           </p>
-          {ACTION_TYPES.map((at) => {
-            const selected = actionType === at;
-            return (
-              <button
-                key={at}
-                onClick={() => dispatch({ kind: "selectAction", actionType: at })}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all text-white active:scale-95",
-                  ACTION_BG[at],
-                  selected && "ring-2 ring-white ring-offset-2 ring-offset-background scale-[1.02]",
-                )}
-              >
-                <span className="text-xl font-bold w-7 text-center shrink-0">{ACTION_ICON[at]}</span>
-                <span className="flex-1 font-semibold text-sm">{ACTION_LABEL[at]}</span>
-              </button>
-            );
-          })}
+          <div className="grid grid-cols-2 gap-2 flex-1">
+            {ACTION_TYPES.map((at, i) => {
+              const selected = actionType === at;
+              const isLast = i === ACTION_TYPES.length - 1;
+              const isOdd = ACTION_TYPES.length % 2 !== 0;
+              return (
+                <button
+                  key={at}
+                  onClick={() => dispatch({ kind: "selectAction", actionType: at })}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 rounded-xl text-white active:scale-95 transition-all min-h-[72px]",
+                    ACTION_BG[at],
+                    selected && "ring-2 ring-white ring-offset-2 ring-offset-background scale-[1.02]",
+                    isLast && isOdd && "col-span-2",
+                  )}
+                >
+                  <span className="text-2xl font-black leading-none">{ACTION_ICON[at]}</span>
+                  <span className="text-xs font-semibold leading-none">{ACTION_LABEL[at]}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Column 3 — Results ─────────────────────────────────────── */}
@@ -427,7 +495,7 @@ export function TabletScout({
       </div>
 
       {/* ── Stats em jogo ─────────────────────────────────────────── */}
-      {(state.log.length > 0) && (
+      {state.log.length > 0 && (
         <div className="shrink-0 border-t bg-muted/20">
 
           {/* Header: label + set filter tabs */}
@@ -488,36 +556,20 @@ export function TabletScout({
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {playerDetail.attacks > 0 && (
-                      <StatChip
-                        label="Ataque"
-                        main={`${playerDetail.kills}/${playerDetail.attacks}`}
-                        sub={playerDetail.killPct != null ? `${playerDetail.killPct}% K` : undefined}
-                        color="emerald"
-                      />
+                      <StatChip label="Ataque" main={`${playerDetail.kills}/${playerDetail.attacks}`}
+                        sub={playerDetail.killPct != null ? `${playerDetail.killPct}% K` : undefined} color="emerald" />
                     )}
                     {playerDetail.serves > 0 && (
-                      <StatChip
-                        label="Serviço"
-                        main={`${playerDetail.serves}`}
-                        sub={playerDetail.aces > 0 ? `${playerDetail.aces} ace` : undefined}
-                        color="sky"
-                      />
+                      <StatChip label="Serviço" main={`${playerDetail.serves}`}
+                        sub={playerDetail.aces > 0 ? `${playerDetail.aces} ace` : undefined} color="sky" />
                     )}
                     {playerDetail.receptions > 0 && (
-                      <StatChip
-                        label="Recepção"
-                        main={`${playerDetail.receptions}`}
-                        sub={playerDetail.passRating != null ? `★ ${playerDetail.passRating.toFixed(1)}` : undefined}
-                        color="violet"
-                      />
+                      <StatChip label="Recepção" main={`${playerDetail.receptions}`}
+                        sub={playerDetail.passRating != null ? `★ ${playerDetail.passRating.toFixed(1)}` : undefined} color="violet" />
                     )}
                     {playerDetail.blocks > 0 && (
-                      <StatChip
-                        label="Bloco"
-                        main={`${playerDetail.blocks}`}
-                        sub={playerDetail.stuffs > 0 ? `${playerDetail.stuffs} pt` : undefined}
-                        color="slate"
-                      />
+                      <StatChip label="Bloco" main={`${playerDetail.blocks}`}
+                        sub={playerDetail.stuffs > 0 ? `${playerDetail.stuffs} pt` : undefined} color="slate" />
                     )}
                     {playerDetail.digs > 0 && (
                       <StatChip label="Defesa" main={`${playerDetail.digs}`} color="teal" />
@@ -568,6 +620,39 @@ export function TabletScout({
         </div>
       )}
 
+      {/* ── Últimas ações ─────────────────────────────────────────── */}
+      {recentActions.length > 0 && (
+        <div className="shrink-0 border-t bg-background px-3 py-2 overflow-x-auto">
+          <div className="flex gap-2 min-w-max items-center">
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/60 shrink-0 mr-1">
+              Últimas
+            </span>
+            {recentActions.map((a, i) => {
+              const p = players.find((pl) => pl.id === a.playerId);
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1.5 text-sm"
+                >
+                  {p && (
+                    <span className="font-black text-primary tabular-nums">#{p.number}</span>
+                  )}
+                  <span className="font-bold text-muted-foreground">
+                    {ACTION_ICON[a.type as ActionType] ?? a.type}
+                  </span>
+                  <span className={cn("font-semibold", RESULT_COLOR[a.result as keyof typeof RESULT_COLOR])}>
+                    {RESULT_LABEL[a.result as keyof typeof RESULT_LABEL] ?? a.result}
+                  </span>
+                  {a.side === "away" && (
+                    <span className="text-[10px] text-muted-foreground/50">(adv)</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Step hint bar ─────────────────────────────────────────── */}
       <div className="shrink-0 px-4 py-1.5 border-t bg-muted/40 flex items-center gap-2 text-xs text-muted-foreground">
         <StepDot active={step === "idle" || step === "player"} done={step === "action" || step === "result"} label="Jogadora" />
@@ -577,23 +662,17 @@ export function TabletScout({
         <StepDot active={step === "result"} done={false} label="Resultado" />
       </div>
 
-      {/* ── Bottom sheet (só sugestões) ───────────────────────────── */}
+      {/* ── Bottom sheet: Assistente ──────────────────────────────── */}
       <AnimatePresence>
         {sheetOpen && (
           <>
-            <motion.div
-              className="absolute inset-0 bg-black/40 z-10"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSheetOpen(false)}
-            />
+            <motion.div className="absolute inset-0 bg-black/40 z-10"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSheetOpen(false)} />
             <motion.div
               className="absolute bottom-0 left-0 right-0 z-20 bg-background border-t rounded-t-2xl flex flex-col overflow-hidden"
               style={{ maxHeight: "65vh" }}
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
             >
               <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
@@ -605,25 +684,89 @@ export function TabletScout({
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 <TacticalAssistantPanel
-                  teamId={teamId}
-                  matchId={matchId}
-                  opponent={opponentName}
-                  setNumber={state.setNumber}
-                  homeScore={state.homeScore}
-                  awayScore={state.awayScore}
-                  servingTeam={state.servingTeam}
-                  rotation={state.rotation}
-                  log={state.log}
-                  onCourt={onCourt}
-                  rotationStats={rotationStats}
+                  teamId={teamId} matchId={matchId} opponent={opponentName}
+                  setNumber={state.setNumber} homeScore={state.homeScore} awayScore={state.awayScore}
+                  servingTeam={state.servingTeam} rotation={state.rotation}
+                  log={state.log} onCourt={onCourt} rotationStats={rotationStats}
                 />
                 <PlanGate feature="aiLiveSuggestions" overlay>
-                  <SuggestionsPanel
-                    suggestions={suggestions}
-                    hasLog={state.log.length > 0}
-                    hasHistory={hasHistory}
-                  />
+                  <SuggestionsPanel suggestions={suggestions} hasLog={state.log.length > 0} hasHistory={hasHistory} />
                 </PlanGate>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Bottom sheet: Substituição ────────────────────────────── */}
+      <AnimatePresence>
+        {subSheetOpen && (
+          <>
+            <motion.div className="absolute inset-0 bg-black/40 z-10"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => { setSubSheetOpen(false); setSubOut(null); }} />
+            <motion.div
+              className="absolute bottom-0 left-0 right-0 z-20 bg-background border-t rounded-t-2xl flex flex-col overflow-hidden"
+              style={{ maxHeight: "70vh" }}
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            >
+              <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
+                <ArrowLeftRight className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">
+                  {subOut ? "Quem entra?" : "Quem sai?"}
+                </span>
+                {subOut && (
+                  <span className="ml-2 text-xs bg-muted rounded px-2 py-0.5 font-medium">
+                    #{subOut.number} {subOut.firstName} sai
+                  </span>
+                )}
+                <Button size="sm" variant="ghost" className="ml-auto h-8 w-8 p-0"
+                  onClick={() => { setSubSheetOpen(false); setSubOut(null); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {!subOut ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">Seleciona a jogadora que vai sair de campo:</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {onCourt.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setSubOut(p)}
+                          className="flex flex-col items-center justify-center rounded-xl py-4 px-2 border-2 border-border hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all active:scale-95"
+                        >
+                          <span className="text-2xl font-black tabular-nums text-primary leading-none">{p.number}</span>
+                          <span className="text-xs mt-1 text-muted-foreground truncate w-full text-center">{p.firstName}</span>
+                          <span className="text-[10px] text-red-500 mt-0.5 font-medium">Sai</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">Seleciona a jogadora que vai entrar:</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {bench.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => subMutation.mutate({ outId: subOut.id, inId: p.id })}
+                          disabled={subMutation.isPending}
+                          className="flex flex-col items-center justify-center rounded-xl py-4 px-2 border-2 border-border hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <span className="text-2xl font-black tabular-nums text-muted-foreground leading-none">{p.number}</span>
+                          <span className="text-xs mt-1 text-muted-foreground truncate w-full text-center">{p.firstName}</span>
+                          <span className="text-[10px] text-emerald-600 mt-0.5 font-medium">Entra</span>
+                        </button>
+                      ))}
+                    </div>
+                    <Button variant="ghost" size="sm" className="w-full" onClick={() => setSubOut(null)}>
+                      ← Escolher outra jogadora para sair
+                    </Button>
+                  </>
+                )}
               </div>
             </motion.div>
           </>
