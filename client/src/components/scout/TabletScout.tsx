@@ -17,6 +17,74 @@ import {
   type ActionType,
 } from "@shared/types";
 
+// ── Compact strip stats (all players) ──────────────────────────────────────
+function useCompactStats(log: LoggedAction[], players: Player[], setFilter: number | null) {
+  return useMemo(() => {
+    const filtered = setFilter != null ? log.filter((a) => a.setNumber === setFilter) : log;
+    const map = new Map<string, { pts: number; kills: number; errors: number; aces: number }>();
+    for (const a of filtered) {
+      if (!a.playerId) continue;
+      const s = map.get(a.playerId) ?? { pts: 0, kills: 0, errors: 0, aces: 0 };
+      if ((a.type === "attack" && a.result === "kill") || (a.type === "block" && a.result === "stuff")) {
+        s.kills++; s.pts++;
+      } else if (a.type === "serve" && a.result === "ace") {
+        s.aces++; s.pts++;
+      } else if (a.result === "error" || (a.type === "attack" && a.result === "blocked")) {
+        s.errors++;
+      }
+      map.set(a.playerId, s);
+    }
+    return players
+      .filter((p) => map.has(p.id))
+      .map((p) => ({ player: p, ...map.get(p.id)! }))
+      .sort((a, b) => b.pts - a.pts || b.kills - a.kills);
+  }, [log, players, setFilter]);
+}
+
+// ── Detailed stats for one player ─────────────────────────────────────────
+function usePlayerDetailStats(log: LoggedAction[], playerId: string | null, setFilter: number | null) {
+  return useMemo(() => {
+    if (!playerId) return null;
+    const filtered = setFilter != null ? log.filter((a) => a.setNumber === setFilter) : log;
+    const s = {
+      attacks: 0, kills: 0, errors: 0, aces: 0, stuffs: 0,
+      serves: 0, receptions: 0, recPerfect: 0, recGood: 0, recPoor: 0, recError: 0,
+      blocks: 0, digs: 0, pts: 0,
+    };
+    for (const a of filtered) {
+      if (a.playerId !== playerId || a.side !== "home") continue;
+      if (a.type === "attack") {
+        s.attacks++;
+        if (a.result === "kill") { s.kills++; s.pts++; }
+        else if (a.result === "error" || a.result === "blocked") s.errors++;
+      } else if (a.type === "serve") {
+        s.serves++;
+        if (a.result === "ace") { s.aces++; s.pts++; }
+        else if (a.result === "error") s.errors++;
+      } else if (a.type === "reception") {
+        s.receptions++;
+        if (a.result === "perfect") s.recPerfect++;
+        else if (a.result === "good") s.recGood++;
+        else if (a.result === "poor") s.recPoor++;
+        else if (a.result === "error") { s.recError++; s.errors++; }
+      } else if (a.type === "block") {
+        s.blocks++;
+        if (a.result === "stuff") { s.stuffs++; s.pts++; }
+        else if (a.result === "error") s.errors++;
+      } else if (a.type === "dig") {
+        s.digs++;
+      }
+    }
+    const recTotal = s.recPerfect + s.recGood + s.recPoor + s.recError;
+    const killPct = s.attacks > 0 ? Math.round((s.kills / s.attacks) * 100) : null;
+    const passRating = recTotal > 0
+      ? Math.round(((s.recPerfect * 3 + s.recGood * 2 + s.recPoor * 1) / (recTotal * 3)) * 10) / 10
+      : null;
+    const hasData = s.attacks + s.serves + s.receptions + s.blocks + s.digs > 0;
+    return hasData ? { ...s, killPct, passRating, recTotal } : null;
+  }, [log, playerId, setFilter]);
+}
+
 interface TabletScoutProps {
   state: ScoutState;
   dispatch: ScoutDispatch;
@@ -51,30 +119,6 @@ const ACTION_BG: Record<ActionType, string> = {
   freeball:  "bg-emerald-600 hover:bg-emerald-500",
 };
 
-// Stats compactas por jogadora para a strip inferior
-function useCompactStats(log: LoggedAction[], players: Player[], setNumber: number) {
-  return useMemo(() => {
-    const setLog = log.filter((a) => a.setNumber === setNumber && a.playerId);
-    const map = new Map<string, { pts: number; kills: number; errors: number; aces: number }>();
-    for (const a of setLog) {
-      if (!a.playerId) continue;
-      const s = map.get(a.playerId) ?? { pts: 0, kills: 0, errors: 0, aces: 0 };
-      if ((a.type === "attack" && a.result === "kill") || (a.type === "block" && a.result === "stuff")) {
-        s.kills++; s.pts++;
-      } else if (a.type === "serve" && a.result === "ace") {
-        s.aces++; s.pts++;
-      } else if (a.result === "error" || (a.type === "attack" && a.result === "blocked")) {
-        s.errors++;
-      }
-      map.set(a.playerId, s);
-    }
-    return players
-      .filter((p) => map.has(p.id))
-      .map((p) => ({ player: p, ...map.get(p.id)! }))
-      .sort((a, b) => b.pts - a.pts || b.kills - a.kills);
-  }, [log, players, setNumber]);
-}
-
 export function TabletScout({
   state,
   dispatch,
@@ -95,8 +139,16 @@ export function TabletScout({
 }: TabletScoutProps) {
   const { step, playerId, actionType } = state;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [statsSetFilter, setStatsSetFilter] = useState<number | null>(null);
 
-  const compactStats = useCompactStats(state.log, players, setNumber);
+  const availableSets = useMemo(() => {
+    const s = new Set(state.log.map((a) => a.setNumber));
+    return Array.from(s).sort((a, b) => a - b);
+  }, [state.log]);
+
+  const compactStats = useCompactStats(state.log, players, statsSetFilter);
+  const selectedPlayer = players.find((p) => p.id === playerId) ?? null;
+  const playerDetail = usePlayerDetailStats(state.log, playerId, statsSetFilter);
 
   // Tablet mode não usa o campo — salta os passos de zona.
   useEffect(() => {
@@ -375,31 +427,144 @@ export function TabletScout({
       </div>
 
       {/* ── Stats em jogo ─────────────────────────────────────────── */}
-      {compactStats.length > 0 && (
-        <div className="shrink-0 border-t bg-muted/20 px-3 py-1.5 overflow-x-auto">
-          <div className="flex gap-2 min-w-max">
-            {compactStats.map(({ player, kills, errors, aces, pts }) => {
-              const isOnCourt = onCourt.some((p) => p.id === player.id);
-              return (
-                <div
-                  key={player.id}
+      {(state.log.length > 0) && (
+        <div className="shrink-0 border-t bg-muted/20">
+
+          {/* Header: label + set filter tabs */}
+          <div className="flex items-center gap-2 px-3 py-1 border-b border-border/40">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
+              Stats
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setStatsSetFilter(null)}
+                className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors",
+                  statsSetFilter === null
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Tudo
+              </button>
+              {availableSets.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatsSetFilter(s)}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-2.5 py-1 border text-xs",
-                    isOnCourt ? "bg-card border-border" : "bg-muted/40 border-border/50 opacity-60",
+                    "text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors",
+                    statsSetFilter === s
+                      ? "bg-primary text-primary-foreground"
+                      : s === setNumber
+                        ? "text-foreground ring-1 ring-primary/40"
+                        : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span className="font-bold text-primary tabular-nums w-5 text-center">{player.number}</span>
-                  <span className="text-muted-foreground truncate max-w-[56px]">{player.firstName}</span>
-                  <div className="flex items-center gap-1.5 font-medium tabular-nums">
-                    {kills > 0 && <span className="text-emerald-600">{kills}K</span>}
-                    {aces > 0 && <span className="text-sky-500">{aces}A</span>}
-                    {errors > 0 && <span className="text-red-500">{errors}E</span>}
-                    <span className="text-muted-foreground/60 font-normal">{pts}pts</span>
+                  S{s}
+                </button>
+              ))}
+            </div>
+            <span className="ml-auto text-[10px] text-muted-foreground/50 tabular-nums">
+              {state.log.length} ações
+            </span>
+          </div>
+
+          {/* Selected player detail */}
+          <AnimatePresence>
+            {selectedPlayer && playerDetail && (
+              <motion.div
+                key={selectedPlayer.id}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.15 }}
+                className="overflow-hidden"
+              >
+                <div className="px-3 py-2 bg-primary/5 border-b border-border/40">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="font-black text-sm text-primary tabular-nums">#{selectedPlayer.number}</span>
+                    <span className="text-xs font-semibold">{selectedPlayer.firstName} {selectedPlayer.lastName}</span>
+                    <span className="ml-auto text-xs font-bold text-emerald-600 tabular-nums">{playerDetail.pts} pts</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {playerDetail.attacks > 0 && (
+                      <StatChip
+                        label="Ataque"
+                        main={`${playerDetail.kills}/${playerDetail.attacks}`}
+                        sub={playerDetail.killPct != null ? `${playerDetail.killPct}% K` : undefined}
+                        color="emerald"
+                      />
+                    )}
+                    {playerDetail.serves > 0 && (
+                      <StatChip
+                        label="Serviço"
+                        main={`${playerDetail.serves}`}
+                        sub={playerDetail.aces > 0 ? `${playerDetail.aces} ace` : undefined}
+                        color="sky"
+                      />
+                    )}
+                    {playerDetail.receptions > 0 && (
+                      <StatChip
+                        label="Recepção"
+                        main={`${playerDetail.receptions}`}
+                        sub={playerDetail.passRating != null ? `★ ${playerDetail.passRating.toFixed(1)}` : undefined}
+                        color="violet"
+                      />
+                    )}
+                    {playerDetail.blocks > 0 && (
+                      <StatChip
+                        label="Bloco"
+                        main={`${playerDetail.blocks}`}
+                        sub={playerDetail.stuffs > 0 ? `${playerDetail.stuffs} pt` : undefined}
+                        color="slate"
+                      />
+                    )}
+                    {playerDetail.digs > 0 && (
+                      <StatChip label="Defesa" main={`${playerDetail.digs}`} color="teal" />
+                    )}
+                    {playerDetail.errors > 0 && (
+                      <StatChip label="Erros" main={`${playerDetail.errors}`} color="red" />
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Compact strip — all players */}
+          {compactStats.length > 0 && (
+            <div className="px-3 py-1.5 overflow-x-auto">
+              <div className="flex gap-1.5 min-w-max">
+                {compactStats.map(({ player, kills, errors, aces, pts }) => {
+                  const isOnCourt = onCourt.some((p) => p.id === player.id);
+                  const isSelected = player.id === playerId;
+                  return (
+                    <button
+                      key={player.id}
+                      onClick={() => dispatch({ kind: "selectPlayer", playerId: player.id })}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-lg px-2 py-1 border text-xs transition-all active:scale-95",
+                        isSelected
+                          ? "bg-primary/10 border-primary ring-1 ring-primary"
+                          : isOnCourt
+                            ? "bg-card border-border hover:bg-accent"
+                            : "bg-muted/40 border-border/50 opacity-60 hover:opacity-80",
+                      )}
+                    >
+                      <span className="font-bold text-primary tabular-nums w-5 text-center">{player.number}</span>
+                      <span className="text-muted-foreground truncate max-w-[52px]">{player.firstName}</span>
+                      <div className="flex items-center gap-1 font-medium tabular-nums">
+                        {kills > 0 && <span className="text-emerald-600">{kills}K</span>}
+                        {aces > 0 && <span className="text-sky-500">{aces}A</span>}
+                        {errors > 0 && <span className="text-red-500">{errors}E</span>}
+                        <span className="text-muted-foreground/50 font-normal">{pts}p</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -410,7 +575,6 @@ export function TabletScout({
         <StepDot active={step === "action"} done={step === "result"} label="Acção" />
         <span className="opacity-30">›</span>
         <StepDot active={step === "result"} done={false} label="Resultado" />
-        <span className="ml-auto font-medium">{state.log.length} acções</span>
       </div>
 
       {/* ── Bottom sheet (só sugestões) ───────────────────────────── */}
@@ -477,5 +641,35 @@ function StepDot({ active, done, label }: { active: boolean; done: boolean; labe
     )}>
       {label}
     </span>
+  );
+}
+
+type ChipColor = "emerald" | "sky" | "violet" | "slate" | "teal" | "red";
+const CHIP_COLOR: Record<ChipColor, string> = {
+  emerald: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+  sky:     "bg-sky-50 border-sky-200 dark:bg-sky-950/30 dark:border-sky-800",
+  violet:  "bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800",
+  slate:   "bg-slate-50 border-slate-200 dark:bg-slate-950/30 dark:border-slate-800",
+  teal:    "bg-teal-50 border-teal-200 dark:bg-teal-950/30 dark:border-teal-800",
+  red:     "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800",
+};
+const CHIP_TEXT: Record<ChipColor, string> = {
+  emerald: "text-emerald-700 dark:text-emerald-400",
+  sky:     "text-sky-700 dark:text-sky-400",
+  violet:  "text-violet-700 dark:text-violet-400",
+  slate:   "text-slate-700 dark:text-slate-400",
+  teal:    "text-teal-700 dark:text-teal-400",
+  red:     "text-red-600 dark:text-red-400",
+};
+
+function StatChip({ label, main, sub, color }: {
+  label: string; main: string; sub?: string; color: ChipColor;
+}) {
+  return (
+    <div className={cn("flex flex-col rounded border px-2 py-1 min-w-[52px]", CHIP_COLOR[color])}>
+      <span className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none mb-0.5">{label}</span>
+      <span className={cn("text-sm font-bold tabular-nums leading-none", CHIP_TEXT[color])}>{main}</span>
+      {sub && <span className="text-[10px] text-muted-foreground mt-0.5 leading-none">{sub}</span>}
+    </div>
   );
 }
