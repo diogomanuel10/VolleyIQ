@@ -273,6 +273,7 @@ export const actions = pgTable(
     zoneToY: real("zone_to_y"),
     rallyId: text("rally_id"),
     rotation: integer("rotation"),
+    setNumber: integer("set_number"),
     // "home" = acção da nossa equipa; "away" = acção do adversário.
     side: text("side", { enum: ["home", "away"] }).notNull().default("home"),
     // Preenchido quando side = "away": referência ao jogador adversário.

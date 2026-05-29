@@ -407,7 +407,7 @@ function Scout({
 
   return (
     <TooltipProvider delayDuration={300}>
-    <div className={cn("p-3 md:p-6 mx-auto flex flex-col gap-3 md:gap-4", !videoFocusMode && "lg:h-[100dvh] lg:overflow-hidden")}>
+    <div className={cn("p-3 md:p-6 mx-auto flex flex-col gap-3 md:gap-4", !videoFocusMode && "lg:h-full lg:overflow-hidden")}>
       {!welcomeDismissed && (
         <WelcomeBanner
           onOpenHelp={() => {
@@ -687,7 +687,7 @@ function Scout({
         </div>
 
         {/* Sugestões + Log lateral + vídeo (opcional) */}
-        <aside className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:overflow-hidden">
+        <aside className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           <div className="lg:shrink-0">
             <TacticalAssistantPanel
               teamId={teamId}
@@ -729,7 +729,7 @@ function Scout({
             onCourt={onCourt}
             currentSet={state.setNumber}
           />
-          <div className="rounded-xl border bg-card p-3 md:p-4 flex flex-col max-h-[55vh] lg:max-h-none lg:flex-1 lg:min-h-0">
+          <div className="rounded-xl border bg-card p-3 md:p-4 flex flex-col max-h-[55vh] lg:max-h-[320px]">
             <ActionLog
               log={state.log}
               players={activePlayers}

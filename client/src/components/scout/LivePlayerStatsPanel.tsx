@@ -12,6 +12,8 @@ interface PlayerStats {
   stuffs: number;
   attacks: number;
   serves: number;
+  serveGood: number;
+  servePoor: number;
   receptions: number;
   recPerfect: number;
   recGood: number;
@@ -20,6 +22,7 @@ interface PlayerStats {
   pts: number;
   killPct: number | null;
   passRating: number | null;
+  serveEffPct: number | null;
 }
 
 function computeStats(log: LoggedAction[], players: Player[], setFilter: number | null): PlayerStats[] {
@@ -30,9 +33,9 @@ function computeStats(log: LoggedAction[], players: Player[], setFilter: number 
     map.set(p.id, {
       player: p,
       kills: 0, errors: 0, aces: 0, stuffs: 0,
-      attacks: 0, serves: 0, receptions: 0,
+      attacks: 0, serves: 0, serveGood: 0, servePoor: 0, receptions: 0,
       recPerfect: 0, recGood: 0, recPoor: 0, recError: 0,
-      pts: 0, killPct: null, passRating: null,
+      pts: 0, killPct: null, passRating: null, serveEffPct: null,
     });
   }
 
@@ -49,6 +52,8 @@ function computeStats(log: LoggedAction[], players: Player[], setFilter: number 
       s.serves++;
       if (a.result === "ace") { s.aces++; s.pts++; }
       else if (a.result === "error") s.errors++;
+      else if (a.result === "good") s.serveGood++;
+      else if (a.result === "poor") s.servePoor++;
     } else if (a.type === "reception") {
       s.receptions++;
       if (a.result === "perfect") s.recPerfect++;
@@ -66,6 +71,9 @@ function computeStats(log: LoggedAction[], players: Player[], setFilter: number 
     const recTotal = s.recPerfect + s.recGood + s.recPoor + s.recError;
     s.passRating = recTotal > 0
       ? Math.round(((s.recPerfect * 3 + s.recGood * 2 + s.recPoor * 1) / (recTotal * 3)) * 10) / 10
+      : null;
+    s.serveEffPct = s.serves > 0
+      ? Math.round(((s.aces - s.errors) / s.serves) * 100)
       : null;
   }
 
@@ -159,13 +167,14 @@ export function LivePlayerStatsPanel({ log, players, onCourt, currentSet }: Prop
                 <th className="text-center font-medium pb-1 w-7">Pts</th>
                 <th className="text-center font-medium pb-1 w-7">K%</th>
                 <th className="text-center font-medium pb-1 w-7">Err</th>
-                <th className="text-center font-medium pb-1 w-7">Aces</th>
+                <th className="text-center font-medium pb-1 w-10" title="Aces e % serviços positivos">Srv</th>
                 <th className="text-center font-medium pb-1 w-7">Rec</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
-              {sorted.map(({ player, kills, errors, aces, stuffs, attacks, serves, receptions, recPerfect, recGood, recError, killPct, passRating }) => {
+              {sorted.map(({ player, kills, errors, aces, stuffs, attacks, serves, serveGood, receptions, killPct, passRating, serveEffPct }) => {
                 const isOnCourt = onCourtIds.has(player.id);
+                const servePosPct = serves > 0 ? Math.round(((aces + serveGood) / serves) * 100) : null;
                 return (
                   <tr
                     key={player.id}
@@ -210,9 +219,23 @@ export function LivePlayerStatsPanel({ log, players, onCourt, currentSet }: Prop
                       </span>
                     </td>
                     <td className="text-center py-1">
-                      <span className={cn(aces > 0 && "text-emerald-600 dark:text-emerald-400 font-medium")}>
-                        {aces > 0 ? aces : "—"}
-                      </span>
+                      {serves > 0 ? (
+                        <span className={cn(
+                          "font-medium text-[10px]",
+                          (servePosPct ?? 0) >= 50 ? "text-emerald-600 dark:text-emerald-400"
+                            : (servePosPct ?? 0) >= 25 ? "text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                          title={`Serviços: ${serves} · Aces: ${aces} · Positivos: ${serveGood}${serveEffPct != null ? ` · Eficiência DV: ${serveEffPct >= 0 ? "+" : ""}${serveEffPct}%` : ""}`}
+                        >
+                          {aces > 0 ? `${aces}A` : "—"}
+                          {servePosPct != null && servePosPct > 0 && (
+                            <span className="text-muted-foreground/60"> {servePosPct}%</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
                     </td>
                     <td className="text-center py-1">
                       {receptions > 0 ? (
@@ -236,7 +259,7 @@ export function LivePlayerStatsPanel({ log, players, onCourt, currentSet }: Prop
         </div>
       )}
       <p className="text-[9px] text-muted-foreground/50">
-        Pts = kills + aces + blocos · K% = kill% em ataque · Rec = rating recepção
+        Pts = kills + aces + blocos · K% = kill% · Srv = aces + % serviços positivos · Rec = rating recepção
       </p>
     </div>
   );

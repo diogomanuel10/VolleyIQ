@@ -19,6 +19,7 @@ import {
   ACTION_TYPES,
   RESULT_COLOR,
   RESULT_LABEL,
+  RESULT_LABEL_SERVE,
   RESULTS_BY_ACTION,
   type ActionType,
 } from "@shared/types";
@@ -54,7 +55,7 @@ function usePlayerDetailStats(log: LoggedAction[], playerId: string | null, setF
     const filtered = setFilter != null ? log.filter((a) => a.setNumber === setFilter) : log;
     const s = {
       attacks: 0, kills: 0, attackErrors: 0, attackBlocked: 0,
-      serves: 0, aces: 0, serveErrors: 0,
+      serves: 0, aces: 0, serveErrors: 0, serveGood: 0, servePoor: 0, serveInPlay: 0,
       receptions: 0, recPerfect: 0, recGood: 0, recPoor: 0, recError: 0,
       blocks: 0, stuffs: 0, blockTouches: 0, blockErrors: 0,
       digs: 0, digSuccess: 0, digError: 0,
@@ -71,6 +72,9 @@ function usePlayerDetailStats(log: LoggedAction[], playerId: string | null, setF
         s.serves++;
         if (a.result === "ace") { s.aces++; s.pts++; }
         else if (a.result === "error") { s.serveErrors++; s.errors++; }
+        else if (a.result === "good") { s.serveGood++; }
+        else if (a.result === "poor") { s.servePoor++; }
+        else if (a.result === "in_play") { s.serveInPlay++; }
       } else if (a.type === "reception") {
         s.receptions++;
         if (a.result === "perfect") s.recPerfect++;
@@ -90,13 +94,20 @@ function usePlayerDetailStats(log: LoggedAction[], playerId: string | null, setF
     }
     const recTotal = s.recPerfect + s.recGood + s.recPoor + s.recError;
     const attackInPlay = s.attacks - s.kills - s.attackErrors - s.attackBlocked;
-    const serveInPlay = s.serves - s.aces - s.serveErrors;
     const killPct = s.attacks > 0 ? Math.round((s.kills / s.attacks) * 100) : null;
+    // Eficiência do serviço DataVolley: (aces - erros) / total
+    const serveEffPct = s.serves > 0
+      ? Math.round(((s.aces - s.serveErrors) / s.serves) * 100)
+      : null;
+    // Taxa de serviços positivos (aces + positivos): pressão sobre adversário
+    const servePosPct = s.serves > 0
+      ? Math.round(((s.aces + s.serveGood) / s.serves) * 100)
+      : null;
     const passRating = recTotal > 0
       ? Math.round(((s.recPerfect * 3 + s.recGood * 2 + s.recPoor * 1) / (recTotal * 3)) * 10) / 10
       : null;
     const hasData = s.attacks + s.serves + s.receptions + s.blocks + s.digs > 0;
-    return hasData ? { ...s, killPct, passRating, recTotal, attackInPlay, serveInPlay } : null;
+    return hasData ? { ...s, killPct, passRating, recTotal, attackInPlay, serveEffPct, servePosPct } : null;
   }, [log, playerId, setFilter]);
 }
 
@@ -290,12 +301,27 @@ export function TabletScout({
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rot</span>
             <span className="text-sm font-bold tabular-nums bg-muted px-2 py-0.5 rounded-md">{state.rotation}</span>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Volleyball className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-xs text-muted-foreground">
-              {state.servingTeam === "home" ? "A servir" : "A receber"}
+          <button
+            onClick={() => dispatch({ kind: "setServingTeam", team: state.servingTeam === "home" ? "away" : "home" })}
+            className={cn(
+              "flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-lg border transition-colors",
+              state.servingTeam === "home"
+                ? "bg-amber-50 border-amber-300 dark:bg-amber-950/20 dark:border-amber-700"
+                : "bg-muted/40 border-border hover:bg-muted",
+            )}
+            title="Toca para trocar quem serve"
+          >
+            <Volleyball className={cn(
+              "h-3.5 w-3.5",
+              state.servingTeam === "home" ? "text-amber-500" : "text-muted-foreground/40"
+            )} />
+            <span className={cn(
+              "text-xs font-medium",
+              state.servingTeam === "home" ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"
+            )}>
+              {state.servingTeam === "home" ? "Nós servimos" : "Eles servem"}
             </span>
-          </div>
+          </button>
           <div className="flex flex-col gap-0.5 mx-2">
             <div className="flex gap-1">
               {[4, 3, 2].map((pos) => {
@@ -491,20 +517,25 @@ export function TabletScout({
           {results.length === 0 && (
             <p className="text-sm text-muted-foreground p-2">Seleciona jogadora e acção primeiro.</p>
           )}
-          {results.map((r) => (
-            <button
-              key={r}
-              onClick={() => resultActive ? dispatch({ kind: "selectResult", result: r }) : undefined}
-              disabled={!resultActive}
-              className={cn(
-                "w-full rounded-xl px-4 py-4 text-left font-bold text-base transition-all active:scale-95",
-                RESULT_COLOR[r],
-                !resultActive && "cursor-default",
-              )}
-            >
-              {RESULT_LABEL[r]}
-            </button>
-          ))}
+          {results.map((r) => {
+            const label = actionType === "serve"
+              ? (RESULT_LABEL_SERVE[r] ?? RESULT_LABEL[r])
+              : RESULT_LABEL[r];
+            return (
+              <button
+                key={r}
+                onClick={() => resultActive ? dispatch({ kind: "selectResult", result: r }) : undefined}
+                disabled={!resultActive}
+                className={cn(
+                  "w-full rounded-xl px-4 py-3 text-left font-bold text-sm transition-all active:scale-95",
+                  RESULT_COLOR[r],
+                  !resultActive && "cursor-default",
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -586,7 +617,7 @@ export function TabletScout({
                     )}
                     {playerDetail.serves > 0 && (
                       <StatChip label="Serviço" main={`${playerDetail.serves}`}
-                        sub={playerDetail.aces > 0 ? `${playerDetail.aces} ace` : undefined}
+                        sub={playerDetail.servePosPct != null ? `${playerDetail.servePosPct}% +` : playerDetail.aces > 0 ? `${playerDetail.aces} ace` : undefined}
                         color="sky" active={openedChip === "serve"}
                         onClick={() => setOpenedChip(openedChip === "serve" ? null : "serve")} />
                     )}
@@ -633,9 +664,19 @@ export function TabletScout({
                             <BreakdownBar label="Erro" value={playerDetail.attackErrors} total={playerDetail.attacks} color="bg-red-500" />
                           </>}
                           {openedChip === "serve" && <>
-                            <BreakdownBar label="Ace" value={playerDetail.aces} total={playerDetail.serves} color="bg-sky-500" />
-                            <BreakdownBar label="Em jogo" value={playerDetail.serveInPlay} total={playerDetail.serves} color="bg-blue-400" />
-                            <BreakdownBar label="Erro" value={playerDetail.serveErrors} total={playerDetail.serves} color="bg-red-500" />
+                            <BreakdownBar label="Ace (#)" value={playerDetail.aces} total={playerDetail.serves} color="bg-sky-500" />
+                            <BreakdownBar label="Positivo (+)" value={playerDetail.serveGood} total={playerDetail.serves} color="bg-emerald-400" />
+                            <BreakdownBar label="Negativo (−)" value={playerDetail.servePoor} total={playerDetail.serves} color="bg-amber-400" />
+                            <BreakdownBar label="Overpass (/)" value={playerDetail.serveInPlay} total={playerDetail.serves} color="bg-blue-400" />
+                            <BreakdownBar label="Erro (=)" value={playerDetail.serveErrors} total={playerDetail.serves} color="bg-red-500" />
+                            {playerDetail.serveEffPct != null && (
+                              <p className="text-[10px] text-muted-foreground pt-0.5">
+                                Eficiência DV: <span className={cn("font-bold", playerDetail.serveEffPct >= 0 ? "text-emerald-600" : "text-red-500")}>{playerDetail.serveEffPct >= 0 ? "+" : ""}{playerDetail.serveEffPct}%</span>
+                                {playerDetail.servePosPct != null && (
+                                  <span className="ml-2">Taxa positiva: <span className="font-bold text-foreground">{playerDetail.servePosPct}%</span></span>
+                                )}
+                              </p>
+                            )}
                           </>}
                           {openedChip === "reception" && <>
                             <BreakdownBar label="Perfeito (3)" value={playerDetail.recPerfect} total={playerDetail.receptions} color="bg-emerald-500" />
