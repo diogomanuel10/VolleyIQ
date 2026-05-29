@@ -75,7 +75,7 @@ export const ZONE_GRID: Record<Zone, { col: number; row: number }> = {
  * Usado pelo scout para mostrar os botões certos em cada passo.
  */
 export const RESULTS_BY_ACTION: Record<ActionType, readonly ActionResult[]> = {
-  serve: ["ace", "error", "in_play"],
+  serve: ["ace", "error", "good", "poor", "in_play"],
   reception: ["perfect", "good", "poor", "error"],
   set: ["perfect", "good", "poor", "error"],
   attack: ["kill", "error", "tooled", "blocked", "in_play"],
@@ -90,14 +90,18 @@ export const RESULT_DV_CODE: Record<
   Partial<Record<ActionResult, DvCode>>
 > = {
   // SERVIÇO (S)
-  // DV avalia pela qualidade da receção adversária; com os resultados que tens:
-  // - ace      → ponto directo  (#)
-  // - error    → erro de serviço (=)
-  // - in_play  → serviço neutro/positivo (+)
+  // DV avalia pela qualidade da receção adversária:
+  // - ace    → ponto directo (#)
+  // - error  → erro de serviço (=)
+  // - good   → serviço positivo: receção limitada (+)
+  // - poor   → serviço negativo: receção perfeita (-)
+  // - in_play → overpass / bola livre (/)
   serve: {
     ace: "#",
     error: "=",
-    in_play: "+",
+    good: "+",
+    poor: "-",
+    in_play: "/",
   },
 
   // RECEÇÃO (R)
@@ -194,13 +198,22 @@ export const RESULT_LABEL: Record<ActionResult, string> = {
   tooled: "Tooled",
   in_play: "Em jogo",
   perfect: "Perfeito",
-  good: "Bom",
-  poor: "Fraco",
+  good: "Positivo",
+  poor: "Negativo",
   blocked: "Bloqueado",
   stuff: "Stuff",
   touch: "Toque",
   won: "Ponto ganho",
   lost: "Ponto adversário",
+};
+
+/** Labels alternativos para contextos de UI mais específicos. */
+export const RESULT_LABEL_SERVE: Partial<Record<ActionResult, string>> = {
+  ace: "Ace (#)",
+  error: "Erro (=)",
+  good: "Positivo (+): receção limitada",
+  poor: "Negativo (−): receção perfeita",
+  in_play: "Overpass (/): bola livre",
 };
 
 export const ACTION_LABEL: Record<ActionType, string> = {

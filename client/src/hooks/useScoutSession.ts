@@ -83,6 +83,7 @@ export function useScoutSession({
         zoneToY: a.zoneToY ?? null,
         rallyId: a.rallyId,
         rotation: a.rotation,
+        setNumber: a.setNumber,
         videoTimeSec: videoRef.current?.getCurrentTime() ?? null,
       }),
     onError: (err: any) =>
@@ -121,7 +122,7 @@ export function useScoutSession({
       result: a.result,
       rallyId: a.rallyId ?? "",
       rotation: a.rotation ?? 1,
-      setNumber: a.rotation != null ? 1 : 1,
+      setNumber: a.setNumber ?? 1,
       timestamp: new Date(a.timestamp).getTime(),
       side: (a.side as "home" | "away") ?? "home",
       opponentPlayerId: a.opponentPlayerId ?? null,

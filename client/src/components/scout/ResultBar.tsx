@@ -2,6 +2,7 @@ import {
   RESULTS_BY_ACTION,
   RESULT_COLOR,
   RESULT_LABEL,
+  RESULT_LABEL_SERVE,
   getDvCode,
   type ActionResult,
   type ActionType,
@@ -16,6 +17,7 @@ export function ResultBar({
   onResult: (r: ActionResult) => void;
 }) {
   const options = RESULTS_BY_ACTION[actionType];
+  const isServe = actionType === "serve";
   return (
     <div
       className={cn(
@@ -29,12 +31,15 @@ export function ResultBar({
     >
       {options.map((r) => {
         const dv = getDvCode(actionType, r);
+        const label = isServe
+          ? (RESULT_LABEL_SERVE[r] ?? RESULT_LABEL[r])
+          : RESULT_LABEL[r];
         return (
           <button
             key={r}
             onClick={() => onResult(r)}
             className={cn(
-              "relative h-16 rounded-lg font-semibold text-sm transition-all no-touch-callout active:scale-95",
+              "relative h-16 rounded-lg font-semibold text-sm transition-all no-touch-callout active:scale-95 px-2",
               RESULT_COLOR[r],
             )}
           >
@@ -43,7 +48,7 @@ export function ResultBar({
                 {dv}
               </kbd>
             )}
-            {RESULT_LABEL[r]}
+            {label}
           </button>
         );
       })}
