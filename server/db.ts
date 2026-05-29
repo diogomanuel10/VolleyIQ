@@ -75,6 +75,7 @@ const bootstrapStmts: Array<[string, string]> = [
   ["teams.pdf_month",       `ALTER TABLE teams ADD COLUMN IF NOT EXISTS pdf_exports_month text DEFAULT ''`],
   ["teams.invite_code",     `ALTER TABLE teams ADD COLUMN IF NOT EXISTS invite_code text`],
   ["players.photo_url",     `ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`],
+  ["actions.set_number",    `ALTER TABLE actions ADD COLUMN IF NOT EXISTS set_number integer`],
   // Novas tabelas de apresentações (Fase 2)
   ["boards", `CREATE TABLE IF NOT EXISTS boards (
       id text PRIMARY KEY,
