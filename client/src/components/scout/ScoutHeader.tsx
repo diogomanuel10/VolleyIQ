@@ -15,6 +15,7 @@ import {
   Tablet,
   Users,
   Video,
+  WifiOff,
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -136,6 +137,7 @@ export type ScoutHeaderProps = {
   step: Step;
   updateMatch: { mutate: (patch: Partial<Match>) => void; isPending: boolean };
   onBack: () => void;
+  isOnline?: boolean;
 };
 
 export function ScoutHeader({
@@ -160,6 +162,7 @@ export function ScoutHeader({
   step,
   updateMatch,
   onBack,
+  isOnline = true,
 }: ScoutHeaderProps) {
   const { t } = useTranslation();
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -183,8 +186,17 @@ export function ScoutHeader({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0">
-          <h1 className="text-lg md:text-xl font-bold tracking-tight truncate">
+          <h1 className="text-lg md:text-xl font-bold tracking-tight truncate flex items-center gap-2">
             vs. {match.opponent}
+            {!isOnline && (
+              <span
+                title={t("livescout.offline")}
+                className="inline-flex items-center gap-1 text-xs font-normal text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded"
+              >
+                <WifiOff className="h-3 w-3" />
+                Offline
+              </span>
+            )}
           </h1>
           <div className="text-xs text-muted-foreground">
             {match.competition ?? "Live Scout"}
