@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Undo2 } from "lucide-react";
+import { Loader2, Undo2, WifiOff, CloudUpload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { LoggedAction } from "@/hooks/useScoutState";
 import type { Player } from "@shared/schema";
@@ -16,11 +16,15 @@ export function ActionLog({
   players,
   onUndo,
   pendingSync = 0,
+  isOnline = true,
+  offlineQueueSize = 0,
 }: {
   log: LoggedAction[];
   players: Player[];
   onUndo: () => void;
   pendingSync?: number;
+  isOnline?: boolean;
+  offlineQueueSize?: number;
 }) {
   const { t } = useTranslation();
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -28,6 +32,39 @@ export function ActionLog({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Offline / sync status banner */}
+      <AnimatePresence>
+        {!isOnline && (
+          <motion.div
+            key="offline-banner"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-2 flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-300"
+          >
+            <WifiOff className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">
+              {t("livescout.offline")}
+              {offlineQueueSize > 0 && (
+                <> · <strong>{offlineQueueSize}</strong> {t("livescout.offlineQueued")}</>
+              )}
+            </span>
+          </motion.div>
+        )}
+        {isOnline && offlineQueueSize > 0 && (
+          <motion.div
+            key="sync-banner"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-2 flex items-center gap-2 rounded-md border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs text-blue-700 dark:text-blue-300"
+          >
+            <CloudUpload className="h-3.5 w-3.5 shrink-0 animate-pulse" />
+            <span>{t("livescout.syncingQueue", { count: offlineQueueSize })}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">

@@ -1,10 +1,20 @@
 // VolleyIQ service worker — app-shell cache + stale-while-revalidate + Web Push.
 // Mantido propositadamente simples (sem Workbox) para caber no PWA sem build step.
-const VERSION = "volleyiq-v2";
+const VERSION = "volleyiq-v3";
+const API_CACHE = "volleyiq-api-v1";
 const SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
+];
+
+// API paths cached for offline fallback (scout read-only data).
+const CACHEABLE_API = [
+  /^\/api\/matches(\?|$)/,
+  /^\/api\/players(\?|$)/,
+  /^\/api\/matches\/[^/]+\/actions(\?|$)/,
+  /^\/api\/matches\/[^/]+\/lineups(\?|$)/,
+  /^\/api\/matches\/[^/]+\/substitutions(\?|$)/,
 ];
 
 self.addEventListener("install", (event) => {
@@ -15,11 +25,10 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  const keep = new Set([VERSION, API_CACHE]);
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)),
-      ),
+      Promise.all(keys.filter((k) => !keep.has(k)).map((k) => caches.delete(k))),
     ),
   );
   self.clients.claim();
@@ -30,8 +39,26 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // API: só rede, nunca cache (dados tempo-real).
-  if (url.pathname.startsWith("/api/")) return;
+  // API: network-first com fallback para cache nos endpoints de scout.
+  if (url.pathname.startsWith("/api/")) {
+    const isCacheable = CACHEABLE_API.some((re) => re.test(url.pathname + url.search));
+    if (!isCacheable) return; // outras rotas: só rede
+
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(API_CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() =>
+          caches.match(req).then((hit) => hit ?? Response.error()),
+        ),
+    );
+    return;
+  }
 
   // Navegações (HTML) → network-first com fallback à shell cacheada.
   if (req.mode === "navigate") {

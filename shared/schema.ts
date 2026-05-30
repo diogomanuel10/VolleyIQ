@@ -44,6 +44,9 @@ export const teams = pgTable("teams", {
   easyPaySubscriptionId: text("easypay_subscription_id"),
   pdfExportsCount: integer("pdf_exports_count").notNull().default(0),
   pdfExportsMonth: text("pdf_exports_month").default(""),
+  // Partial<Record<keyof PlanLimits, boolean>> serializado em JSON.
+  // Permite ao admin forçar on/off por funcionalidade, sobrepondo os limites do plano.
+  featureOverrides: text("feature_overrides"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

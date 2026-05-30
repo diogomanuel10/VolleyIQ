@@ -252,6 +252,8 @@ function Scout({
     historyData,
     rotationStats,
     pendingSync,
+    offlineQueueSize,
+    isOnline,
     videoRef,
     updateMatch,
     lineupsRefetch,
@@ -477,6 +479,7 @@ function Scout({
         step={step}
         updateMatch={updateMatch}
         onBack={onBack}
+        isOnline={isOnline}
       />
 
       {/* ── Modo Vídeo: vídeo grande na coluna principal, controlos à direita ── */}
@@ -569,6 +572,8 @@ function Scout({
                 players={activePlayers}
                 onUndo={handleKeyboardUndo}
                 pendingSync={pendingSync}
+                isOnline={isOnline}
+                offlineQueueSize={offlineQueueSize}
               />
             </div>
           </aside>
@@ -735,6 +740,8 @@ function Scout({
               players={activePlayers}
               onUndo={handleKeyboardUndo}
               pendingSync={pendingSync}
+              isOnline={isOnline}
+              offlineQueueSize={offlineQueueSize}
             />
           </div>
         </aside>

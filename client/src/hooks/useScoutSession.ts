@@ -25,6 +25,12 @@ import type {
   Substitution,
   OpponentPlayer,
 } from "@shared/schema";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import {
+  enqueueOfflineAction,
+  getOfflineQueue,
+  removeFromQueue,
+} from "@/lib/scoutQueue";
 
 export function useScoutSession({
   matchId,
@@ -40,6 +46,7 @@ export function useScoutSession({
   dispatch: ScoutDispatch;
 }) {
   const { t } = useTranslation();
+  const isOnline = useOnlineStatus();
 
   const matchQuery = useQuery({
     queryKey: ["matches", teamId],
@@ -58,11 +65,12 @@ export function useScoutSession({
       api.get<DbAction[]>(`/api/matches/${matchId}/actions`),
   });
 
-  // Chave de persistência para este jogo.
   const sessionKey = `volleyiq:scout:${matchId}`;
 
-  // IDs que já foram enviados ao servidor (ou estão em voo).
+  // IDs already sent to the server (or in-flight).
   const syncedIds = useRef(new Set<string>());
+  // IDs currently in the offline queue.
+  const offlineQueueIds = useRef(new Set<string>());
 
   const videoRef = useRef<VideoPanelHandle>(null);
 
@@ -86,8 +94,6 @@ export function useScoutSession({
         setNumber: a.setNumber,
         videoTimeSec: videoRef.current?.getCurrentTime() ?? null,
       }),
-    onError: (err: any) =>
-      toast.error(err.message ?? t("common.error")),
   });
 
   const deleteAction = useMutation({
@@ -103,7 +109,11 @@ export function useScoutSession({
       toast.error(err.message ?? t("common.error")),
   });
 
-  // Hidrata o log + estado volátil a partir da API + localStorage.
+  // Counts for the UI.
+  const [pendingSync, setPendingSync] = useState(0);
+  const [offlineQueueSize, setOfflineQueueSize] = useState(0);
+
+  // Hydrate log + volatile state from API + localStorage.
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) return;
@@ -128,9 +138,36 @@ export function useScoutSession({
       opponentPlayerId: a.opponentPlayerId ?? null,
     }));
 
-    // Reconstrói score a partir do log — mais fiável do que localStorage.
-    const setN = mapped.reduce((max, a) => Math.max(max, a.setNumber), 1);
-    const inSet = mapped.filter((a) => a.setNumber === setN);
+    // Mark DB actions as synced.
+    for (const a of mapped) {
+      syncedIds.current.add(a.id);
+    }
+
+    // Recover any actions that were queued offline but not yet sent.
+    const mappedIds = new Set(mapped.map((a) => a.id));
+    const queued = getOfflineQueue(matchId);
+    const pendingQueued = queued.filter((a) => !mappedIds.has(a.id));
+
+    // Remove from queue any actions that already reached the server.
+    const alreadySynced = queued.filter((a) => mappedIds.has(a.id));
+    if (alreadySynced.length > 0) {
+      removeFromQueue(matchId, alreadySynced.map((a) => a.id));
+    }
+
+    if (pendingQueued.length > 0) {
+      for (const a of pendingQueued) {
+        offlineQueueIds.current.add(a.id);
+      }
+      setOfflineQueueSize(pendingQueued.length);
+    }
+
+    // Merge DB + pending queue, sorted by timestamp.
+    const allActions = [...mapped, ...pendingQueued].sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+
+    const setN = allActions.reduce((max, a) => Math.max(max, a.setNumber), 1);
+    const inSet = allActions.filter((a) => a.setNumber === setN);
     const homeScore = inSet.filter(
       (a) =>
         (a.type === "attack" && a.result === "kill") ||
@@ -154,18 +191,12 @@ export function useScoutSession({
         if (snap.servingTeam) servingTeam = snap.servingTeam;
       }
     } catch {
-      // localStorage indisponível — usa defaults
-    }
-
-    // Marca todas as acções já no DB como sincronizadas ANTES de popular o
-    // log — assim o sync effect não as re-POSTa após o hydrateSession.
-    for (const a of mapped) {
-      syncedIds.current.add(a.id);
+      // localStorage unavailable
     }
 
     dispatch({
       kind: "hydrateSession",
-      actions: mapped,
+      actions: allActions,
       homeScore,
       awayScore,
       setNumber: setN,
@@ -173,9 +204,9 @@ export function useScoutSession({
       servingTeam,
     });
     hydratedRef.current = true;
-  }, [actionsQuery.data, dispatch, sessionKey]);
+  }, [actionsQuery.data, dispatch, matchId, sessionKey]);
 
-  // Persiste rotation e servingTeam após cada alteração (só depois da hidratação).
+  // Persist rotation + servingTeam after each change.
   useEffect(() => {
     if (!hydratedRef.current) return;
     try {
@@ -187,35 +218,80 @@ export function useScoutSession({
         }),
       );
     } catch {
-      // ignora — modo privado ou quota excedida
+      // private mode or quota
     }
   }, [state.rotation, state.servingTeam, sessionKey]);
 
-  // IDs pendentes (em voo ou aguardam retry) — expostos na UI.
-  const [pendingSync, setPendingSync] = useState(0);
-
+  // ── Sync new actions to server ─────────────────────────────────────────
   useEffect(() => {
     for (const a of state.log) {
-      if (!syncedIds.current.has(a.id)) {
-        syncedIds.current.add(a.id);
-        setPendingSync((n) => n + 1);
-        try { navigator.vibrate?.(30); } catch { /* unsupported */ }
-        createAction.mutate(a, {
-          onSuccess: () => setPendingSync((n) => Math.max(0, n - 1)),
-          onError: (err: any) => {
-            // Allow retry on next mutation.
-            syncedIds.current.delete(a.id);
-            setPendingSync((n) => Math.max(0, n - 1));
+      if (syncedIds.current.has(a.id)) continue;
+      if (offlineQueueIds.current.has(a.id)) continue;
+
+      syncedIds.current.add(a.id);
+
+      if (!navigator.onLine) {
+        // Store locally — will be sent when we come back online.
+        enqueueOfflineAction(matchId, a);
+        offlineQueueIds.current.add(a.id);
+        setOfflineQueueSize((n) => n + 1);
+        continue;
+      }
+
+      setPendingSync((n) => n + 1);
+      try { navigator.vibrate?.(30); } catch { /* unsupported */ }
+
+      createAction.mutate(a, {
+        onSuccess: () => setPendingSync((n) => Math.max(0, n - 1)),
+        onError: (err: any) => {
+          syncedIds.current.delete(a.id);
+          setPendingSync((n) => Math.max(0, n - 1));
+
+          if (!navigator.onLine) {
+            // Network dropped after the mutation was fired.
+            enqueueOfflineAction(matchId, a);
+            offlineQueueIds.current.add(a.id);
+            setOfflineQueueSize((n) => n + 1);
+          } else {
             toast.error(t("livescout.actionSaveError"), {
               description: err?.message,
               action: { label: "OK", onClick: () => {} },
             });
-          },
-        });
-      }
+          }
+        },
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.log.length]);
+
+  // ── Flush offline queue when connectivity is restored ─────────────────
+  const prevOnline = useRef(isOnline);
+  useEffect(() => {
+    const wasOffline = !prevOnline.current;
+    prevOnline.current = isOnline;
+    if (!isOnline || !wasOffline) return;
+
+    const queued = getOfflineQueue(matchId);
+    if (!queued.length) return;
+
+    toast.info(t("livescout.syncingQueue", { count: queued.length }));
+    setPendingSync((n) => n + queued.length);
+
+    for (const a of queued) {
+      createAction.mutate(a, {
+        onSuccess: () => {
+          removeFromQueue(matchId, [a.id]);
+          offlineQueueIds.current.delete(a.id);
+          setOfflineQueueSize((n) => Math.max(0, n - 1));
+          setPendingSync((n) => Math.max(0, n - 1));
+        },
+        onError: () => {
+          // Keep in queue — will retry on next reconnect.
+          setPendingSync((n) => Math.max(0, n - 1));
+        },
+      });
+    }
+  }, [isOnline, matchId, t]);
 
   const activePlayers = useMemo(
     () => (playersQuery.data ?? []).filter((p) => p.active),
@@ -228,7 +304,16 @@ export function useScoutSession({
     const player = activePlayers.find((p) => p.id === last.playerId);
     dispatch({ kind: "undo" });
     syncedIds.current.delete(last.id);
-    deleteAction.mutate(last.id);
+
+    if (offlineQueueIds.current.has(last.id)) {
+      // Action never reached the server — remove from queue.
+      offlineQueueIds.current.delete(last.id);
+      removeFromQueue(matchId, [last.id]);
+      setOfflineQueueSize((n) => Math.max(0, n - 1));
+    } else {
+      deleteAction.mutate(last.id);
+    }
+
     toast(t("livescout.actionUndone"), {
       description: player
         ? `#${player.number} · ${ACTION_LABEL[last.type]}`
@@ -247,7 +332,6 @@ export function useScoutSession({
       api.get<Substitution[]>(`/api/matches/${matchId}/substitutions`),
   });
 
-  // Jogadores do adversário — carregados quando scoutScope !== "home".
   const opponentTeamId = matchQuery.data?.opponentTeamId;
   const opponentPlayersQuery = useQuery({
     queryKey: ["opponentPlayers", opponentTeamId],
@@ -258,7 +342,6 @@ export function useScoutSession({
   });
   const opponentPlayers = opponentPlayersQuery.data ?? [];
 
-  // Histórico vs este adversário — alimenta as sugestões do painel lateral.
   const opponent = matchQuery.data?.opponent;
   const historyQuery = useQuery<ScoutingHistory | null>({
     queryKey: ["scouting", teamId, opponent],
@@ -282,10 +365,6 @@ export function useScoutSession({
     [lineupsQuery.data, state.setNumber],
   );
 
-  /**
-   * Lineup base = lineup guardado + substituições aplicadas (sem libero).
-   * Fallback: primeiras 6 activas por número.
-   */
   const baseLineup = useMemo<(Player | null)[]>(() => {
     const byId = new Map(activePlayers.map((p) => [p.id, p]));
     if (savedLineup) {
@@ -297,7 +376,6 @@ export function useScoutSession({
         savedLineup.p5 ? byId.get(savedLineup.p5) ?? null : null,
         savedLineup.p6 ? byId.get(savedLineup.p6) ?? null : null,
       ];
-      // Aplica substituições por ordem cronológica.
       const subsForSet = (subsQuery.data ?? [])
         .filter((s) => s.setNumber === state.setNumber)
         .sort(
@@ -318,10 +396,6 @@ export function useScoutSession({
     return slots;
   }, [activePlayers, savedLineup, subsQuery.data, state.setNumber]);
 
-  /**
-   * Lineup efectivo = baseLineup com o líbero correto no lugar do central de
-   * trás. Muda automaticamente com a rotação e com quem está a servir.
-   */
   const lineup = useMemo<(Player | null)[]>(() => {
     const byId = new Map(activePlayers.map((p) => [p.id, p]));
     return getEffectiveLineup(
@@ -334,8 +408,6 @@ export function useScoutSession({
     );
   }, [baseLineup, state.rotation, state.servingTeam, activePlayers, savedLineup]);
 
-  // Quem está em campo agora (jogadoras únicas no `lineup` 6-slot) e quem
-  // está no banco (toda a roster activa que não está em campo).
   const onCourt = useMemo<Player[]>(() => {
     const seen = new Set<string>();
     const out: Player[] = [];
@@ -353,7 +425,6 @@ export function useScoutSession({
     return activePlayers.filter((p) => !onIds.has(p.id));
   }, [activePlayers, onCourt]);
 
-  // Agregados de época por jogadora — comparação para sugestões de substituição.
   const playerAggregatesQuery = useQuery<PlayerAggregate[]>({
     queryKey: ["playerAggregates", teamId],
     queryFn: () =>
@@ -406,6 +477,7 @@ export function useScoutSession({
 
   return {
     isLoading,
+    isOnline,
     match,
     opponentTeamId,
     activePlayers,
@@ -418,6 +490,7 @@ export function useScoutSession({
     historyData,
     rotationStats: rotationStatsQuery.data ?? [],
     pendingSync,
+    offlineQueueSize,
     videoRef,
     updateMatch,
     lineupsRefetch: () => { lineupsQuery.refetch(); },

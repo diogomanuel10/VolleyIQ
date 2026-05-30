@@ -78,7 +78,19 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
   },
 };
 
-export function planHasFeature(plan: Plan, feature: keyof PlanLimits): boolean {
+export type FeatureOverrides = Partial<Record<keyof PlanLimits, boolean>>;
+
+export function parseFeatureOverrides(raw: string | null | undefined): FeatureOverrides {
+  if (!raw) return {};
+  try { return JSON.parse(raw) as FeatureOverrides; } catch { return {}; }
+}
+
+export function planHasFeature(
+  plan: Plan,
+  feature: keyof PlanLimits,
+  overrides?: FeatureOverrides,
+): boolean {
+  if (overrides && feature in overrides) return overrides[feature]!;
   const limits = PLAN_FEATURES[plan] ?? PLAN_FEATURES["individual"];
   const val = limits[feature];
   return typeof val === "boolean" ? val : (val as number) !== 0;
