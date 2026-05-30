@@ -41,13 +41,14 @@ const patchTeamSchema = z.object({
   plan: z.enum(PLANS).optional(),
   subscribed: z.boolean().optional(),
   extendTrial: z.number().int().min(1).max(365).optional(),
+  featureOverrides: z.record(z.boolean()).optional().nullable(),
 });
 
 adminRouter.patch("/teams/:id", async (req, res) => {
   const parsed = patchTeamSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
 
-  const { plan, subscribed, extendTrial } = parsed.data;
+  const { plan, subscribed, extendTrial, featureOverrides } = parsed.data;
   const update: Record<string, any> = {};
 
   if (plan !== undefined) update.plan = plan;
@@ -63,6 +64,10 @@ adminRouter.patch("/teams/:id", async (req, res) => {
     const base = new Date();
     base.setDate(base.getDate() + extendTrial);
     update.trialEndsAt = base;
+  }
+
+  if (featureOverrides !== undefined) {
+    update.featureOverrides = featureOverrides === null ? null : JSON.stringify(featureOverrides);
   }
 
   if (Object.keys(update).length === 0) {
