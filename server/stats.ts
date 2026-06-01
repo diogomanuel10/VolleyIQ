@@ -462,6 +462,22 @@ export interface PlayerMatchLine {
   receptions: number;
   passRating: number;
   rating: number; // 0-100
+  // Serve breakdown
+  serveTotal: number;
+  serveErrors: number;
+  serveGood: number;      // positive serve (DV +)
+  servePoor: number;      // negative serve (DV -)
+  servePosPct: number;    // (aces+good)/total*100
+  // Reception breakdown
+  recPerfect: number;
+  recGood: number;
+  recPoor: number;
+  recError: number;
+  recPosPct: number;      // (perfect+good)/total*100
+  recExcPct: number;      // perfect/total*100
+  // Attack breakdown (separated)
+  attackFaults: number;   // pure errors (not blocked)
+  attackBlocked: number;  // attacks blocked by opponent
 }
 
 export interface TaggedMoment {
@@ -548,6 +564,16 @@ export interface PostMatchSummary {
     passRating: number;
     totalActions: number;
   }>;
+  teamSummary: {
+    attackPts: number;
+    blockPts: number;
+    servePts: number;
+    oppErrors: number;
+    totalPts: number;
+    topAttackers: Array<{ name: string; number: number; pts: number }>;
+    topBlockers: Array<{ name: string; number: number; pts: number }>;
+    topServers: Array<{ name: string; number: number; pts: number }>;
+  };
 }
 
 export async function buildPostMatch(
@@ -574,9 +600,9 @@ export async function buildPostMatch(
       if (!mine.length) return null;
       const attacks = mine.filter((a) => a.type === "attack");
       const kills = attacks.filter((a) => a.result === "kill").length;
-      const attackErr = attacks.filter(
-        (a) => a.result === "error" || a.result === "blocked",
-      ).length;
+      const attackFaults = attacks.filter((a) => a.result === "error").length;
+      const attackBlocked = attacks.filter((a) => a.result === "blocked").length;
+      const attackErr = attackFaults + attackBlocked;
       const recs = mine.filter((a) => a.type === "reception");
       const recPts = recs.reduce((acc, a) => {
         if (a.result === "perfect") return acc + 3;
@@ -590,9 +616,19 @@ export async function buildPostMatch(
       const digs = mine.filter(
         (a) => a.type === "dig" && (a.result === "perfect" || a.result === "good"),
       ).length;
-      const aces = mine.filter(
-        (a) => a.type === "serve" && a.result === "ace",
-      ).length;
+      const serves = mine.filter((a) => a.type === "serve");
+      const aces = serves.filter((a) => a.result === "ace").length;
+      const serveErrors = serves.filter((a) => a.result === "error").length;
+      const serveGood = serves.filter((a) => a.result === "good").length;
+      const servePoor = serves.filter((a) => a.result === "poor").length;
+      const servePosPct = serves.length > 0 ? round1(((aces + serveGood) / serves.length) * 100) : 0;
+
+      const recPerfect = recs.filter((a) => a.result === "perfect").length;
+      const recGood = recs.filter((a) => a.result === "good").length;
+      const recPoor = recs.filter((a) => a.result === "poor").length;
+      const recError = recs.filter((a) => a.result === "error").length;
+      const recPosPct = recs.length > 0 ? round1(((recPerfect + recGood) / recs.length) * 100) : 0;
+      const recExcPct = recs.length > 0 ? round1((recPerfect / recs.length) * 100) : 0;
 
       const killPct = attacks.length ? (kills / attacks.length) * 100 : 0;
       const eff = attacks.length ? (kills - attackErr) / attacks.length : 0;
@@ -624,6 +660,19 @@ export async function buildPostMatch(
         receptions: recs.length,
         passRating: round2(passRating),
         rating,
+        serveTotal: serves.length,
+        serveErrors,
+        serveGood,
+        servePoor,
+        servePosPct,
+        recPerfect,
+        recGood,
+        recPoor,
+        recError,
+        recPosPct,
+        recExcPct,
+        attackFaults,
+        attackBlocked,
       };
       return line;
     })
@@ -682,6 +731,34 @@ export async function buildPostMatch(
     };
   });
 
+  // Team summary (FIVB-style)
+  const homeRows = rows.filter((a) => a.side === "home" || !a.side);
+  const teamAttackPts = homeRows.filter((a) => a.type === "attack" && a.result === "kill").length;
+  const teamBlockPts = homeRows.filter((a) => a.type === "block" && a.result === "stuff").length;
+  const teamServePts = homeRows.filter((a) => a.type === "serve" && a.result === "ace").length;
+  const teamOppErrors = homeRows.filter((a) => a.type === "freeball" && a.result === "won").length;
+
+  const topAttackers = [...lines].sort((a, b) => b.kills - a.kills).slice(0, 3)
+    .filter((p) => p.kills > 0)
+    .map((p) => ({ name: `${p.firstName} ${p.lastName}`, number: p.number, pts: p.kills }));
+  const topBlockers = [...lines].sort((a, b) => b.blocks - a.blocks).slice(0, 3)
+    .filter((p) => p.blocks > 0)
+    .map((p) => ({ name: `${p.firstName} ${p.lastName}`, number: p.number, pts: p.blocks }));
+  const topServers = [...lines].sort((a, b) => b.aces - a.aces).slice(0, 3)
+    .filter((p) => p.aces > 0)
+    .map((p) => ({ name: `${p.firstName} ${p.lastName}`, number: p.number, pts: p.aces }));
+
+  const teamSummary = {
+    attackPts: teamAttackPts,
+    blockPts: teamBlockPts,
+    servePts: teamServePts,
+    oppErrors: teamOppErrors,
+    totalPts: teamAttackPts + teamBlockPts + teamServePts + teamOppErrors,
+    topAttackers,
+    topBlockers,
+    topServers,
+  };
+
   return {
     matchId,
     opponent: match.opponent,
@@ -706,6 +783,7 @@ export async function buildPostMatch(
     receptionHeatmap,
     setters,
     setStats,
+    teamSummary,
   };
 }
 
