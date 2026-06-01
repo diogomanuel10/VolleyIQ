@@ -71,14 +71,27 @@ interface PlayerLine {
   position: string;
   kills: number;
   attackErrors: number;
+  attackBlocked: number;
   attackAttempts: number;
   killPct: number;
   attackEff: number;
   aces: number;
+  serveTotal: number;
+  serveErrors: number;
+  serveGood: number;
+  servePoor: number;
+  serveInPlay: number;
   blocks: number;
   digs: number;
   receptions: number;
+  recPerfect: number;
+  recGood: number;
+  recPoor: number;
+  recError: number;
+  recPosPct: number;
+  recExcPct: number;
   passRating: number;
+  totalPts: number;
   rating: number;
 }
 
@@ -89,6 +102,17 @@ interface TaggedMoment {
   playerNumber: number | null;
   type: string;
   result: string;
+}
+
+interface TeamMatchSummary {
+  attackPts: number;
+  blockPts: number;
+  servePts: number;
+  oppErrors: number;
+  totalPts: number;
+  topAttackers: Array<{ playerId: string; name: string; number: number; kills: number }>;
+  topBlockers: Array<{ playerId: string; name: string; number: number; blocks: number }>;
+  topServers: Array<{ playerId: string; name: string; number: number; aces: number }>;
 }
 
 interface PostMatchSummary {
@@ -106,6 +130,7 @@ interface PostMatchSummary {
     attackEfficiency: number;
     record: string;
   };
+  teamSummary: TeamMatchSummary;
   players: PlayerLine[];
   highlights: Array<{ playerId: string; title: string; subtitle: string }>;
   taggedMoments: TaggedMoment[];
@@ -475,22 +500,23 @@ function Summary({
   }
 
   function exportCsv() {
-    const headers = ["#", "Nome", "Pos", "Kills", "Erros", "Tentativas", "Kill%", "Eff", "Aces", "Blocks", "Digs", "Rec", "Pass", "Rating"];
+    const headers = [
+      "#", "Nome", "Pos",
+      "Srv Tot", "Srv Err", "Srv Ace", "Srv+", "Srv-", "Srv/",
+      "Rec Tot", "Rec Err", "Rec Pos%", "Rec Exc%",
+      "Atk Tot", "Atk Err", "Atk Blo", "Kill%", "Eff",
+      "Blocos", "Digs", "Pts", "Rating",
+    ];
     const rows = s.players.map((p) => [
       p.number,
       `${p.firstName} ${p.lastName}`,
       p.position,
-      p.kills,
-      p.attackErrors,
-      p.attackAttempts,
-      `${p.killPct}%`,
-      `${p.attackEff}%`,
-      p.aces,
-      p.blocks,
-      p.digs,
-      p.receptions,
-      p.passRating.toFixed(2),
-      p.rating.toFixed(2),
+      p.serveTotal, p.serveErrors, p.aces, p.serveGood, p.servePoor, p.serveInPlay,
+      p.receptions, p.recError, `${p.recPosPct}%`, `${p.recExcPct}%`,
+      p.attackAttempts, p.attackErrors - p.attackBlocked, p.attackBlocked,
+      p.attackAttempts ? `${p.killPct}%` : "—",
+      p.attackAttempts ? p.attackEff.toFixed(3) : "—",
+      p.blocks, p.digs, p.totalPts, p.rating,
     ]);
     const csvContent = [headers, ...rows]
       .map((row) =>
@@ -1109,7 +1135,10 @@ function Summary({
         </Card>
       )}
 
-      {/* Player stats table */}
+      {/* FIVB Team Skills Summary */}
+      <FIVBTeamSummary summary={s.teamSummary} />
+
+      {/* FIVB Player Stats Table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -1122,74 +1151,258 @@ function Summary({
               {t("postMatch.noPlayerActions")}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr className="border-b">
-                    <th className="text-left py-2 pr-2">{t("postMatch.table.player")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.rating")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.kills")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.errors")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.killPct")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.eff")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.aces")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.blocks")}</th>
-                    <th className="text-right py-2 px-2">{t("postMatch.table.digs")}</th>
-                    <th className="text-right py-2 pl-2">{t("postMatch.table.passRating")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.players.map((p) => (
-                    <tr key={p.playerId} className="border-b last:border-0">
-                      <td className="py-2 pr-2">
-                        <Link
-                          href={`/players/${p.playerId}`}
-                          className="hover:underline"
-                        >
-                          <span className="font-semibold tabular-nums">
-                            #{p.number}
-                          </span>{" "}
-                          {p.firstName} {p.lastName}
-                        </Link>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {p.position}
-                        </span>
-                      </td>
-                      <td className="text-right py-2 px-2 font-bold tabular-nums">
-                        {p.rating}
-                      </td>
-                      <td className="text-right py-2 px-2 tabular-nums">
-                        {p.kills}
-                      </td>
-                      <td className="text-right py-2 px-2 tabular-nums">
-                        {p.attackErrors}
-                      </td>
-                      <td className="text-right py-2 px-2 tabular-nums">
-                        {p.attackAttempts ? `${p.killPct}%` : "—"}
-                      </td>
-                      <td className="text-right py-2 px-2 tabular-nums">
-                        {p.attackAttempts ? p.attackEff.toFixed(3) : "—"}
-                      </td>
-                      <td className="text-right py-2 px-2 tabular-nums">
-                        {p.aces}
-                      </td>
-                      <td className="text-right py-2 px-2 tabular-nums">
-                        {p.blocks}
-                      </td>
-                      <td className="text-right py-2 px-2 tabular-nums">
-                        {p.digs}
-                      </td>
-                      <td className="text-right py-2 pl-2 tabular-nums">
-                        {p.receptions ? p.passRating.toFixed(2) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <FIVBPlayerTable players={s.players} />
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function FIVBTeamSummary({ summary }: { summary: TeamMatchSummary }) {
+  const total = summary.totalPts || 1;
+  const rows = [
+    {
+      label: "Ataque",
+      pts: summary.attackPts,
+      top: summary.topAttackers.map((p) => `#${p.number} ${p.name.split(" ")[0]} ${p.kills}`).join(", "),
+      color: "text-sky-600 dark:text-sky-400",
+    },
+    {
+      label: "Bloco",
+      pts: summary.blockPts,
+      top: summary.topBlockers.map((p) => `#${p.number} ${p.name.split(" ")[0]} ${p.blocks}`).join(", "),
+      color: "text-violet-600 dark:text-violet-400",
+    },
+    {
+      label: "Serviço",
+      pts: summary.servePts,
+      top: summary.topServers.map((p) => `#${p.number} ${p.name.split(" ")[0]} ${p.aces}`).join(", "),
+      color: "text-amber-600 dark:text-amber-400",
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Award className="h-4 w-4 text-primary" /> Resumo por Fundamento
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="text-left py-2 pr-4">Fundamento</th>
+                <th className="text-center py-2 px-3">Pts Ganhos</th>
+                <th className="text-center py-2 px-3">% Total</th>
+                <th className="text-left py-2 pl-3 hidden sm:table-cell">Melhores (pts)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.label} className="border-b last:border-0">
+                  <td className="py-2 pr-4 font-medium">{r.label}</td>
+                  <td className={cn("text-center py-2 px-3 font-bold tabular-nums text-lg", r.color)}>
+                    {r.pts}
+                  </td>
+                  <td className="text-center py-2 px-3 text-muted-foreground tabular-nums">
+                    {Math.round((r.pts / total) * 100)}%
+                  </td>
+                  <td className="py-2 pl-3 text-xs text-muted-foreground hidden sm:table-cell">
+                    {r.top || "—"}
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t-2">
+                <td className="py-2 pr-4 font-bold">Total</td>
+                <td className="text-center py-2 px-3 font-bold tabular-nums text-lg text-primary">
+                  {summary.totalPts}
+                </td>
+                <td className="text-center py-2 px-3 text-muted-foreground">100%</td>
+                <td className="py-2 pl-3 hidden sm:table-cell" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FIVBPlayerTable({ players }: { players: PlayerLine[] }) {
+  return (
+    <div className="overflow-x-auto -mx-2">
+      <table className="w-full text-xs min-w-[700px]">
+        <thead>
+          <tr className="text-muted-foreground">
+            <th className="text-left py-1.5 px-2 font-medium" rowSpan={2}>#</th>
+            <th className="text-left py-1.5 px-2 font-medium" rowSpan={2}>Nome</th>
+            <th className="text-center py-1.5 px-1 font-medium" rowSpan={2}>Pos</th>
+            <th className="text-center py-1 px-2 font-semibold border-l border-border/60 bg-amber-50/50 dark:bg-amber-950/20" colSpan={3}>
+              Serviço
+            </th>
+            <th className="text-center py-1 px-2 font-semibold border-l border-border/60 bg-emerald-50/50 dark:bg-emerald-950/20" colSpan={3}>
+              Recepção
+            </th>
+            <th className="text-center py-1 px-2 font-semibold border-l border-border/60 bg-sky-50/50 dark:bg-sky-950/20" colSpan={5}>
+              Ataque
+            </th>
+            <th className="text-center py-1 px-2 font-semibold border-l border-border/60 bg-violet-50/50 dark:bg-violet-950/20" colSpan={1}>
+              Bloco
+            </th>
+            <th className="text-center py-1 px-2 font-semibold border-l border-border/60" rowSpan={2}>
+              Pts
+            </th>
+          </tr>
+          <tr className="text-muted-foreground border-b">
+            {/* Serve */}
+            <th className="text-center py-1 px-1.5 font-medium border-l border-border/60 bg-amber-50/50 dark:bg-amber-950/20">Tot</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-amber-50/50 dark:bg-amber-950/20">Err</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-amber-50/50 dark:bg-amber-950/20">Ace</th>
+            {/* Reception */}
+            <th className="text-center py-1 px-1.5 font-medium border-l border-border/60 bg-emerald-50/50 dark:bg-emerald-950/20">Tot</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-emerald-50/50 dark:bg-emerald-950/20">Pos%</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-emerald-50/50 dark:bg-emerald-950/20">Exc%</th>
+            {/* Attack */}
+            <th className="text-center py-1 px-1.5 font-medium border-l border-border/60 bg-sky-50/50 dark:bg-sky-950/20">Tot</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-sky-50/50 dark:bg-sky-950/20">Err</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-sky-50/50 dark:bg-sky-950/20">Blo</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-sky-50/50 dark:bg-sky-950/20">K%</th>
+            <th className="text-center py-1 px-1.5 font-medium bg-sky-50/50 dark:bg-sky-950/20">Pts</th>
+            {/* Block */}
+            <th className="text-center py-1 px-1.5 font-medium border-l border-border/60 bg-violet-50/50 dark:bg-violet-950/20">Pts</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/50">
+          {players.map((p) => (
+            <tr key={p.playerId} className="hover:bg-muted/30 transition-colors">
+              <td className="py-1.5 px-2 font-semibold tabular-nums text-muted-foreground">
+                {p.number}
+              </td>
+              <td className="py-1.5 px-2">
+                <Link href={`/players/${p.playerId}`} className="hover:underline font-medium">
+                  {p.firstName} {p.lastName}
+                </Link>
+              </td>
+              <td className="py-1.5 px-1 text-center text-muted-foreground">{p.position}</td>
+              {/* Serve */}
+              <td className="py-1.5 px-1.5 text-center tabular-nums border-l border-border/40">
+                {p.serveTotal || "—"}
+              </td>
+              <td className={cn("py-1.5 px-1.5 text-center tabular-nums", p.serveErrors > 0 && "text-red-500 font-medium")}>
+                {p.serveErrors || "—"}
+              </td>
+              <td className={cn("py-1.5 px-1.5 text-center tabular-nums font-medium", p.aces > 0 && "text-amber-600 dark:text-amber-400")}>
+                {p.aces || "—"}
+              </td>
+              {/* Reception */}
+              <td className="py-1.5 px-1.5 text-center tabular-nums border-l border-border/40">
+                {p.receptions || "—"}
+              </td>
+              <td className={cn(
+                "py-1.5 px-1.5 text-center tabular-nums font-medium",
+                p.receptions > 0 && (p.recPosPct >= 60 ? "text-emerald-600 dark:text-emerald-400" : p.recPosPct >= 40 ? "text-foreground" : "text-red-500"),
+              )}>
+                {p.receptions > 0 ? `${p.recPosPct}%` : "—"}
+              </td>
+              <td className={cn(
+                "py-1.5 px-1.5 text-center tabular-nums font-medium",
+                p.receptions > 0 && (p.recExcPct >= 40 ? "text-emerald-600 dark:text-emerald-400" : p.recExcPct >= 20 ? "text-foreground" : "text-muted-foreground"),
+              )}>
+                {p.receptions > 0 ? `${p.recExcPct}%` : "—"}
+              </td>
+              {/* Attack */}
+              <td className="py-1.5 px-1.5 text-center tabular-nums border-l border-border/40">
+                {p.attackAttempts || "—"}
+              </td>
+              <td className={cn("py-1.5 px-1.5 text-center tabular-nums", p.attackErrors - p.attackBlocked > 0 && "text-red-500")}>
+                {p.attackAttempts > 0 ? (p.attackErrors - p.attackBlocked) || "0" : "—"}
+              </td>
+              <td className={cn("py-1.5 px-1.5 text-center tabular-nums", p.attackBlocked > 0 && "text-orange-500")}>
+                {p.attackAttempts > 0 ? p.attackBlocked || "0" : "—"}
+              </td>
+              <td className={cn(
+                "py-1.5 px-1.5 text-center tabular-nums font-medium",
+                p.attackAttempts > 0 && (p.killPct >= 40 ? "text-emerald-600 dark:text-emerald-400" : p.killPct >= 25 ? "text-foreground" : "text-red-500"),
+              )}>
+                {p.attackAttempts > 0 ? `${p.killPct}%` : "—"}
+              </td>
+              <td className={cn("py-1.5 px-1.5 text-center tabular-nums font-bold", p.kills > 0 && "text-sky-600 dark:text-sky-400")}>
+                {p.kills || "—"}
+              </td>
+              {/* Block */}
+              <td className={cn("py-1.5 px-1.5 text-center tabular-nums font-bold border-l border-border/40", p.blocks > 0 && "text-violet-600 dark:text-violet-400")}>
+                {p.blocks || "—"}
+              </td>
+              {/* Total */}
+              <td className={cn("py-1.5 px-2 text-center tabular-nums font-bold border-l border-border/40 text-sm", p.totalPts > 0 && "text-primary")}>
+                {p.totalPts || "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 font-semibold text-muted-foreground">
+            <td colSpan={3} className="py-1.5 px-2 text-xs">Total Equipa</td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums border-l border-border/40">
+              {players.reduce((s, p) => s + p.serveTotal, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums text-red-500">
+              {players.reduce((s, p) => s + p.serveErrors, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums text-amber-600 dark:text-amber-400">
+              {players.reduce((s, p) => s + p.aces, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums border-l border-border/40">
+              {players.reduce((s, p) => s + p.receptions, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums">
+              {(() => {
+                const tot = players.reduce((s, p) => s + p.receptions, 0);
+                const pos = players.reduce((s, p) => s + p.recPerfect + p.recGood, 0);
+                return tot > 0 ? `${Math.round((pos / tot) * 100)}%` : "—";
+              })()}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums">
+              {(() => {
+                const tot = players.reduce((s, p) => s + p.receptions, 0);
+                const exc = players.reduce((s, p) => s + p.recPerfect, 0);
+                return tot > 0 ? `${Math.round((exc / tot) * 100)}%` : "—";
+              })()}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums border-l border-border/40">
+              {players.reduce((s, p) => s + p.attackAttempts, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums text-red-500">
+              {players.reduce((s, p) => s + (p.attackErrors - p.attackBlocked), 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums text-orange-500">
+              {players.reduce((s, p) => s + p.attackBlocked, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums">
+              {(() => {
+                const tot = players.reduce((s, p) => s + p.attackAttempts, 0);
+                const k = players.reduce((s, p) => s + p.kills, 0);
+                return tot > 0 ? `${Math.round((k / tot) * 100)}%` : "—";
+              })()}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums font-bold text-sky-600 dark:text-sky-400">
+              {players.reduce((s, p) => s + p.kills, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-1.5 text-center tabular-nums font-bold text-violet-600 dark:text-violet-400 border-l border-border/40">
+              {players.reduce((s, p) => s + p.blocks, 0) || "—"}
+            </td>
+            <td className="py-1.5 px-2 text-center tabular-nums font-bold text-primary border-l border-border/40 text-sm">
+              {players.reduce((s, p) => s + p.totalPts, 0) || "—"}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+      <p className="text-[10px] text-muted-foreground/60 mt-2 px-2">
+        Srv: Serviço (Tot/Err/Ace) · Rec: Recepção (Tot/Pos%/Exc%) · Atk: Ataque (Tot/Err/Bloqueado/Kill%/Pts) · Pts = Kills + Aces + Blocos
+      </p>
     </div>
   );
 }
