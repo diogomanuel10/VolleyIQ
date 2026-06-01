@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="VolleyIQ — A plataforma de scouting e análise de voleibol para treinadores sérios. Live scouting, AI, relatórios e muito mais." />
-  <meta property="og:title" content="VolleyIQ — Análise de Voleibol com IA" />
-  <meta property="og:description" content="Faz scouting em tempo real, deteta padrões com IA e toma decisões com dados." />
+  <meta name="description" content="VolleyIQ — O assistente táctico ao vivo para treinadores de voleibol. Scouting em tempo real, sugestões IA e relatórios automáticos." />
+  <meta property="og:title" content="VolleyIQ — Assistente Táctico ao Vivo" />
+  <meta property="og:description" content="Scouting em tempo real, padrões detectados por IA e sugestões táticas durante o jogo. Decisões mais rápidas, resultados melhores." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://volleyiq.pt" />
-  <title>VolleyIQ — Análise de Voleibol com IA</title>
+  <title>VolleyIQ — Assistente Táctico ao Vivo</title>
   <link rel="preconnect" href="https://rsms.me/" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <style>
@@ -24,6 +24,8 @@
       --dim:   #94a3b8;
       --light: #f1f5f9;
       --white: #ffffff;
+      --green: #4ade80;
+      --amber: #fbbf24;
       --radius: 12px;
       font-family: 'Inter var', Inter, system-ui, sans-serif;
       font-feature-settings: 'cv01','cv02','cv03','cv04';
@@ -58,8 +60,9 @@
       padding: .25rem .75rem; border-radius: 999px; font-size: .78rem;
       font-weight: 600; letter-spacing: .01em;
     }
-    .badge-sky { background: rgba(14,165,233,.18); color: var(--sky); border: 1px solid rgba(14,165,233,.3); }
-    .badge-green { background: rgba(34,197,94,.15); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+    .badge-sky   { background: rgba(14,165,233,.18); color: var(--sky);   border: 1px solid rgba(14,165,233,.3); }
+    .badge-green { background: rgba(34,197,94,.15);  color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+    .badge-amber { background: rgba(251,191,36,.15); color: var(--amber); border: 1px solid rgba(251,191,36,.25); }
 
     /* ── Navigation ───────────────────────────────────────────────────── */
     nav {
@@ -82,9 +85,7 @@
     }
     .nav-link:hover { color: var(--white); background: rgba(255,255,255,.07); }
     .nav-cta { display: flex; align-items: center; gap: .5rem; }
-    @media (max-width: 640px) {
-      .nav-links { display: none; }
-    }
+    @media (max-width: 640px) { .nav-links { display: none; } }
 
     /* ── Hero ─────────────────────────────────────────────────────────── */
     .hero {
@@ -108,7 +109,7 @@
     .hero h1 span { color: var(--sky); }
     .hero p {
       font-size: clamp(1rem, 2vw, 1.2rem); color: var(--dim);
-      max-width: 580px; margin-inline: auto; margin-bottom: 2.25rem;
+      max-width: 600px; margin-inline: auto; margin-bottom: 2.25rem;
     }
     .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
     .hero-note { margin-top: 1rem; font-size: .8rem; color: var(--muted); }
@@ -120,7 +121,7 @@
     }
     .mockup-wrap::before {
       content: '';
-      position: absolute; bottom: 0; left: 0; right: 0; height: 50%;
+      position: absolute; bottom: 0; left: 0; right: 0; height: 40%;
       background: linear-gradient(to top, var(--dark), transparent);
       z-index: 1; pointer-events: none;
     }
@@ -148,7 +149,7 @@
     .mockup-screen {
       aspect-ratio: 16/9;
       background: var(--dark);
-      display: grid; grid-template-columns: 220px 1fr;
+      display: grid; grid-template-columns: 200px 1fr;
       overflow: hidden; position: relative;
     }
 
@@ -165,26 +166,52 @@
     .mock-nav-item.active { background: rgba(14,165,233,.15); color: var(--sky); }
     .mock-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .6; }
 
-    /* Mock main content */
-    .mock-main { padding: 1.5rem; overflow: hidden; }
-    .mock-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
-    .mock-title { font-size: 1.1rem; font-weight: 700; }
-    .mock-tag { background: rgba(14,165,233,.2); color: var(--sky); font-size: .7rem; padding: .2rem .5rem; border-radius: 5px; font-weight: 600; }
-    .mock-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 1rem; }
-    .mock-card {
-      background: var(--slate2); border-radius: 9px; padding: .75rem;
-      border: 1px solid rgba(255,255,255,.06);
+    /* Mock live scout screen */
+    .mock-scout { padding: 1rem 1.25rem; display: grid; grid-template-columns: 1fr 280px; gap: .75rem; overflow: hidden; }
+    .mock-scout-left { display: flex; flex-direction: column; gap: .75rem; }
+    .mock-scout-header { display: flex; align-items: center; justify-content: space-between; }
+    .mock-scout-title { font-size: 1rem; font-weight: 700; }
+    .mock-live-tag { display: flex; align-items: center; gap: .3rem; background: rgba(239,68,68,.2); color: #f87171; font-size: .68rem; padding: .2rem .5rem; border-radius: 5px; font-weight: 700; }
+    .mock-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #f87171; animation: blink 1.4s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .mock-score { display: flex; justify-content: space-between; align-items: center; background: var(--slate); border-radius: 8px; padding: .6rem .9rem; }
+    .mock-score-team { font-size: .72rem; color: var(--dim); }
+    .mock-score-val { font-size: 1.4rem; font-weight: 800; }
+    .mock-court {
+      background: #0d2137; border: 1px solid rgba(14,165,233,.2); border-radius: 8px;
+      flex: 1; min-height: 80px; position: relative; overflow: hidden;
     }
-    .mock-card-label { font-size: .65rem; color: var(--dim); margin-bottom: .2rem; }
-    .mock-card-value { font-size: 1.2rem; font-weight: 700; }
-    .mock-card-value.sky { color: var(--sky); }
-    .mock-card-value.green { color: #4ade80; }
-    .mock-chart { background: var(--slate2); border-radius: 9px; height: 80px; padding: .75rem; border: 1px solid rgba(255,255,255,.06); }
-    .mock-chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 100%; }
-    .mock-bar { flex: 1; border-radius: 3px 3px 0 0; }
+    .mock-court-net { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(14,165,233,.35); }
+    .mock-court-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); }
+    .mock-court-cell { border: 1px solid rgba(14,165,233,.07); }
+    .mock-court-dot { width: 9px; height: 9px; border-radius: 50%; position: absolute; }
+    .mock-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .mock-action {
+      flex: 1; min-width: 0; padding: .35rem .4rem; border-radius: 6px; font-size: .7rem;
+      font-weight: 600; text-align: center; background: var(--slate); color: var(--dim);
+      border: 1px solid rgba(255,255,255,.07);
+    }
+    .mock-action.hi { background: rgba(14,165,233,.2); color: var(--sky); border-color: rgba(14,165,233,.3); }
+
+    /* Mock AI panel */
+    .mock-ai-panel { background: var(--slate); border: 1px solid rgba(14,165,233,.2); border-radius: 8px; padding: .75rem; display: flex; flex-direction: column; gap: .5rem; }
+    .mock-ai-header { display: flex; align-items: center; gap: .4rem; font-size: .72rem; font-weight: 700; color: var(--sky); margin-bottom: .1rem; }
+    .mock-ai-card { background: var(--dark); border-radius: 6px; padding: .5rem .6rem; border-left: 2px solid; }
+    .mock-ai-card.tip-red { border-color: #f87171; }
+    .mock-ai-card.tip-sky { border-color: var(--sky); }
+    .mock-ai-card.tip-green { border-color: var(--green); }
+    .mock-ai-label { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .2rem; opacity: .7; }
+    .mock-ai-text { font-size: .72rem; color: var(--dim); line-height: 1.4; }
+    .mock-ai-conf { display: flex; align-items: center; gap: .35rem; margin-top: .3rem; }
+    .mock-ai-bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+    .mock-ai-fill { height: 100%; border-radius: 2px; background: var(--sky); }
+    .mock-ai-pct { font-size: .62rem; color: var(--muted); }
+
     @media (max-width: 600px) {
       .mockup-screen { grid-template-columns: 1fr; }
       .mock-sidebar { display: none; }
+      .mock-scout { grid-template-columns: 1fr; }
+      .mock-ai-panel { display: none; }
     }
 
     /* ── Stats banner ─────────────────────────────────────────────────── */
@@ -193,9 +220,7 @@
       border-block: 1px solid rgba(255,255,255,.07);
       background: rgba(255,255,255,.02);
     }
-    .stats-inner {
-      display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;
-    }
+    .stats-inner { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
     .stat { text-align: center; }
     .stat-value { font-size: 2rem; font-weight: 800; color: var(--sky); }
     .stat-label { font-size: .82rem; color: var(--dim); margin-top: .15rem; }
@@ -206,13 +231,14 @@
     .section-head h2 { font-size: clamp(1.75rem, 3.5vw, 2.5rem); font-weight: 800; letter-spacing: -.03em; margin-top: .75rem; }
     .section-head p { color: var(--dim); max-width: 520px; margin-inline: auto; margin-top: .75rem; font-size: .95rem; }
 
-    /* ── Features ─────────────────────────────────────────────────────── */
+    /* ── Features grid ────────────────────────────────────────────────── */
     .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
     .feature-card {
       background: var(--slate); border: 1px solid rgba(255,255,255,.07); border-radius: var(--radius);
       padding: 1.75rem; transition: border-color .2s, transform .2s;
     }
     .feature-card:hover { border-color: rgba(14,165,233,.35); transform: translateY(-3px); }
+    .feature-card.starred { border-color: rgba(14,165,233,.3); background: linear-gradient(135deg, rgba(14,165,233,.08) 0%, var(--slate) 60%); }
     .feature-icon {
       width: 44px; height: 44px; border-radius: 10px;
       background: rgba(14,165,233,.15); display: grid; place-items: center; margin-bottom: 1rem;
@@ -220,35 +246,51 @@
     .feature-icon svg { width: 22px; height: 22px; stroke: var(--sky); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
     .feature-card p { font-size: .88rem; color: var(--dim); line-height: 1.6; }
+    .feature-tag { display: inline-flex; margin-top: .75rem; font-size: .72rem; font-weight: 600; padding: .15rem .5rem; border-radius: 4px; }
+    .feature-tag-sky { background: rgba(14,165,233,.15); color: var(--sky); }
+    .feature-tag-amber { background: rgba(251,191,36,.12); color: var(--amber); }
 
-    /* ── Scout demo strip ─────────────────────────────────────────────── */
-    .scout-strip {
+    /* ── Live Tactical Assistant section ─────────────────────────────── */
+    .tactical-strip {
       background: var(--slate);
       border: 1px solid rgba(255,255,255,.07);
       border-radius: var(--radius);
       overflow: hidden;
       display: grid; grid-template-columns: 1fr 1fr;
-      min-height: 380px;
+      min-height: 420px;
     }
-    .scout-left { padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
-    .scout-left h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 800; letter-spacing: -.03em; margin-block: .75rem 1rem; }
-    .scout-left p { color: var(--dim); font-size: .92rem; line-height: 1.7; margin-bottom: 1.5rem; }
-    .scout-checks { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 2rem; }
-    .scout-check { display: flex; align-items: flex-start; gap: .6rem; font-size: .88rem; }
+    .tactical-left { padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+    .tactical-left h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -.03em; margin-block: .75rem 1rem; }
+    .tactical-left p { color: var(--dim); font-size: .92rem; line-height: 1.7; margin-bottom: 1.5rem; }
+    .tactical-checks { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 2rem; }
+    .tactical-check { display: flex; align-items: flex-start; gap: .6rem; font-size: .88rem; }
     .check-icon { width: 18px; height: 18px; border-radius: 50%; background: rgba(14,165,233,.2); display: grid; place-items: center; flex-shrink: 0; margin-top: .1rem; }
     .check-icon svg { width: 10px; stroke: var(--sky); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-    .scout-right {
+    .tactical-right {
       background: var(--dark); padding: 2rem;
-      display: flex; flex-direction: column; gap: 1rem; justify-content: center;
+      display: flex; flex-direction: column; gap: .9rem; justify-content: center;
     }
-    .court-visual {
-      background: #0d2137; border: 1px solid rgba(14,165,233,.2); border-radius: 10px;
-      aspect-ratio: 4/3; display: grid; place-items: center; position: relative; overflow: hidden;
+    .ai-suggestion {
+      background: var(--slate); border-radius: 10px; padding: .9rem 1rem;
+      border-left: 3px solid; display: flex; flex-direction: column; gap: .3rem;
+      animation: slideIn .4s ease both;
     }
-    .court-net { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(14,165,233,.4); }
-    .court-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
-    .court-cell { border: 1px solid rgba(14,165,233,.08); }
-    .court-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; }
+    .ai-suggestion.warn  { border-color: #f87171; }
+    .ai-suggestion.info  { border-color: var(--sky); }
+    .ai-suggestion.good  { border-color: var(--green); }
+    @keyframes slideIn { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:none; } }
+    .sug-type { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .sug-type.warn { color: #f87171; }
+    .sug-type.info { color: var(--sky); }
+    .sug-type.good { color: var(--green); }
+    .sug-text { font-size: .85rem; font-weight: 500; }
+    .sug-conf { display: flex; align-items: center; gap: .5rem; margin-top: .15rem; }
+    .sug-bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+    .sug-fill { height: 100%; border-radius: 2px; }
+    .sug-fill.warn { background: #f87171; }
+    .sug-fill.info { background: var(--sky); }
+    .sug-fill.good { background: var(--green); }
+    .sug-pct { font-size: .7rem; color: var(--muted); }
     .score-row {
       display: flex; justify-content: space-between; align-items: center;
       background: var(--slate); border-radius: 8px; padding: .75rem 1rem;
@@ -256,16 +298,11 @@
     .score-team { font-size: .78rem; color: var(--dim); }
     .score-val { font-size: 1.5rem; font-weight: 800; }
     .score-sep { color: var(--muted); font-size: 1rem; }
-    .action-row { display: flex; gap: .5rem; flex-wrap: wrap; }
-    .action-pill {
-      flex: 1; min-width: 0; padding: .4rem .5rem; border-radius: 7px; font-size: .75rem;
-      font-weight: 600; text-align: center; background: var(--slate2); color: var(--dim);
-      border: 1px solid rgba(255,255,255,.07);
-    }
-    .action-pill.active { background: rgba(14,165,233,.2); color: var(--sky); border-color: rgba(14,165,233,.3); }
+    .live-badge { background: rgba(239,68,68,.2); color: #f87171; font-size: .68rem; font-weight: 700; padding: .2rem .55rem; border-radius: 5px; display: flex; align-items: center; gap: .3rem; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #f87171; animation: blink 1.4s infinite; }
     @media (max-width: 700px) {
-      .scout-strip { grid-template-columns: 1fr; }
-      .scout-right { display: none; }
+      .tactical-strip { grid-template-columns: 1fr; }
+      .tactical-right { display: none; }
     }
 
     /* ── AI section ───────────────────────────────────────────────────── */
@@ -283,12 +320,59 @@
     .ai-card p { font-size: .8rem; color: var(--dim); }
     .confidence-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); margin-top: .5rem; overflow: hidden; }
     .confidence-fill { height: 100%; border-radius: 2px; background: var(--sky); }
+    .plan-pill { display: inline-flex; margin-top: .5rem; font-size: .68rem; font-weight: 600; padding: .12rem .45rem; border-radius: 4px; }
+    .plan-pill-pro  { background: rgba(14,165,233,.15); color: var(--sky); }
+    .plan-pill-club { background: rgba(251,191,36,.12); color: var(--amber); }
+    @media (max-width: 700px) { .ai-grid { grid-template-columns: 1fr; } }
+
+    /* ── Boards showcase ──────────────────────────────────────────────── */
+    .boards-strip {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;
+    }
+    .boards-right { display: flex; flex-direction: column; gap: .75rem; }
+    .boards-canvas {
+      background: #0d2137; border: 1px solid rgba(14,165,233,.2); border-radius: 10px;
+      aspect-ratio: 4/3; position: relative; overflow: hidden;
+    }
+    .boards-canvas-net { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(14,165,233,.3); }
+    .boards-canvas-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); }
+    .boards-canvas-cell { border: 1px solid rgba(14,165,233,.07); }
+    .boards-player { position: absolute; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .65rem; font-weight: 700; border: 2px solid; }
+    .boards-player.blue { background: rgba(14,165,233,.25); border-color: var(--sky); color: var(--sky); }
+    .boards-player.red  { background: rgba(248,113,113,.2); border-color: #f87171; color: #f87171; }
+    .boards-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .boards-mini { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .boards-mini-card { background: var(--slate); border: 1px solid rgba(255,255,255,.07); border-radius: 8px; padding: .75rem; }
+    .boards-mini-label { font-size: .72rem; color: var(--dim); margin-bottom: .2rem; }
+    .boards-mini-val { font-size: .88rem; font-weight: 600; }
+    .boards-left h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -.03em; margin-block: .75rem 1rem; }
+    .boards-left p { color: var(--dim); font-size: .92rem; line-height: 1.7; margin-bottom: 1.5rem; }
+    .boards-checks { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 2rem; }
     @media (max-width: 700px) {
-      .ai-grid { grid-template-columns: 1fr; }
+      .boards-strip { grid-template-columns: 1fr; }
+      .boards-right { display: none; }
     }
 
+    /* ── Testimonials ─────────────────────────────────────────────────── */
+    .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+    .testi-card {
+      background: var(--slate); border: 1px solid rgba(255,255,255,.07); border-radius: var(--radius);
+      padding: 1.75rem;
+    }
+    .testi-stars { display: flex; gap: .2rem; margin-bottom: 1rem; }
+    .testi-star { color: #facc15; font-size: 1rem; }
+    .testi-quote { font-size: .9rem; line-height: 1.7; color: var(--dim); margin-bottom: 1.25rem; font-style: italic; }
+    .testi-author { display: flex; align-items: center; gap: .75rem; }
+    .testi-avatar {
+      width: 36px; height: 36px; border-radius: 50%; background: rgba(14,165,233,.2);
+      display: grid; place-items: center; font-weight: 700; font-size: .85rem; color: var(--sky);
+      flex-shrink: 0;
+    }
+    .testi-name { font-size: .85rem; font-weight: 600; }
+    .testi-role { font-size: .78rem; color: var(--muted); }
+
     /* ── Pricing ──────────────────────────────────────────────────────── */
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; align-items: start; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; align-items: start; }
     .plan-card {
       background: var(--slate); border: 1px solid rgba(255,255,255,.09); border-radius: var(--radius);
       padding: 2rem; transition: border-color .2s; position: relative;
@@ -329,9 +413,7 @@
     }
     .toggle-label { font-size: .9rem; color: var(--dim); cursor: pointer; transition: color .15s; }
     .toggle-label.active { color: var(--white); font-weight: 600; }
-    .toggle-switch {
-      position: relative; width: 48px; height: 26px; cursor: pointer;
-    }
+    .toggle-switch { position: relative; width: 48px; height: 26px; cursor: pointer; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .toggle-track {
       position: absolute; inset: 0; background: var(--slate2);
@@ -351,24 +433,6 @@
       font-size: .72rem; font-weight: 700; padding: .15rem .55rem;
     }
 
-    /* ── Testimonials ─────────────────────────────────────────────────── */
-    .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
-    .testi-card {
-      background: var(--slate); border: 1px solid rgba(255,255,255,.07); border-radius: var(--radius);
-      padding: 1.75rem;
-    }
-    .testi-stars { display: flex; gap: .2rem; margin-bottom: 1rem; }
-    .testi-star { color: #facc15; font-size: 1rem; }
-    .testi-quote { font-size: .9rem; line-height: 1.7; color: var(--dim); margin-bottom: 1.25rem; font-style: italic; }
-    .testi-author { display: flex; align-items: center; gap: .75rem; }
-    .testi-avatar {
-      width: 36px; height: 36px; border-radius: 50%; background: rgba(14,165,233,.2);
-      display: grid; place-items: center; font-weight: 700; font-size: .85rem; color: var(--sky);
-      flex-shrink: 0;
-    }
-    .testi-name { font-size: .85rem; font-weight: 600; }
-    .testi-role { font-size: .78rem; color: var(--muted); }
-
     /* ── CTA Section ──────────────────────────────────────────────────── */
     .cta-section {
       text-align: center;
@@ -380,12 +444,8 @@
     .cta-section p { color: var(--dim); max-width: 500px; margin-inline: auto; margin-bottom: 2.5rem; font-size: .95rem; }
 
     /* ── Footer ───────────────────────────────────────────────────────── */
-    footer {
-      border-top: 1px solid rgba(255,255,255,.07); padding-block: 2.5rem;
-    }
-    .footer-inner {
-      display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
-    }
+    footer { border-top: 1px solid rgba(255,255,255,.07); padding-block: 2.5rem; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
     .footer-logo { display: flex; align-items: center; gap: .5rem; font-weight: 700; font-size: .95rem; }
     .footer-links { display: flex; gap: 1.5rem; font-size: .83rem; color: var(--muted); }
     .footer-links a:hover { color: var(--white); }
@@ -407,7 +467,7 @@
 
     <div class="nav-links" aria-label="Navegação principal">
       <a href="#features" class="nav-link">Funcionalidades</a>
-      <a href="#scout" class="nav-link">Live Scout</a>
+      <a href="#tactical" class="nav-link">Assistente Táctico</a>
       <a href="#ai" class="nav-link">IA</a>
       <a href="#pricing" class="nav-link">Preços</a>
     </div>
@@ -427,18 +487,17 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
         </svg>
-        Análise inteligente de voleibol
+        Powered by Claude AI
       </span>
     </div>
 
     <h1>
-      Decisões baseadas<br/>
-      em <span>dados reais</span>
+      O teu assistente táctico<br/>
+      <span>em tempo real</span>
     </h1>
 
     <p>
-      Scouting em tempo real, padrões detectados por IA e relatórios automáticos.
-      Tudo o que precisas para treinar com vantagem sobre o adversário.
+      Scouting ao vivo com sugestões de IA durante o jogo. Padrões detectados automaticamente, decisões mais rápidas — para que nunca percas um ponto por falta de informação.
     </p>
 
     <div class="hero-actions">
@@ -448,62 +507,95 @@
         </svg>
         Começar trial de 7 dias
       </a>
-      <a href="#scout" class="btn btn-outline btn-lg">Ver como funciona</a>
+      <a href="#tactical" class="btn btn-outline btn-lg">Ver como funciona</a>
     </div>
 
     <p class="hero-note">Sem cartão de crédito · 7 dias grátis com acesso completo</p>
 
-    <!-- App mockup -->
+    <!-- App mockup: Live Scout com painel IA -->
     <div class="mockup-wrap">
-      <div class="mockup-browser" role="img" aria-label="Captura de ecrã do dashboard do VolleyIQ">
+      <div class="mockup-browser" role="img" aria-label="Captura de ecrã do Live Scout com assistente táctico IA do VolleyIQ">
         <div class="mockup-bar">
           <div class="mockup-dot mockup-dot-r"></div>
           <div class="mockup-dot mockup-dot-y"></div>
           <div class="mockup-dot mockup-dot-g"></div>
-          <div class="mockup-url">app.volleyiq.pt/dashboard</div>
+          <div class="mockup-url">app.volleyiq.pt/live-scout</div>
         </div>
         <div class="mockup-screen">
-          <!-- Sidebar simulada -->
+          <!-- Sidebar -->
           <div class="mock-sidebar">
             <div class="mock-logo">
               <svg width="18" height="18" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="#0ea5e9"/><text x="32" y="40" text-anchor="middle" font-size="28" font-family="Inter" fill="white" font-weight="700">V</text></svg>
               VolleyIQ
             </div>
-            <div class="mock-nav-item active"><div class="mock-dot"></div>Dashboard</div>
-            <div class="mock-nav-item"><div class="mock-dot"></div>Live Scout</div>
+            <div class="mock-nav-item"><div class="mock-dot"></div>Dashboard</div>
+            <div class="mock-nav-item active"><div class="mock-dot"></div>Live Scout</div>
             <div class="mock-nav-item"><div class="mock-dot"></div>Jogos</div>
             <div class="mock-nav-item"><div class="mock-dot"></div>Atletas</div>
             <div class="mock-nav-item"><div class="mock-dot"></div>Adversários</div>
-            <div class="mock-nav-item"><div class="mock-dot"></div>Relatórios</div>
+            <div class="mock-nav-item"><div class="mock-dot"></div>Editor Táctico</div>
           </div>
-          <!-- Conteúdo simulado -->
-          <div class="mock-main">
-            <div class="mock-header">
-              <div class="mock-title">Dashboard</div>
-              <div class="mock-tag">● AO VIVO</div>
+          <!-- Live Scout content -->
+          <div class="mock-scout">
+            <div class="mock-scout-left">
+              <div class="mock-scout-header">
+                <div class="mock-scout-title">Sporting vs Benfica · Set 3</div>
+                <div class="mock-live-tag"><div class="mock-live-dot"></div>AO VIVO</div>
+              </div>
+              <div class="mock-score">
+                <div>
+                  <div class="mock-score-team">Sporting</div>
+                  <div class="mock-score-val">18</div>
+                </div>
+                <div style="color:var(--muted);font-size:.9rem">·</div>
+                <div style="text-align:right">
+                  <div class="mock-score-team">Benfica</div>
+                  <div class="mock-score-val">21</div>
+                </div>
+              </div>
+              <div class="mock-court">
+                <div class="mock-court-net"></div>
+                <div class="mock-court-grid">
+                  <div class="mock-court-cell"></div><div class="mock-court-cell"></div><div class="mock-court-cell"></div>
+                  <div class="mock-court-cell"></div><div class="mock-court-cell"></div><div class="mock-court-cell"></div>
+                  <div class="mock-court-cell"></div><div class="mock-court-cell"></div><div class="mock-court-cell"></div>
+                </div>
+                <div class="mock-court-dot" style="background:#0ea5e9;left:28%;top:22%;box-shadow:0 0 6px #0ea5e9"></div>
+                <div class="mock-court-dot" style="background:#4ade80;right:22%;top:60%;box-shadow:0 0 5px #4ade80"></div>
+                <div class="mock-court-dot" style="background:#f87171;left:58%;top:38%"></div>
+              </div>
+              <div class="mock-actions">
+                <div class="mock-action">Serviço</div>
+                <div class="mock-action hi">Ataque ✓</div>
+                <div class="mock-action">Recepção</div>
+                <div class="mock-action">Bloco</div>
+              </div>
             </div>
-            <div class="mock-grid">
-              <div class="mock-card">
-                <div class="mock-card-label">Kill %</div>
-                <div class="mock-card-value sky">42%</div>
+            <!-- AI Panel -->
+            <div class="mock-ai-panel">
+              <div class="mock-ai-header">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Assistente Táctico
               </div>
-              <div class="mock-card">
-                <div class="mock-card-label">Side-out %</div>
-                <div class="mock-card-value green">61%</div>
+              <div class="mock-ai-card tip-red">
+                <div class="mock-ai-label warn" style="color:#f87171">Alerta</div>
+                <div class="mock-ai-text">Servir zona 1 — #7 adversária com 3 erros consecutivos de recepção</div>
+                <div class="mock-ai-conf">
+                  <div class="mock-ai-bar"><div class="mock-ai-fill" style="width:91%;background:#f87171"></div></div>
+                  <div class="mock-ai-pct">91%</div>
+                </div>
               </div>
-              <div class="mock-card">
-                <div class="mock-card-label">Pass rating</div>
-                <div class="mock-card-value">2.4</div>
+              <div class="mock-ai-card tip-sky">
+                <div class="mock-ai-label" style="color:var(--sky)">Padrão</div>
+                <div class="mock-ai-text">Adversária ataca lado direito em 74% das bolas de 2ª linha</div>
+                <div class="mock-ai-conf">
+                  <div class="mock-ai-bar"><div class="mock-ai-fill" style="width:74%"></div></div>
+                  <div class="mock-ai-pct">74%</div>
+                </div>
               </div>
-            </div>
-            <div class="mock-chart">
-              <div class="mock-chart-bars">
-                <div class="mock-bar" style="height:45%;background:rgba(14,165,233,.4)"></div>
-                <div class="mock-bar" style="height:60%;background:rgba(14,165,233,.5)"></div>
-                <div class="mock-bar" style="height:52%;background:rgba(14,165,233,.4)"></div>
-                <div class="mock-bar" style="height:75%;background:rgba(14,165,233,.7)"></div>
-                <div class="mock-bar" style="height:68%;background:rgba(14,165,233,.6)"></div>
-                <div class="mock-bar" style="height:80%;background:rgba(14,165,233,.85)"></div>
+              <div class="mock-ai-card tip-green">
+                <div class="mock-ai-label" style="color:var(--green)">Substituição</div>
+                <div class="mock-ai-text">#12 com pass rating 1.6 — considerar saída por #4</div>
               </div>
             </div>
           </div>
@@ -513,7 +605,7 @@
   </div>
 </section>
 
-<!-- ── Stats ────────────────────────────────────────────────────────────────── -->
+<!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
 <div class="stats-row">
   <div class="container stats-inner">
     <div class="stat">
@@ -529,13 +621,13 @@
       <div class="stat-label">Registo de acção</div>
     </div>
     <div class="stat">
-      <div class="stat-value">4</div>
-      <div class="stat-label">Idiomas suportados</div>
+      <div class="stat-value">3</div>
+      <div class="stat-label">Planos para todos os níveis</div>
     </div>
   </div>
 </div>
 
-<!-- ── Features ─────────────────────────────────────────────────────────────── -->
+<!-- ── Features ──────────────────────────────────────────────────────────────── -->
 <section id="features">
   <div class="container">
     <div class="section-head">
@@ -545,12 +637,21 @@
     </div>
 
     <div class="features-grid">
+      <div class="feature-card starred">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <h3>Assistente Táctico ao Vivo</h3>
+        <p>Durante o scouting, a IA analisa o contexto do jogo e sugere alvos de serviço, substituições e padrões do adversário — em tempo real.</p>
+        <span class="feature-tag feature-tag-amber">Club</span>
+      </div>
+
       <div class="feature-card">
         <div class="feature-icon">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
         </div>
         <h3>Live Scout</h3>
-        <p>Regista acções em tempo real com ou sem teclado. Fluxo inteligente que sugere a próxima acção automaticamente.</p>
+        <p>Regista acções em tempo real com ou sem teclado. Scouting da tua equipa e do adversário em simultâneo, com zonas de campo e atalhos configuráveis.</p>
       </div>
 
       <div class="feature-card">
@@ -558,7 +659,7 @@
           <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
         <h3>Analytics em Profundidade</h3>
-        <p>Kill%, side-out%, eficiência de ataque, rotações fortes e fracas — tudo calculado automaticamente jogo a jogo.</p>
+        <p>Kill%, side-out%, eficiência de ataque, rotações fortes e fracas — tudo calculado automaticamente jogo a jogo. Com export CSV.</p>
       </div>
 
       <div class="feature-card">
@@ -566,7 +667,8 @@
           <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
         </div>
         <h3>Scouting de Adversários</h3>
-        <p>Catálogo completo de equipas e atletas adversários. Regista hábitos e padrões para preparar cada jogo.</p>
+        <p>Catálogo completo de equipas e atletas adversários. Regista hábitos, padrões de serviço e zonas preferidas para preparar cada jogo.</p>
+        <span class="feature-tag feature-tag-sky">Pro+</span>
       </div>
 
       <div class="feature-card">
@@ -574,107 +676,99 @@
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
         </div>
         <h3>Match Day</h3>
-        <p>Checklist de pré-jogo, lineup wizard com validação FIVB, registro de substituições e comunicação com a bancada.</p>
+        <p>Checklist de pré-jogo, lineup wizard com validação FIVB, registo de substituições e Second Screen para a bancada.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon">
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M2 20h20M6 20V10l6-6 6 6v10M10 20v-5h4v5"/></svg>
         </div>
-        <h3>Gestão de Plantel</h3>
-        <p>Perfis detalhados de cada atleta, histórico de performance e planos de treino personalizados gerados por IA.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        </div>
-        <h3>Second Screen</h3>
-        <p>Projeta o scouting em tempo real num segundo ecrã para a bancada ou equipa técnica. Sincronização instantânea.</p>
+        <h3>Editor Táctico</h3>
+        <p>Cria diagramas táticos interativos com jogadoras posicionadas no campo. Partilha pranchetas com a equipa técnica antes do jogo.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── Scout demo ────────────────────────────────────────────────────────────── -->
-<section id="scout" style="padding-block: 1rem 5rem;">
+<!-- ── Assistente Táctico ao Vivo ─────────────────────────────────────────────── -->
+<section id="tactical" style="padding-block: 1rem 5rem;">
   <div class="container">
-    <div class="scout-strip">
-      <div class="scout-left">
-        <span class="badge badge-sky">Live Scout</span>
-        <h2>Regista tudo. Perde zero.</h2>
+    <div class="tactical-strip">
+      <div class="tactical-left">
+        <span class="badge badge-amber">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Assistente Táctico ao Vivo · Club
+        </span>
+        <h2>IA a jogar contigo. Não depois do jogo.</h2>
         <p>
-          Interface desenhada para a velocidade do voleibol. Seleciona a jogadora, o tipo de acção e o resultado em menos de 1 segundo — com suporte a teclado e atalhos configuráveis.
+          Enquanto registas o scouting, o assistente táctico analisa o contexto do rally, compara com jogos anteriores e envia-te sugestões precisas — tudo sem tirares os olhos do campo.
         </p>
-        <div class="scout-checks">
-          <div class="scout-check">
+        <div class="tactical-checks">
+          <div class="tactical-check">
             <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-            Scouting da nossa equipa e do adversário em simultâneo
+            Alvos de serviço identificados com base no histórico da jogadora
           </div>
-          <div class="scout-check">
+          <div class="tactical-check">
             <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-            Modo completo com zonas de origem e destino no campo
+            Padrões de ataque do adversário detectados automaticamente
           </div>
-          <div class="scout-check">
+          <div class="tactical-check">
             <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-            Importação de ficheiros DataVolley (.dvw) e CSV
+            Sugestões de substituição baseadas em métricas ao vivo
           </div>
-          <div class="scout-check">
+          <div class="tactical-check">
             <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-            Sugestões automáticas baseadas no contexto do rally
+            Alertas de momentum quando o adversário encadeia pontos
           </div>
         </div>
-        <a href="https://app.volleyiq.pt" class="btn btn-primary">Experimentar 7 dias →</a>
+        <a href="https://app.volleyiq.pt" class="btn btn-primary">Experimentar no plano Club →</a>
       </div>
 
-      <div class="scout-right">
-        <!-- Mockup do scout -->
+      <div class="tactical-right">
         <div class="score-row">
           <div>
             <div class="score-team">Sporting</div>
-            <div class="score-val">18</div>
+            <div class="score-val">22</div>
           </div>
-          <div class="score-sep">·</div>
+          <div class="live-badge"><div class="live-dot"></div>SET 4</div>
           <div style="text-align:right">
             <div class="score-team">Benfica</div>
-            <div class="score-val">21</div>
+            <div class="score-val">24</div>
           </div>
         </div>
 
-        <div class="court-visual" aria-label="Campo de voleibol com registo de acções">
-          <div class="court-net"></div>
-          <div class="court-grid">
-            <div class="court-cell"></div><div class="court-cell"></div><div class="court-cell"></div>
-            <div class="court-cell"></div><div class="court-cell"></div><div class="court-cell"></div>
-            <div class="court-cell"></div><div class="court-cell"></div><div class="court-cell"></div>
+        <div class="ai-suggestion warn" style="animation-delay:.1s">
+          <div class="sug-type warn">Alerta · Serviço</div>
+          <div class="sug-text">Servir zona 1 — #7 com 3 erros de recepção neste set</div>
+          <div class="sug-conf">
+            <div class="sug-bar"><div class="sug-fill warn" style="width:91%"></div></div>
+            <div class="sug-pct">91% confiança</div>
           </div>
-          <!-- dots representando acções -->
-          <div class="court-dot" style="width:12px;height:12px;background:#0ea5e9;left:30%;top:25%;box-shadow:0 0 8px #0ea5e9;"></div>
-          <div class="court-dot" style="width:10px;height:10px;background:#4ade80;right:25%;top:65%;box-shadow:0 0 6px #4ade80;"></div>
-          <div class="court-dot" style="width:8px;height:8px;background:#f87171;left:60%;top:40%;"></div>
-          <!-- arrow svg -->
-          <svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible" aria-hidden="true">
-            <defs>
-              <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#0ea5e9" stroke-width="1.5"/>
-              </marker>
-            </defs>
-            <line x1="30%" y1="25%" x2="75%" y2="65%" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)" opacity=".6"/>
-          </svg>
         </div>
 
-        <div class="action-row">
-          <div class="action-pill">Serviço</div>
-          <div class="action-pill active">Ataque ✓</div>
-          <div class="action-pill">Recepção</div>
-          <div class="action-pill">Bloco</div>
+        <div class="ai-suggestion info" style="animation-delay:.25s">
+          <div class="sug-type info">Padrão · Ataque</div>
+          <div class="sug-text">Adversária concentra 74% dos ataques no corredor direito em bolas de 2ª linha</div>
+          <div class="sug-conf">
+            <div class="sug-bar"><div class="sug-fill info" style="width:74%"></div></div>
+            <div class="sug-pct">74% confiança</div>
+          </div>
+        </div>
+
+        <div class="ai-suggestion good" style="animation-delay:.4s">
+          <div class="sug-type good">Substituição</div>
+          <div class="sug-text">#12 com pass rating 1.6 nos últimos 8 rallies — considerar saída por #4</div>
+          <div class="sug-conf">
+            <div class="sug-bar"><div class="sug-fill good" style="width:82%"></div></div>
+            <div class="sug-pct">82% confiança</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── AI Section ────────────────────────────────────────────────────────────── -->
+<!-- ── AI Section ─────────────────────────────────────────────────────────────── -->
 <section id="ai" style="background: rgba(255,255,255,.02); border-block: 1px solid rgba(255,255,255,.05);">
   <div class="container">
     <div class="ai-grid">
@@ -684,7 +778,7 @@
           Powered by Claude AI
         </span>
         <h2>Inteligência artificial ao serviço do teu jogo</h2>
-        <p>O VolleyIQ usa IA para analisar os teus dados e gerar insights que seriam impossíveis de calcular manualmente. Identifica padrões, prevê pontos fracos e sugere ajustes táticos.</p>
+        <p>O VolleyIQ usa IA para analisar os teus dados e gerar insights que seriam impossíveis de calcular manualmente. Cada plano desbloqueia um nível diferente de inteligência.</p>
         <a href="#pricing" class="btn btn-primary">Ver planos com IA →</a>
       </div>
 
@@ -698,6 +792,18 @@
             <p>Analisa jogos anteriores contra o mesmo adversário e identifica tendências de serviço, zonas de ataque preferidas e rotações vulneráveis.</p>
             <div class="confidence-bar" style="margin-top:.6rem"><div class="confidence-fill" style="width:87%"></div></div>
             <div style="font-size:.72rem;color:var(--dim);margin-top:.25rem">87% confiança no padrão detectado</div>
+            <span class="plan-pill plan-pill-pro">Pro+</span>
+          </div>
+        </div>
+
+        <div class="ai-card">
+          <div class="ai-card-icon">
+            <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div>
+            <h4>Assistente Táctico ao Vivo</h4>
+            <p>Sugestões de substituição, alertas de serviço e padrões do adversário entregues durante o scouting — sem pausas, sem distração.</p>
+            <span class="plan-pill plan-pill-club">Club</span>
           </div>
         </div>
 
@@ -707,21 +813,12 @@
           </div>
           <div>
             <h4>Planos de Treino Personalizados</h4>
-            <p>Gera recomendações de treino individuais para cada atleta com base nos seus pontos fracos identificados nos últimos jogos.</p>
-            <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+            <p>Gera recomendações individuais para cada atleta com base nos pontos fracos identificados nos últimos jogos.</p>
+            <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap">
               <span class="badge badge-green" style="font-size:.7rem">Recepção: alta prioridade</span>
               <span class="badge badge-sky" style="font-size:.7rem">Serviço: média</span>
             </div>
-          </div>
-        </div>
-
-        <div class="ai-card">
-          <div class="ai-card-icon">
-            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
-          <div>
-            <h4>Sugestões em Tempo Real</h4>
-            <p>Durante o scouting, sugere substituições, identifica jogadoras em forma e alerta para alvos de serviço do adversário.</p>
+            <span class="plan-pill plan-pill-club">Club</span>
           </div>
         </div>
       </div>
@@ -729,8 +826,82 @@
   </div>
 </section>
 
-<!-- ── Testimonials ──────────────────────────────────────────────────────────── -->
-<section>
+<!-- ── Editor Táctico (Boards) ────────────────────────────────────────────────── -->
+<section style="padding-block: 5rem;">
+  <div class="container">
+    <div class="boards-strip">
+      <div class="boards-left">
+        <span class="badge badge-sky">Editor Táctico</span>
+        <h2>Pranchetas táticas. Partilhadas em segundos.</h2>
+        <p>
+          Cria diagramas interativos com posicionamentos, setas de movimentação e notas táticas. Partilha com toda a equipa técnica antes do jogo — sem impressoras, sem PDFs estáticos.
+        </p>
+        <div class="boards-checks">
+          <div class="tactical-check">
+            <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            Posicionamento de jogadoras com drag &amp; drop no campo
+          </div>
+          <div class="tactical-check">
+            <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            Setas de movimentação e zonas de ataque configuráveis
+          </div>
+          <div class="tactical-check">
+            <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+            Biblioteca de pranchetas organizada por adversário
+          </div>
+        </div>
+        <a href="https://app.volleyiq.pt" class="btn btn-primary">Criar a primeira prancheta →</a>
+      </div>
+
+      <div class="boards-right">
+        <div class="boards-canvas">
+          <div class="boards-canvas-net"></div>
+          <div class="boards-canvas-grid">
+            <div class="boards-canvas-cell"></div><div class="boards-canvas-cell"></div><div class="boards-canvas-cell"></div>
+            <div class="boards-canvas-cell"></div><div class="boards-canvas-cell"></div><div class="boards-canvas-cell"></div>
+            <div class="boards-canvas-cell"></div><div class="boards-canvas-cell"></div><div class="boards-canvas-cell"></div>
+          </div>
+          <!-- Blue team -->
+          <div class="boards-player blue" style="left:18%;top:18%">1</div>
+          <div class="boards-player blue" style="left:42%;top:12%">2</div>
+          <div class="boards-player blue" style="right:18%;top:18%">3</div>
+          <div class="boards-player blue" style="left:18%;top:38%">4</div>
+          <div class="boards-player blue" style="left:42%;top:32%">L</div>
+          <div class="boards-player blue" style="right:18%;top:38%">5</div>
+          <!-- Red team -->
+          <div class="boards-player red" style="left:20%;top:60%">1</div>
+          <div class="boards-player red" style="left:43%;top:65%">2</div>
+          <div class="boards-player red" style="right:20%;top:60%">3</div>
+          <div class="boards-player red" style="left:20%;top:80%">4</div>
+          <div class="boards-player red" style="left:43%;top:80%">5</div>
+          <div class="boards-player red" style="right:20%;top:80%">6</div>
+          <!-- Movement arrow -->
+          <svg class="boards-arrow" aria-hidden="true">
+            <defs>
+              <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#0ea5e9" stroke-width="1.5"/>
+              </marker>
+            </defs>
+            <line x1="44%" y1="32%" x2="44%" y2="13%" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)" opacity=".7"/>
+          </svg>
+        </div>
+        <div class="boards-mini">
+          <div class="boards-mini-card">
+            <div class="boards-mini-label">Pranchetas guardadas</div>
+            <div class="boards-mini-val">12 boards</div>
+          </div>
+          <div class="boards-mini-card">
+            <div class="boards-mini-label">Partilhadas com equipa</div>
+            <div class="boards-mini-val">Sincronizadas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Testimonials ───────────────────────────────────────────────────────────── -->
+<section style="background: rgba(255,255,255,.02); border-top: 1px solid rgba(255,255,255,.05);">
   <div class="container">
     <div class="section-head">
       <span class="badge badge-sky">Testemunhos</span>
@@ -742,7 +913,7 @@
         <div class="testi-stars" aria-label="5 de 5 estrelas">
           <span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span>
         </div>
-        <p class="testi-quote">"O VolleyIQ mudou a forma como preparo os jogos. Em 20 minutos tenho um relatório completo do adversário que antes me levava horas a construir no Excel."</p>
+        <p class="testi-quote">"O assistente táctico ao vivo mudou completamente a minha gestão do jogo. Recebo os alertas de serviço exatamente quando preciso, sem tirar os olhos do campo."</p>
         <div class="testi-author">
           <div class="testi-avatar">MR</div>
           <div>
@@ -770,7 +941,7 @@
         <div class="testi-stars" aria-label="5 de 5 estrelas">
           <span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span><span class="testi-star">★</span>
         </div>
-        <p class="testi-quote">"Usámos o VolleyIQ para gerir três equipas do clube. O painel de controlo unificado poupa imenso tempo à direcção técnica."</p>
+        <p class="testi-quote">"Usámos o VolleyIQ para gerir três equipas do clube. O painel de controlo unificado e as pranchetas táticas poupam imenso tempo à direcção técnica."</p>
         <div class="testi-author">
           <div class="testi-avatar">PL</div>
           <div>
@@ -784,7 +955,7 @@
 </section>
 
 <!-- ── Pricing ────────────────────────────────────────────────────────────────── -->
-<section id="pricing" style="background: rgba(255,255,255,.02); border-top: 1px solid rgba(255,255,255,.05);">
+<section id="pricing">
   <div class="container">
     <div class="section-head">
       <span class="badge badge-sky">Preços simples</span>
@@ -804,21 +975,38 @@
     </div>
 
     <div class="pricing-grid">
-      <!-- Pro -->
+      <!-- Individual -->
+      <div class="plan-card">
+        <div class="plan-name">Individual</div>
+        <div class="plan-price" id="price-individual">€19 <span>/mês</span></div>
+        <div class="plan-billing" id="billing-individual"></div>
+        <div class="plan-blurb">Para treinadores individuais</div>
+        <ul class="plan-features" aria-label="Funcionalidades do plano Individual">
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>1 equipa · 1 utilizador</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Live scouting completo</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Analytics completo</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Match Day</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Até 20 jogos</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>3 relatórios PDF / mês</li>
+        </ul>
+        <a href="https://app.volleyiq.pt" class="plan-btn plan-btn-outline">Começar trial de 7 dias</a>
+      </div>
+
+      <!-- Pro (featured) -->
       <div class="plan-card featured">
         <div class="plan-badge">Mais popular</div>
         <div class="plan-name">Pro</div>
         <div class="plan-price" id="price-pro">€49 <span>/mês</span></div>
         <div class="plan-billing" id="billing-pro"></div>
-        <div class="plan-blurb">Para treinadores e clubes pequenos</div>
+        <div class="plan-blurb">Para treinadores com múltiplas equipas</div>
         <ul class="plan-features" aria-label="Funcionalidades do plano Pro">
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>5 equipas</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>5 equipas · 1 utilizador / equipa</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Scouting de adversários</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Analytics completo</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI pattern detection</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI training plans</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Relatórios PDF</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Scenario modeling</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Tagging de vídeo</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Relatórios PDF ilimitados</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Export CSV</li>
         </ul>
         <a href="https://app.volleyiq.pt" class="plan-btn plan-btn-primary">Começar trial de 7 dias</a>
       </div>
@@ -832,11 +1020,14 @@
         <ul class="plan-features" aria-label="Funcionalidades do plano Club">
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Equipas ilimitadas</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Tudo do Pro</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Assistente táctico ao vivo</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI training plans</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Dashboard de clube</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Gestão de quotas e presenças</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Acesso API</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Suporte prioritário</li>
         </ul>
-        <a href="https://app.volleyiq.pt" class="plan-btn plan-btn-outline">Contactar-nos</a>
+        <a href="mailto:hello@volleyiq.pt" class="plan-btn plan-btn-outline">Contactar-nos</a>
       </div>
     </div>
 
@@ -848,8 +1039,10 @@
   const toggle = document.getElementById('billing-toggle');
   const labelMonthly = document.getElementById('label-monthly');
   const labelAnnual = document.getElementById('label-annual');
+  const priceIndividual = document.getElementById('price-individual');
   const pricePro = document.getElementById('price-pro');
   const priceClub = document.getElementById('price-club');
+  const billingIndividual = document.getElementById('billing-individual');
   const billingPro = document.getElementById('billing-pro');
   const billingClub = document.getElementById('billing-club');
   const note = document.getElementById('pricing-note');
@@ -860,14 +1053,18 @@
     labelAnnual.classList.toggle('active', annual);
 
     if (annual) {
+      priceIndividual.innerHTML = '€16 <span>/mês</span>';
       pricePro.innerHTML = '€41 <span>/mês</span>';
       priceClub.innerHTML = '€101 <span>/mês</span>';
+      billingIndividual.textContent = 'Faturado €192/ano · poupas €36';
       billingPro.textContent = 'Faturado €492/ano · poupas €96';
       billingClub.textContent = 'Faturado €1212/ano · poupas €216';
       note.textContent = '7 dias grátis · Faturação anual · Cancela a qualquer momento';
     } else {
+      priceIndividual.innerHTML = '€19 <span>/mês</span>';
       pricePro.innerHTML = '€49 <span>/mês</span>';
       priceClub.innerHTML = '€119 <span>/mês</span>';
+      billingIndividual.textContent = '';
       billingPro.textContent = '';
       billingClub.textContent = '';
       note.textContent = '7 dias grátis com acesso completo · Sem cartão de crédito · Cancela a qualquer momento';
@@ -875,13 +1072,13 @@
   });
 </script>
 
-<!-- ── CTA ──────────────────────────────────────────────────────────────────── -->
+<!-- ── CTA ────────────────────────────────────────────────────────────────────── -->
 <section>
   <div class="container">
     <div class="cta-section">
       <span class="badge badge-sky">Pronto para começar?</span>
       <h2>O teu próximo jogo começa aqui</h2>
-      <p>Junta-te a centenas de treinadores que já tomam decisões com dados. 7 dias grátis, sem cartão de crédito.</p>
+      <p>Junta-te a centenas de treinadores que já tomam decisões com dados — e com IA a seu lado durante o jogo.</p>
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
         <a href="https://app.volleyiq.pt" class="btn btn-primary btn-lg">Começar trial de 7 dias</a>
         <a href="mailto:hello@volleyiq.pt" class="btn btn-outline btn-lg">Falar connosco</a>
@@ -890,7 +1087,7 @@
   </div>
 </section>
 
-<!-- ── Footer ──────────────────────────────────────────────────────────────── -->
+<!-- ── Footer ─────────────────────────────────────────────────────────────────── -->
 <footer>
   <div class="container footer-inner">
     <div class="footer-logo">
@@ -902,6 +1099,7 @@
     </div>
     <nav class="footer-links" aria-label="Links do rodapé">
       <a href="#features">Funcionalidades</a>
+      <a href="#tactical">Assistente Táctico</a>
       <a href="#pricing">Preços</a>
       <a href="mailto:hello@volleyiq.pt">Contacto</a>
       <a href="https://app.volleyiq.pt">Entrar</a>
