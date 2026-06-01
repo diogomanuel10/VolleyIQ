@@ -433,6 +433,29 @@
       font-size: .72rem; font-weight: 700; padding: .15rem .55rem;
     }
 
+    /* ── Early adopter banner ────────────────────────────────────────── */
+    .early-banner {
+      background: linear-gradient(135deg, rgba(251,191,36,.12) 0%, rgba(251,191,36,.04) 100%);
+      border: 1px solid rgba(251,191,36,.3); border-radius: var(--radius);
+      padding: 1rem 1.5rem; margin-bottom: 2.5rem;
+    }
+    .early-banner-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .early-left { display: flex; align-items: center; gap: .6rem; font-size: .88rem; flex-wrap: wrap; }
+    .early-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0; animation: blink 1.4s infinite; }
+    .early-spots { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+    .early-count { font-size: 1.6rem; font-weight: 800; color: var(--amber); line-height: 1; }
+    .early-label { font-size: .7rem; color: var(--muted); white-space: nowrap; }
+
+    /* ── Referral box ─────────────────────────────────────────────────── */
+    .referral-box {
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+      background: rgba(14,165,233,.06); border: 1px solid rgba(14,165,233,.18);
+      border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-top: 2rem;
+    }
+    .referral-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(14,165,233,.15); display: grid; place-items: center; flex-shrink: 0; color: var(--sky); }
+    .referral-text { flex: 1; font-size: .88rem; display: flex; flex-direction: column; gap: .2rem; }
+    .referral-text span { color: var(--dim); }
+
     /* ── CTA Section ──────────────────────────────────────────────────── */
     .cta-section {
       text-align: center;
@@ -963,6 +986,21 @@
       <p>7 dias grátis com acesso completo. Sem cartão de crédito.</p>
     </div>
 
+    <!-- Early adopter banner -->
+    <div class="early-banner">
+      <div class="early-banner-inner">
+        <div class="early-left">
+          <div class="early-dot"></div>
+          <strong>Oferta Early Adopter</strong>
+          <span>— Primeiros 50 treinadores a subscrever ficam com <strong>30% de desconto permanente</strong> em qualquer plano.</span>
+        </div>
+        <div class="early-spots">
+          <span class="early-count" id="early-count">47</span>
+          <span class="early-label">lugares restantes</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Billing toggle -->
     <div class="billing-toggle">
       <span class="toggle-label active" id="label-monthly">Mensal</span>
@@ -971,7 +1009,7 @@
         <div class="toggle-track"></div>
         <div class="toggle-thumb"></div>
       </label>
-      <span class="toggle-label" id="label-annual">Anual <span class="save-badge">-15%</span></span>
+      <span class="toggle-label" id="label-annual">Anual <span class="save-badge">-20%</span></span>
     </div>
 
     <div class="pricing-grid">
@@ -1032,6 +1070,18 @@
     </div>
 
     <p class="pricing-note" id="pricing-note">7 dias grátis com acesso completo · Sem cartão de crédito · Cancela a qualquer momento</p>
+
+    <!-- Referral -->
+    <div class="referral-box">
+      <div class="referral-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="referral-text">
+        <strong>Programa de referência</strong>
+        <span>Recomendas o VolleyIQ a um colega treinador? Assim que ele subscrever, recebem ambos <strong>20% de desconto</strong> na próxima renovação.</span>
+      </div>
+      <a href="mailto:hello@volleyiq.pt?subject=Programa de referência" class="btn btn-outline" style="flex-shrink:0;font-size:.85rem;padding:.5rem 1rem">Saber mais</a>
+    </div>
   </div>
 </section>
 
@@ -1053,12 +1103,12 @@
     labelAnnual.classList.toggle('active', annual);
 
     if (annual) {
-      priceIndividual.innerHTML = '€16 <span>/mês</span>';
-      pricePro.innerHTML = '€41 <span>/mês</span>';
-      priceClub.innerHTML = '€101 <span>/mês</span>';
-      billingIndividual.textContent = 'Faturado €192/ano · poupas €36';
-      billingPro.textContent = 'Faturado €492/ano · poupas €96';
-      billingClub.textContent = 'Faturado €1212/ano · poupas €216';
+      priceIndividual.innerHTML = '€15 <span>/mês</span>';
+      pricePro.innerHTML = '€39 <span>/mês</span>';
+      priceClub.innerHTML = '€95 <span>/mês</span>';
+      billingIndividual.textContent = 'Faturado €182/ano · poupas €46';
+      billingPro.textContent = 'Faturado €470/ano · poupas €118';
+      billingClub.textContent = 'Faturado €1140/ano · poupas €288';
       note.textContent = '7 dias grátis · Faturação anual · Cancela a qualquer momento';
     } else {
       priceIndividual.innerHTML = '€19 <span>/mês</span>';
