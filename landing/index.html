@@ -995,7 +995,7 @@
           <span>— Primeiros 50 treinadores a subscrever ficam com <strong>30% de desconto permanente</strong> em qualquer plano.</span>
         </div>
         <div class="early-spots">
-          <span class="early-count" id="early-count">47</span>
+          <span class="early-count" id="early-count">—</span>
           <span class="early-label">lugares restantes</span>
         </div>
       </div>
@@ -1086,6 +1086,21 @@
 </section>
 
 <script>
+  // Contador early adopter — busca ao vivo da API
+  (async () => {
+    try {
+      const res = await fetch('https://app.volleyiq.pt/api/early-adopter');
+      if (!res.ok) return;
+      const { remaining } = await res.json();
+      const el = document.getElementById('early-count');
+      if (el) el.textContent = remaining;
+      if (remaining === 0) {
+        const banner = el?.closest('.early-banner');
+        if (banner) banner.innerHTML = '<div class="early-banner-inner"><div class="early-left"><strong>Oferta Early Adopter esgotada.</strong> <span>Subscreve na mesma e poupa 20% com o plano anual.</span></div></div>';
+      }
+    } catch { /* silencioso — o banner fica com "—" */ }
+  })();
+
   const toggle = document.getElementById('billing-toggle');
   const labelMonthly = document.getElementById('label-monthly');
   const labelAnnual = document.getElementById('label-annual');

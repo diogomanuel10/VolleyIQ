@@ -6,6 +6,9 @@ import express, {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
+import { isNotNull, sql } from "drizzle-orm";
+import { db } from "./db";
+import { teams } from "@shared/schema";
 import { router } from "./routes";
 import { publicRouter } from "./publicApi";
 import { adminRouter } from "./adminRoutes";
@@ -69,6 +72,17 @@ app.use((req, _res, next) => {
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, version: "0.1.0" });
+});
+
+const EARLY_ADOPTER_LIMIT = 50;
+
+app.get("/api/early-adopter", async (_req, res) => {
+  const [{ taken }] = await db
+    .select({ taken: sql<number>`cast(count(*) as int)` })
+    .from(teams)
+    .where(isNotNull(teams.subscribedAt));
+  const remaining = Math.max(0, EARLY_ADOPTER_LIMIT - taken);
+  res.json({ remaining, total: EARLY_ADOPTER_LIMIT, taken });
 });
 
 // Public API — uses API key auth, NOT Firebase. Must be before requireAuth.
