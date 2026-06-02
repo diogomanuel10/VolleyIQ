@@ -90,9 +90,11 @@ export function Sidebar() {
             !expanded && "justify-center",
           )}
         >
-          <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold shrink-0">
-            V
-          </div>
+          <img
+            src="/logo.svg"
+            alt="VolleyIQ"
+            className="h-8 w-8 shrink-0"
+          />
           {expanded && (
             <div className="min-w-0 flex-1">
               <div className="font-semibold leading-tight">VolleyIQ</div>

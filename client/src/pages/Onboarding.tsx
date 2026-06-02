@@ -94,9 +94,7 @@ export default function Onboarding() {
         {/* Logo */}
         <div className="flex justify-center">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">V</span>
-            </div>
+            <img src="/logo.svg" alt="VolleyIQ" className="h-8 w-8" />
             <span className="font-bold text-lg">VolleyIQ</span>
           </div>
         </div>

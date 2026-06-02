@@ -64,9 +64,7 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-2 mb-2">
-            <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold">
-              V
-            </div>
+            <img src="/logo.svg" alt="VolleyIQ" className="h-9 w-9" />
             <CardTitle className="text-xl">VolleyIQ</CardTitle>
           </div>
           <p className="text-sm text-muted-foreground">
