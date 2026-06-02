@@ -322,6 +322,65 @@ function Summary({
     retry: false,
   });
 
+  // All hooks must be declared before any early returns (Rules of Hooks)
+  const filteredMoments = useMemo(
+    () =>
+      (summaryQuery.data?.taggedMoments ?? []).filter((m) => {
+        if (filterAction && m.type !== filterAction) return false;
+        if (filterPlayer && m.playerName !== filterPlayer) return false;
+        return true;
+      }),
+    [summaryQuery.data?.taggedMoments, filterAction, filterPlayer],
+  );
+
+  const resultBreakdown = useMemo(
+    () =>
+      filteredMoments.reduce(
+        (acc, m) => ({ ...acc, [m.result]: (acc[m.result] ?? 0) + 1 }),
+        {} as Record<string, number>,
+      ),
+    [filteredMoments],
+  );
+
+  const stopPlaylist = useCallback(() => {
+    setPlaylistActive(false);
+    clipSeekTargetRef.current = null;
+  }, []);
+
+  const startPlaylist = useCallback(
+    (idx = 0, moments = filteredMoments) => {
+      if (!moments.length) return;
+      const clip = moments[idx];
+      setPlaylistActive(true);
+      setPlaylistIdx(idx);
+      clipSeekTargetRef.current = clip.videoTimeSec;
+      videoRef.current?.seekTo(clip.videoTimeSec);
+    },
+    [filteredMoments],
+  );
+
+  // Auto-advance: poll getCurrentTime every 500 ms while playlist is active
+  useEffect(() => {
+    if (!playlistActive) return;
+    const iv = setInterval(() => {
+      const cur = videoRef.current?.getCurrentTime();
+      const target = clipSeekTargetRef.current;
+      if (cur == null || target == null) return;
+      if (cur >= target + clipDuration) {
+        const next = playlistIdx + 1;
+        if (next >= filteredMoments.length) {
+          stopPlaylist();
+        } else {
+          const clip = filteredMoments[next];
+          setPlaylistIdx(next);
+          clipSeekTargetRef.current = clip.videoTimeSec;
+          videoRef.current?.seekTo(clip.videoTimeSec);
+        }
+      }
+    }, 500);
+    return () => clearInterval(iv);
+  }, [playlistActive, playlistIdx, clipDuration, filteredMoments, stopPlaylist]);
+
   // Raw actions — fetched on-demand for DVW export (lazy, enabled only when needed)
   const [exportDvwPending, setExportDvwPending] = useState(false);
 
@@ -415,64 +474,6 @@ function Summary({
 
   const s = summaryQuery.data;
   const win = s.setsWon > s.setsLost;
-
-  const filteredMoments = useMemo(
-    () =>
-      s.taggedMoments.filter((m) => {
-        if (filterAction && m.type !== filterAction) return false;
-        if (filterPlayer && m.playerName !== filterPlayer) return false;
-        return true;
-      }),
-    [s.taggedMoments, filterAction, filterPlayer],
-  );
-
-  const resultBreakdown = useMemo(
-    () =>
-      filteredMoments.reduce(
-        (acc, m) => ({ ...acc, [m.result]: (acc[m.result] ?? 0) + 1 }),
-        {} as Record<string, number>,
-      ),
-    [filteredMoments],
-  );
-
-  const startPlaylist = useCallback(
-    (idx = 0, moments = filteredMoments) => {
-      if (!moments.length) return;
-      const clip = moments[idx];
-      setPlaylistActive(true);
-      setPlaylistIdx(idx);
-      clipSeekTargetRef.current = clip.videoTimeSec;
-      videoRef.current?.seekTo(clip.videoTimeSec);
-    },
-    [filteredMoments],
-  );
-
-  const stopPlaylist = useCallback(() => {
-    setPlaylistActive(false);
-    clipSeekTargetRef.current = null;
-  }, []);
-
-  // Auto-advance: poll getCurrentTime every 500 ms while playlist is active
-  useEffect(() => {
-    if (!playlistActive) return;
-    const iv = setInterval(() => {
-      const cur = videoRef.current?.getCurrentTime();
-      const target = clipSeekTargetRef.current;
-      if (cur == null || target == null) return;
-      if (cur >= target + clipDuration) {
-        const next = playlistIdx + 1;
-        if (next >= filteredMoments.length) {
-          stopPlaylist();
-        } else {
-          const clip = filteredMoments[next];
-          setPlaylistIdx(next);
-          clipSeekTargetRef.current = clip.videoTimeSec;
-          videoRef.current?.seekTo(clip.videoTimeSec);
-        }
-      }
-    }, 500);
-    return () => clearInterval(iv);
-  }, [playlistActive, playlistIdx, clipDuration, filteredMoments, stopPlaylist]);
 
   const kpis = [
     { label: "Kill %", value: formatPct(s.teamKpis.killPct), icon: Target },
