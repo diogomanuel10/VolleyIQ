@@ -23,9 +23,6 @@ const OpponentDetail = lazy(() => import("@/pages/OpponentDetail"));
 const TeamSettings = lazy(() => import("@/pages/TeamSettings"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const ClubDashboard = lazy(() => import("@/pages/ClubDashboard"));
-const ApiKeysPage = lazy(() => import("@/pages/ApiKeysPage"));
-const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
-const ApiDocsPage = lazy(() => import("@/pages/ApiDocsPage"));
 const GettingStartedPage = lazy(() => import("@/pages/GettingStartedPage"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const Boards = lazy(() => import("@/pages/Boards"));
@@ -33,18 +30,6 @@ const BoardEditor = lazy(() => import("@/pages/BoardEditor"));
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
-
-  // Public routes — accessible without authentication
-  const hash = window.location.hash;
-  if (hash === "#/docs/api" || hash.startsWith("#/docs/api?")) {
-    return (
-      <WouterRouter hook={useHashLocation}>
-        <Suspense fallback={<Loading />}>
-          <ApiDocsPage />
-        </Suspense>
-      </WouterRouter>
-    );
-  }
 
   if (authLoading) return <Loading />;
 
@@ -96,11 +81,8 @@ function AuthedApp() {
             <Route path="/club" component={ClubDashboard} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/settings" component={TeamSettings} />
-            <Route path="/settings/api-keys" component={ApiKeysPage} />
-            <Route path="/settings/webhooks" component={WebhooksPage} />
             <Route path="/profile" component={Profile} />
             <Route path="/getting-started" component={GettingStartedPage} />
-            <Route path="/docs/api" component={ApiDocsPage} />
             <Route path="/boards" component={Boards} />
             <Route path="/boards/:id" component={BoardEditor} />
             <Route path="/admin" component={Admin} />
