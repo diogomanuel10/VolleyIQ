@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "./middleware/auth";
+import { requireAuth, deleteAuthUser } from "./middleware/auth";
 import * as storage from "./storage";
 import {
   insertTeamSchema,
@@ -1095,6 +1095,32 @@ router.patch("/user/preferences", async (req, res) => {
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
   const prefs = await storage.upsertUserPreferences(uid, parsed.data.language);
   res.json({ language: prefs?.language ?? parsed.data.language });
+});
+
+// ── RGPD: exportação e eliminação de conta ─────────────────────────────────────
+// Exporta todos os dados do utilizador em JSON (direito à portabilidade).
+router.get("/user/export", async (req, res) => {
+  const uid = req.user!.uid;
+  const data = await storage.exportUserData(uid);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="volleyiq-dados-${new Date().toISOString().slice(0, 10)}.json"`,
+  );
+  res.json(data);
+});
+
+// Elimina a conta e os dados pessoais (direito ao apagamento). Exige confirmação
+// explícita no corpo para evitar eliminações acidentais.
+router.delete("/user/account", async (req, res) => {
+  const uid = req.user!.uid;
+  const confirmSchema = z.object({ confirm: z.literal("ELIMINAR") });
+  const parsed = confirmSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "confirmation_required" });
+  }
+  const result = await storage.deleteUserAccount(uid);
+  await deleteAuthUser(uid);
+  res.json({ deleted: true, ...result });
 });
 
 // ── API Keys ──────────────────────────────────────────────────────────────────

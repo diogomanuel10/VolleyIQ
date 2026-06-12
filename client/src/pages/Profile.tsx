@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { KeyRound, User as UserIcon, Sparkles, Clock, CheckCircle2 } from "lucide-react";
+import { KeyRound, User as UserIcon, Sparkles, Clock, CheckCircle2, ShieldCheck, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeam } from "@/hooks/useTeam";
 import { usePlanGuard } from "@/hooks/usePlanGuard";
-import { changePassword, isEmailUser } from "@/lib/firebase";
+import { changePassword, isEmailUser, logout } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import { PLAN_LABELS } from "@shared/planFeatures";
 
 export default function Profile() {
@@ -24,6 +25,38 @@ export default function Profile() {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [exporting, setExporting] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await api.download(
+        "/api/user/export",
+        `volleyiq-dados-${new Date().toISOString().slice(0, 10)}.json`,
+      );
+    } catch {
+      toast.error("Não foi possível exportar os dados.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      await api.delete("/api/user/account", { confirm: "ELIMINAR" });
+      toast.success("Conta eliminada.");
+      await logout();
+      window.location.reload();
+    } catch {
+      toast.error("Não foi possível eliminar a conta.");
+      setDeleting(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -166,6 +199,82 @@ export default function Profile() {
           {t("profile.googleAccount")}
         </div>
       )}
+
+      {/* Privacidade e dados (RGPD) */}
+      <div className="rounded-lg border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          Privacidade e dados
+        </div>
+
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Descarrega uma cópia de todos os teus dados em formato JSON.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exporting ? "A exportar…" : "Exportar dados"}
+          </Button>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <p className="text-sm text-muted-foreground max-w-md">
+            Eliminar a conta apaga permanentemente os teus dados e as equipas de
+            que és proprietário (jogadoras, jogos e estatísticas incluídas). Esta
+            ação é irreversível.
+          </p>
+          {!showDelete ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setShowDelete(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Eliminar conta
+            </Button>
+          ) : (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+              <Label htmlFor="del-confirm" className="text-sm">
+                Escreve <span className="font-mono font-semibold">ELIMINAR</span> para confirmar
+              </Label>
+              <Input
+                id="del-confirm"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder="ELIMINAR"
+                autoComplete="off"
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteConfirm !== "ELIMINAR" || deleting}
+                  onClick={handleDeleteAccount}
+                >
+                  {deleting ? "A eliminar…" : "Eliminar definitivamente"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowDelete(false);
+                    setDeleteConfirm("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

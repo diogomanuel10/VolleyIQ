@@ -20,6 +20,8 @@ import {
   webhooks,
   boards,
   boardSlides,
+  scoutingReports,
+  pushSubscriptions,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
@@ -819,6 +821,85 @@ export async function upsertUserPreferences(uid: string, language: string) {
     .from(userPreferences)
     .where(eq(userPreferences.uid, uid));
   return row;
+}
+
+// ── RGPD: exportação e eliminação de dados do utilizador ──────────────────
+
+/**
+ * Reúne todos os dados associados ao utilizador (direito de portabilidade,
+ * art.º 20.º RGPD). Inclui todas as equipas a que pertence e os respetivos
+ * dados desportivos. O código de convite da equipa é omitido por ser um
+ * segredo partilhado, não um dado pessoal do utilizador.
+ */
+export async function exportUserData(uid: string) {
+  const prefs = await getUserPreferences(uid);
+  const memberTeams = await listTeamsForUser(uid);
+
+  const teamsOut = [];
+  for (const team of memberTeams) {
+    const [teamPlayers, teamMatches, teamOpponents, teamReports, teamBoards, teamMembers] =
+      await Promise.all([
+        db.select().from(players).where(eq(players.teamId, team.id)),
+        db.select().from(matches).where(eq(matches.teamId, team.id)),
+        db.select().from(opponentTeams).where(eq(opponentTeams.teamId, team.id)),
+        db.select().from(scoutingReports).where(eq(scoutingReports.teamId, team.id)),
+        db.select().from(boards).where(eq(boards.teamId, team.id)),
+        db.select().from(memberships).where(eq(memberships.teamId, team.id)),
+      ]);
+    const matchIds = teamMatches.map((m) => m.id);
+    const teamActions = matchIds.length
+      ? await db.select().from(actions).where(inArray(actions.matchId, matchIds))
+      : [];
+
+    const { inviteCode: _inviteCode, ...teamSafe } = team as Record<string, unknown>;
+    teamsOut.push({
+      team: teamSafe,
+      isOwner: team.ownerUid === uid,
+      members: teamMembers,
+      players: teamPlayers,
+      opponents: teamOpponents,
+      matches: teamMatches,
+      actions: teamActions,
+      scoutingReports: teamReports,
+      boards: teamBoards,
+    });
+  }
+
+  return {
+    exportedAt: new Date().toISOString(),
+    user: { uid, preferences: prefs },
+    teams: teamsOut,
+  };
+}
+
+/**
+ * Apaga a conta e os dados pessoais do utilizador (direito ao apagamento,
+ * art.º 17.º RGPD). As equipas de que é proprietário são eliminadas em cascata
+ * (jogadoras, jogos, ações, etc.); nas restantes, apenas remove a sua adesão.
+ */
+export async function deleteUserAccount(
+  uid: string,
+): Promise<{ deletedTeams: number; leftTeams: number }> {
+  const memberTeams = await listTeamsForUser(uid);
+  let deletedTeams = 0;
+  let leftTeams = 0;
+
+  for (const team of memberTeams) {
+    if (team.ownerUid === uid) {
+      await db.delete(teams).where(eq(teams.id, team.id)); // cascata
+      deletedTeams++;
+    } else {
+      await db
+        .delete(memberships)
+        .where(and(eq(memberships.uid, uid), eq(memberships.teamId, team.id)));
+      leftTeams++;
+    }
+  }
+
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.uid, uid));
+  await db.delete(userPreferences).where(eq(userPreferences.uid, uid));
+
+  return { deletedTeams, leftTeams };
 }
 
 // ── API Keys ─────────────────────────────────────────────────────────────

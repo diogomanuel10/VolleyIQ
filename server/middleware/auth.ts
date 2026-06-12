@@ -66,3 +66,18 @@ export async function requireAuth(
     res.status(401).json({ error: "Invalid token" });
   }
 }
+
+/**
+ * Apaga o utilizador no Firebase Auth. Best-effort: em modo de bypass/dev sem
+ * credencial admin, não há nada a apagar e a função resolve silenciosamente.
+ */
+export async function deleteAuthUser(uid: string): Promise<void> {
+  if (DEV_BYPASS) return;
+  try {
+    getFirebaseAdmin();
+    if (!getApps().length) return;
+    await getAuth().deleteUser(uid);
+  } catch (err) {
+    console.error("[auth] deleteAuthUser failed:", err);
+  }
+}
