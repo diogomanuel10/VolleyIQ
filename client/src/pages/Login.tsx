@@ -15,6 +15,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [accepted, setAccepted] = useState(false);
 
   function authErrorMessage(err: any): string {
     switch (err?.code) {
@@ -44,8 +45,17 @@ export default function Login() {
     }
   }
 
+  function requireConsent(): boolean {
+    if (mode === "register" && !accepted) {
+      toast.error("Tens de aceitar os Termos e a Política de Privacidade.");
+      return false;
+    }
+    return true;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!requireConsent()) return;
     setLoading(true);
     try {
       if (mode === "login") await loginEmail(email, password);
@@ -109,6 +119,7 @@ export default function Login() {
             variant="outline"
             className="w-full"
             onClick={async () => {
+              if (!requireConsent()) return;
               try {
                 await loginGoogle();
               } catch (err: any) {
@@ -126,17 +137,25 @@ export default function Login() {
             {mode === "login" ? t("login.noAccount") : t("login.hasAccount")}
           </button>
           {mode === "register" && (
-            <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
-              Ao criar conta, aceita os{" "}
-              <a href="/#/legal/terms" className="text-primary hover:underline">
-                Termos de Serviço
-              </a>{" "}
-              e a{" "}
-              <a href="/#/legal/privacy" className="text-primary hover:underline">
-                Política de Privacidade
-              </a>
-              .
-            </p>
+            <label className="flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-primary"
+              />
+              <span>
+                Li e aceito os{" "}
+                <a href="/#/legal/terms" className="text-primary hover:underline" target="_blank" rel="noreferrer">
+                  Termos de Serviço
+                </a>{" "}
+                e a{" "}
+                <a href="/#/legal/privacy" className="text-primary hover:underline" target="_blank" rel="noreferrer">
+                  Política de Privacidade
+                </a>
+                .
+              </span>
+            </label>
           )}
         </CardContent>
       </Card>

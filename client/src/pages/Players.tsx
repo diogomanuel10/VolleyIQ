@@ -451,6 +451,13 @@ function PlayerDialog({
           />
           {t("players.dialog.active")}
         </label>
+        {!editing && (
+          <p className="text-[11px] leading-relaxed text-muted-foreground border-t pt-3">
+            Ao adicionar uma atleta confirmas ter o consentimento do respetivo
+            encarregado de educação para o tratamento dos seus dados, quando se
+            trate de menor de idade.
+          </p>
+        )}
         <DialogFooter>
           <Button type="submit" disabled={saveMutation.isPending}>
             {editing ? t("players.dialog.save") : t("players.dialog.create")}
