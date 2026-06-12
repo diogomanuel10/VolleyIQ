@@ -125,6 +125,57 @@ export function isConfigured(): boolean {
   return Boolean(ACCOUNT_ID && API_KEY);
 }
 
+export interface VerifiedPayment {
+  id: string;
+  key: string;     // o externalId que definimos no checkout (teamId:plan:period)
+  status: string;  // estado autoritativo vindo da EasyPay
+  value: number;
+  paid: boolean;
+}
+
+/**
+ * Busca o pagamento à EasyPay pelo `id` para confirmar a autenticidade de uma
+ * notificação de webhook. O corpo do webhook é manipulável por qualquer um que
+ * conheça o endpoint; a única fonte de verdade é a própria API da EasyPay.
+ * Devolve `null` se não for possível confirmar (erro de rede/API) — o chamador
+ * deve então NÃO ativar nada (fail-closed).
+ */
+export async function getSinglePayment(id: string): Promise<VerifiedPayment | null> {
+  if (!isConfigured() || !id) return null;
+  try {
+    const res = await fetch(`${EASYPAY_BASE}/single/${encodeURIComponent(id)}`, {
+      method: "GET",
+      headers: headers(),
+    });
+    if (!res.ok) {
+      console.error(`EasyPay getSinglePayment failed: ${res.status}`);
+      return null;
+    }
+    const data = (await res.json()) as Record<string, any>;
+    // A EasyPay expõe o estado a vários níveis consoante o método; consideramos
+    // pago quando qualquer um indica sucesso/captura.
+    const statuses = [
+      data.status,
+      data.method?.status,
+      data.payment_status,
+      data.capture?.status,
+    ].map((s) => String(s ?? "").toLowerCase());
+    const paid = statuses.some((s) =>
+      ["success", "paid", "captured", "completed", "active"].includes(s),
+    );
+    return {
+      id: String(data.id ?? id),
+      key: String(data.key ?? ""),
+      status: statuses.find(Boolean) ?? "unknown",
+      value: Number(data.value ?? 0),
+      paid,
+    };
+  } catch (err) {
+    console.error("EasyPay getSinglePayment error:", err);
+    return null;
+  }
+}
+
 // Plan prices in EUR
 export const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
   individual: { monthly: 19, annual: 16 },

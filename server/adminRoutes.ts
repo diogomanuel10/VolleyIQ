@@ -12,7 +12,10 @@ const ADMIN_UIDS = (process.env.ADMIN_UIDS ?? "")
   .filter(Boolean);
 
 function isAdmin(uid: string): boolean {
-  return ADMIN_UIDS.length === 0 || ADMIN_UIDS.includes(uid);
+  // Fail-closed: sem ADMIN_UIDS configurado, ninguém é admin em produção.
+  // Fora de produção permitimos para conveniência de desenvolvimento.
+  if (ADMIN_UIDS.length > 0) return ADMIN_UIDS.includes(uid);
+  return process.env.NODE_ENV !== "production";
 }
 
 function requireAdmin(req: any, res: any, next: any) {

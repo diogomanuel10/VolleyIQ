@@ -1005,10 +1005,11 @@ router.post("/payments/checkout", async (req, res) => {
   const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
 
-  // In sandbox/dev mode, skip real API call and mock a payment
+  // Mock só fora de produção. Em produção NUNCA ativamos sem pagamento real,
+  // mesmo que EASYPAY_SANDBOX esteja ligado por engano — evita oferecer o plano.
+  const isProd = process.env.NODE_ENV === "production";
   if (!easypay.isConfigured() || process.env.EASYPAY_SANDBOX === "true") {
-    // Mock: activate immediately for dev/sandbox testing
-    if (process.env.NODE_ENV !== "production" || process.env.EASYPAY_SANDBOX === "true") {
+    if (!isProd) {
       const team = await storage.activateSubscription(teamId, plan);
       return res.json({
         mock: true,
@@ -1042,7 +1043,10 @@ router.post("/payments/checkout", async (req, res) => {
   }
 });
 
-// Webhook called by EasyPay after payment is processed (no auth required)
+// Webhook called by EasyPay after payment is processed (no auth required).
+// O corpo é manipulável por qualquer um que conheça o endpoint, por isso NÃO
+// confiamos nele para ativar subscrições — apenas o usamos para saber que `id`
+// re-confirmar diretamente na API da EasyPay.
 router.post("/payments/webhook", async (req, res) => {
   const payload = easypay.parseWebhook(req.body);
   if (!payload) return res.status(400).json({ error: "invalid_payload" });
@@ -1050,21 +1054,28 @@ router.post("/payments/webhook", async (req, res) => {
   // Acknowledge immediately — EasyPay expects 2xx quickly
   res.status(200).json({ received: true });
 
-  if (payload.status !== "success") {
-    console.log(`EasyPay webhook: non-success status ${payload.status} for ${payload.key}`);
+  // Re-busca o pagamento à fonte. Se não confirmar (erro/API), não ativa nada.
+  const verified = await easypay.getSinglePayment(payload.id);
+  if (!verified) {
+    console.error(`EasyPay webhook: could not verify payment ${payload.id} — ignored`);
+    return;
+  }
+  if (!verified.paid) {
+    console.log(`EasyPay webhook: payment ${verified.id} not paid (status ${verified.status})`);
     return;
   }
 
-  // key format: "teamId:plan:period"
-  const [teamId, plan] = payload.key.split(":");
+  // key format: "teamId:plan:period" — usamos SEMPRE a key autoritativa da
+  // EasyPay, não a do corpo do webhook.
+  const [teamId, plan] = verified.key.split(":");
   if (!teamId || !plan) {
-    console.error("EasyPay webhook: unparseable key", payload.key);
+    console.error("EasyPay webhook: unparseable key", verified.key);
     return;
   }
 
   try {
-    await storage.activateSubscription(teamId, plan as any, payload.id);
-    console.log(`EasyPay: activated ${plan} for team ${teamId} (payment ${payload.id})`);
+    await storage.activateSubscription(teamId, plan as any, verified.id);
+    console.log(`EasyPay: activated ${plan} for team ${teamId} (payment ${verified.id})`);
   } catch (err) {
     console.error("EasyPay webhook: failed to activate subscription", err);
   }
