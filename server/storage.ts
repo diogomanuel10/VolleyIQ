@@ -22,6 +22,7 @@ import {
   boardSlides,
   scoutingReports,
   pushSubscriptions,
+  payments,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
@@ -92,25 +93,76 @@ export async function getTeamById(teamId: string) {
 export async function activateSubscription(
   teamId: string,
   plan: "basic" | "individual" | "pro" | "club",
-  easyPaySubscriptionId?: string,
+  period: "monthly" | "annual" = "monthly",
+  paymentId?: string,
+  amount?: number,
 ) {
+  const now = new Date();
+  const endsAt = new Date(now);
+  if (period === "annual") endsAt.setFullYear(endsAt.getFullYear() + 1);
+  else endsAt.setMonth(endsAt.getMonth() + 1);
+
   await db
     .update(teams)
     .set({
       plan,
-      subscribedAt: new Date(),
-      ...(easyPaySubscriptionId ? { easyPaySubscriptionId } : {}),
+      subscribedAt: now,
+      subscriptionEndsAt: endsAt,
+      subscriptionPeriod: period,
+      subscriptionCancelled: false,
+      ...(paymentId ? { easyPaySubscriptionId: paymentId } : {}),
     })
+    .where(eq(teams.id, teamId));
+
+  // Regista o pagamento para recibo/auditoria (quando há montante associado).
+  if (amount !== undefined) {
+    await db.insert(payments).values({
+      id: newId(),
+      teamId,
+      plan,
+      period,
+      amount,
+      provider: "easypay",
+      providerPaymentId: paymentId ?? null,
+      paidAt: now,
+    });
+  }
+
+  const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
+  return row ?? null;
+}
+
+/**
+ * Cancela a renovação. Mantém o acesso até ao fim do período já pago
+ * (subscriptionEndsAt); se não houver data de fim (subscrição antiga), termina
+ * de imediato.
+ */
+export async function cancelSubscription(teamId: string) {
+  const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
+  if (!team) return null;
+  const endsAt = team.subscriptionEndsAt ?? new Date();
+  await db
+    .update(teams)
+    .set({ subscriptionCancelled: true, subscriptionEndsAt: endsAt })
     .where(eq(teams.id, teamId));
   const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
   return row ?? null;
 }
 
-export async function cancelSubscription(teamId: string) {
-  await db
-    .update(teams)
-    .set({ subscribedAt: null, easyPaySubscriptionId: null })
-    .where(eq(teams.id, teamId));
+export async function listPayments(teamId: string) {
+  return db
+    .select()
+    .from(payments)
+    .where(eq(payments.teamId, teamId))
+    .orderBy(desc(payments.paidAt));
+}
+
+export async function getPayment(teamId: string, id: string) {
+  const [row] = await db
+    .select()
+    .from(payments)
+    .where(and(eq(payments.id, id), eq(payments.teamId, teamId)));
+  return row ?? null;
 }
 
 export async function trackPdfExport(teamId: string): Promise<{ allowed: boolean; used: number; limit: number }> {

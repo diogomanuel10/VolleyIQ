@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { KeyRound, User as UserIcon, Sparkles, Clock, CheckCircle2, ShieldCheck, Download, Trash2 } from "lucide-react";
+import { KeyRound, User as UserIcon, Sparkles, Clock, CheckCircle2, ShieldCheck, Download, Trash2, XCircle, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,16 +10,26 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeam } from "@/hooks/useTeam";
 import { usePlanGuard } from "@/hooks/usePlanGuard";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { changePassword, isEmailUser, logout } from "@/lib/firebase";
 import { api } from "@/lib/api";
+import type { Payment } from "@shared/schema";
 import { PLAN_LABELS } from "@shared/planFeatures";
 
 export default function Profile() {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { team, isSubscribed, trialDaysLeft, isTrialExpired } = useTeam();
+  const {
+    team,
+    isSubscribed,
+    subscriptionCancelled,
+    subscriptionEndsAt,
+    trialDaysLeft,
+    isTrialExpired,
+  } = useTeam();
   const { plan: effectivePlan } = usePlanGuard();
   const emailProvider = isEmailUser();
+  const qc = useQueryClient();
 
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -30,6 +40,38 @@ export default function Profile() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const paymentsQuery = useQuery({
+    queryKey: ["payments", team?.id],
+    queryFn: () => api.get<Payment[]>(`/api/teams/${team!.id}/payments`),
+    enabled: Boolean(team?.id),
+  });
+
+  async function handleCancel() {
+    if (!team) return;
+    setCancelling(true);
+    try {
+      await api.post(`/api/payments/cancel`, { teamId: team.id });
+      toast.success("Subscrição cancelada. Mantém acesso até ao fim do período.");
+      qc.invalidateQueries({ queryKey: ["teams"] });
+    } catch {
+      toast.error("Não foi possível cancelar a subscrição.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function handleReceipt(paymentId: string) {
+    try {
+      await api.download(
+        `/api/teams/${team!.id}/payments/${paymentId}/receipt`,
+        `recibo-${paymentId}.html`,
+      );
+    } catch {
+      toast.error("Não foi possível obter o recibo.");
+    }
+  }
 
   async function handleExport() {
     setExporting(true);
@@ -133,6 +175,66 @@ export default function Profile() {
           <p className="text-xs text-muted-foreground">
             Equipa: <span className="font-medium">{team.name}</span>
           </p>
+
+          {isSubscribed && (
+            <div className="border-t pt-3 space-y-2">
+              {subscriptionCancelled ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Subscrição cancelada — acesso até{" "}
+                  {subscriptionEndsAt?.toLocaleDateString("pt-PT") ?? "—"}.
+                </p>
+              ) : (
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-xs text-muted-foreground">
+                    {subscriptionEndsAt
+                      ? `Renova a ${subscriptionEndsAt.toLocaleDateString("pt-PT")}`
+                      : "Subscrição activa"}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1.5 text-muted-foreground hover:text-destructive"
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    {cancelling ? "A cancelar…" : "Cancelar subscrição"}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recibos / pagamentos */}
+      {team && (paymentsQuery.data?.length ?? 0) > 0 && (
+        <div className="rounded-lg border bg-card p-5 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+            Pagamentos
+          </div>
+          <ul className="divide-y">
+            {paymentsQuery.data!.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div>
+                  <span className="font-medium">{p.amount.toFixed(2)} €</span>{" "}
+                  <span className="text-muted-foreground">
+                    · {p.plan} ({p.period === "annual" ? "anual" : "mensal"}) ·{" "}
+                    {new Date(p.paidAt).toLocaleDateString("pt-PT")}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1.5"
+                  onClick={() => handleReceipt(p.id)}
+                >
+                  <Download className="h-3.5 w-3.5" /> Recibo
+                </Button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

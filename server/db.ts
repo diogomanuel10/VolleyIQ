@@ -74,6 +74,20 @@ const bootstrapStmts: Array<[string, string]> = [
   ["teams.pdf_count",       `ALTER TABLE teams ADD COLUMN IF NOT EXISTS pdf_exports_count integer NOT NULL DEFAULT 0`],
   ["teams.pdf_month",       `ALTER TABLE teams ADD COLUMN IF NOT EXISTS pdf_exports_month text DEFAULT ''`],
   ["teams.invite_code",     `ALTER TABLE teams ADD COLUMN IF NOT EXISTS invite_code text`],
+  ["teams.sub_ends_at",      `ALTER TABLE teams ADD COLUMN IF NOT EXISTS subscription_ends_at timestamp`],
+  ["teams.sub_period",       `ALTER TABLE teams ADD COLUMN IF NOT EXISTS subscription_period text`],
+  ["teams.sub_cancelled",    `ALTER TABLE teams ADD COLUMN IF NOT EXISTS subscription_cancelled boolean NOT NULL DEFAULT false`],
+  ["payments", `CREATE TABLE IF NOT EXISTS payments (
+      id text PRIMARY KEY,
+      team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      plan text NOT NULL,
+      period text NOT NULL,
+      amount integer NOT NULL,
+      provider text NOT NULL DEFAULT 'easypay',
+      provider_payment_id text,
+      paid_at timestamp NOT NULL DEFAULT now()
+    )`],
+  ["payments_idx", `CREATE INDEX IF NOT EXISTS payments_team_idx ON payments (team_id)`],
   ["players.photo_url",     `ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`],
   ["actions.set_number",    `ALTER TABLE actions ADD COLUMN IF NOT EXISTS set_number integer`],
   // Novas tabelas de apresentações (Fase 2)

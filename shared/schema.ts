@@ -42,6 +42,13 @@ export const teams = pgTable("teams", {
   trialEndsAt: timestamp("trial_ends_at"),
   subscribedAt: timestamp("subscribed_at"),
   easyPaySubscriptionId: text("easypay_subscription_id"),
+  // Fim do período pago. Null = subscrição antiga sem fim definido (tratada
+  // como ativa, por retrocompatibilidade). Acesso expira quando passa esta data.
+  subscriptionEndsAt: timestamp("subscription_ends_at"),
+  subscriptionPeriod: text("subscription_period", { enum: ["monthly", "annual"] }),
+  // True quando o utilizador cancelou: mantém acesso até subscriptionEndsAt mas
+  // não renova.
+  subscriptionCancelled: boolean("subscription_cancelled").notNull().default(false),
   pdfExportsCount: integer("pdf_exports_count").notNull().default(0),
   pdfExportsMonth: text("pdf_exports_month").default(""),
   // Partial<Record<keyof PlanLimits, boolean>> serializado em JSON.
@@ -421,6 +428,20 @@ export const insertOpponentCoachSchema = createInsertSchema(
 ).omit({ id: true, createdAt: true });
 export type OpponentCoach = InferSelectModel<typeof opponentCoaches>;
 export type InsertOpponentCoach = z.infer<typeof insertOpponentCoachSchema>;
+
+// ── Payments (registo de pagamentos para recibos/auditoria) ─────────────────
+export const payments = pgTable("payments", {
+  id: text("id").primaryKey(),
+  teamId: text("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  plan: text("plan").notNull(),
+  period: text("period", { enum: ["monthly", "annual"] }).notNull(),
+  amount: integer("amount").notNull(), // em EUR
+  provider: text("provider").notNull().default("easypay"),
+  providerPaymentId: text("provider_payment_id"),
+  paidAt: timestamp("paid_at").notNull().defaultNow(),
+});
+
+export type Payment = typeof payments.$inferSelect;
 
 // ── API Keys ──────────────────────────────────────────────────────────────
 export const apiKeys = pgTable("api_keys", {

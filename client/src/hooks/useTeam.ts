@@ -38,7 +38,12 @@ export function useTeam() {
     return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
   }
 
-  const isSubscribed = Boolean(current?.subscribedAt);
+  const subEndsAt = current?.subscriptionEndsAt
+    ? new Date(current.subscriptionEndsAt)
+    : null;
+  const isSubscribed =
+    Boolean(current?.subscribedAt) && (!subEndsAt || subEndsAt > new Date());
+  const subscriptionCancelled = Boolean(current?.subscriptionCancelled);
   const daysLeft = trialDaysLeft();
   const isTrialExpired = !isSubscribed && daysLeft === 0 && Boolean(current);
 
@@ -49,6 +54,8 @@ export function useTeam() {
     hasTeams: teams.length > 0,
     setTeam,
     isSubscribed,
+    subscriptionCancelled,
+    subscriptionEndsAt: subEndsAt,
     trialDaysLeft: daysLeft,
     isTrialExpired,
   };

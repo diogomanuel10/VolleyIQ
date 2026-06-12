@@ -188,10 +188,55 @@ router.get("/teams/:id/members", async (req, res) => {
 
 // ── Trial / subscription helpers ─────────────────────────────────────────────
 
-export function isTeamAccessible(team: { trialEndsAt: Date | null; subscribedAt: Date | null }): boolean {
-  if (team.subscribedAt) return true;
+export function isTeamAccessible(team: {
+  trialEndsAt: Date | null;
+  subscribedAt: Date | null;
+  subscriptionEndsAt?: Date | null;
+}): boolean {
+  if (team.subscribedAt) {
+    // subscriptionEndsAt null = subscrição antiga sem fim definido → ativa.
+    if (!team.subscriptionEndsAt || team.subscriptionEndsAt > new Date()) return true;
+  }
   if (team.trialEndsAt && team.trialEndsAt > new Date()) return true;
   return false;
+}
+
+// Empresa emissora do recibo. Preencher com os dados reais antes de produção.
+const RECEIPT_ISSUER = {
+  name: process.env.COMPANY_NAME ?? "[NOME DA EMPRESA]",
+  nif: process.env.COMPANY_NIF ?? "[NIF]",
+  address: process.env.COMPANY_ADDRESS ?? "[MORADA]",
+};
+
+/** Recibo simples em HTML (comprovativo de pagamento, não fatura fiscal). */
+function renderReceipt(
+  payment: { id: string; plan: string; period: string; amount: number; providerPaymentId: string | null; paidAt: Date },
+  teamName: string,
+): string {
+  const esc = (s: string) =>
+    s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const date = new Date(payment.paidAt).toLocaleDateString("pt-PT");
+  const periodLabel = payment.period === "annual" ? "Anual" : "Mensal";
+  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">
+<title>Recibo ${esc(payment.id)}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 24px;color:#0f172a}
+h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:24px 0}
+td{padding:8px 0;border-bottom:1px solid #e2e8f0}.r{text-align:right}
+.tot{font-weight:700;font-size:18px}.muted{color:#64748b;font-size:12px}</style></head>
+<body>
+<h1>VolleyIQ — Comprovativo de pagamento</h1>
+<p class="muted">${esc(RECEIPT_ISSUER.name)} · NIF ${esc(RECEIPT_ISSUER.nif)} · ${esc(RECEIPT_ISSUER.address)}</p>
+<table>
+<tr><td>Recibo n.º</td><td class="r">${esc(payment.id)}</td></tr>
+<tr><td>Data</td><td class="r">${esc(date)}</td></tr>
+<tr><td>Equipa</td><td class="r">${esc(teamName)}</td></tr>
+<tr><td>Plano</td><td class="r">${esc(payment.plan)} (${periodLabel})</td></tr>
+${payment.providerPaymentId ? `<tr><td>Ref. pagamento</td><td class="r">${esc(payment.providerPaymentId)}</td></tr>` : ""}
+<tr class="tot"><td>Total</td><td class="r">${payment.amount.toFixed(2)} €</td></tr>
+</table>
+<p class="muted">Este documento é um comprovativo de pagamento e não substitui a
+fatura fiscal, que será emitida por meios certificados.</p>
+</body></html>`;
 }
 
 /** Middleware que bloqueia acesso se o trial expirou e não há subscrição activa. */
@@ -1005,12 +1050,15 @@ router.post("/payments/checkout", async (req, res) => {
   const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
 
+  const prices = easypay.PLAN_PRICES[plan];
+  const value = period === "annual" ? prices.annual * 12 : prices.monthly;
+
   // Mock só fora de produção. Em produção NUNCA ativamos sem pagamento real,
   // mesmo que EASYPAY_SANDBOX esteja ligado por engano — evita oferecer o plano.
   const isProd = process.env.NODE_ENV === "production";
   if (!easypay.isConfigured() || process.env.EASYPAY_SANDBOX === "true") {
     if (!isProd) {
-      const team = await storage.activateSubscription(teamId, plan);
+      const team = await storage.activateSubscription(teamId, plan, period, undefined, value);
       return res.json({
         mock: true,
         team,
@@ -1020,8 +1068,6 @@ router.post("/payments/checkout", async (req, res) => {
     return res.status(503).json({ error: "payment_not_configured" });
   }
 
-  const prices = easypay.PLAN_PRICES[plan];
-  const value = period === "annual" ? prices.annual * 12 : prices.monthly;
   const externalId = `${teamId}:${plan}:${period}`;
   const notifyUrl = `${process.env.APP_URL ?? ""}/api/payments/webhook`;
 
@@ -1067,18 +1113,51 @@ router.post("/payments/webhook", async (req, res) => {
 
   // key format: "teamId:plan:period" — usamos SEMPRE a key autoritativa da
   // EasyPay, não a do corpo do webhook.
-  const [teamId, plan] = verified.key.split(":");
+  const [teamId, plan, rawPeriod] = verified.key.split(":");
   if (!teamId || !plan) {
     console.error("EasyPay webhook: unparseable key", verified.key);
     return;
   }
+  const period = rawPeriod === "annual" ? "annual" : "monthly";
 
   try {
-    await storage.activateSubscription(teamId, plan as any, verified.id);
+    await storage.activateSubscription(teamId, plan as any, period, verified.id, verified.value);
     console.log(`EasyPay: activated ${plan} for team ${teamId} (payment ${verified.id})`);
   } catch (err) {
     console.error("EasyPay webhook: failed to activate subscription", err);
   }
+});
+
+// Cancelar a renovação da subscrição (mantém acesso até ao fim do período pago).
+router.post("/payments/cancel", async (req, res) => {
+  const schema = z.object({ teamId: z.string() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const team = await storage.cancelSubscription(parsed.data.teamId);
+  if (!team) return res.status(404).json({ error: "not_found" });
+  res.json(team);
+});
+
+// Histórico de pagamentos da equipa.
+router.get("/teams/:id/payments", async (req, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  res.json(await storage.listPayments(req.params.id));
+});
+
+// Recibo/comprovativo de um pagamento (HTML para impressão/PDF). NOTA: não
+// substitui a fatura fiscal, que deve ser emitida por software certificado.
+router.get("/teams/:id/payments/:paymentId/receipt", async (req, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const payment = await storage.getPayment(req.params.id, req.params.paymentId);
+  if (!payment) return res.status(404).json({ error: "not_found" });
+  const team = await storage.getTeamById(req.params.id);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="recibo-${payment.id}.html"`);
+  res.send(renderReceipt(payment, team?.name ?? ""));
 });
 
 // ── User Preferences ──────────────────────────────────────────────────────────
