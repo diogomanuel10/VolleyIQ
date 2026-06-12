@@ -11,8 +11,6 @@ import {
   ClipboardCheck,
   Settings,
   Building2,
-  KeyRound,
-  Webhook,
   LayoutPanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,12 +46,6 @@ export function Sidebar() {
     ...NAV_ITEMS,
     ...(guard.meetsMinimum("club")
       ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const }]
-      : []),
-    ...(guard.meetsMinimum("pro")
-      ? [
-          { href: "/settings/api-keys", icon: KeyRound, key: "apiKeys" as const },
-          { href: "/settings/webhooks", icon: Webhook, key: "webhooks" as const },
-        ]
       : []),
   ];
 
@@ -111,10 +103,6 @@ export function Sidebar() {
           const label =
             it.key === "clubDashboard"
               ? "Club Dashboard"
-              : it.key === "apiKeys"
-              ? "Chaves de API"
-              : it.key === "webhooks"
-              ? "Webhooks"
               : it.key === "boards"
               ? "Apresentações"
               : t(`nav.${it.key}`);

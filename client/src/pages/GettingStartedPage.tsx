@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowRight, BookOpen, Code2, Mail } from "lucide-react";
+import { ArrowRight, BookOpen, Mail } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -54,11 +54,11 @@ const STEPS: Step[] = [
   },
   {
     number: 6,
-    title: "Exportar e integrar",
+    title: "Exportar os dados",
     description:
-      "Exporta os dados para Excel, usa a API pública ou configura webhooks para integrar com outras ferramentas.",
-    href: "/settings/api-keys",
-    linkLabel: "Chaves de API",
+      "Exporta os dados dos teus jogos e estatísticas para Excel e analisa-os onde quiseres.",
+    href: "/matches",
+    linkLabel: "Ver jogos",
   },
 ];
 
@@ -121,16 +121,9 @@ export default function GettingStartedPage() {
         <CardContent className="p-6 space-y-4">
           <h2 className="font-semibold text-base">Ainda tens dúvidas?</h2>
           <p className="text-sm text-muted-foreground">
-            Consulta a documentação técnica da API ou entra em contacto com a nossa equipa
-            de suporte.
+            Entra em contacto com a nossa equipa de suporte.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button asChild variant="outline" size="sm" className="gap-2">
-              <a href="/#/docs/api">
-                <Code2 className="h-4 w-4" />
-                Documentação da API
-              </a>
-            </Button>
             <Button asChild variant="outline" size="sm" className="gap-2">
               <a href="mailto:suporte@volleyiq.app">
                 <Mail className="h-4 w-4" />
