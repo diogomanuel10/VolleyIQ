@@ -125,6 +125,19 @@ export default function Login() {
           >
             {mode === "login" ? t("login.noAccount") : t("login.hasAccount")}
           </button>
+          {mode === "register" && (
+            <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
+              Ao criar conta, aceita os{" "}
+              <a href="/#/legal/terms" className="text-primary hover:underline">
+                Termos de Serviço
+              </a>{" "}
+              e a{" "}
+              <a href="/#/legal/privacy" className="text-primary hover:underline">
+                Política de Privacidade
+              </a>
+              .
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

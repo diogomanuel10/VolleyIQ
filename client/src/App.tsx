@@ -27,9 +27,28 @@ const GettingStartedPage = lazy(() => import("@/pages/GettingStartedPage"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const Boards = lazy(() => import("@/pages/Boards"));
 const BoardEditor = lazy(() => import("@/pages/BoardEditor"));
+const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("@/pages/TermsPage"));
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
+
+  // Páginas legais — acessíveis sem sessão (necessárias antes do registo).
+  const hash = window.location.hash;
+  if (hash.startsWith("#/legal/privacy")) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <PrivacyPolicyPage />
+      </Suspense>
+    );
+  }
+  if (hash.startsWith("#/legal/terms")) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <TermsPage />
+      </Suspense>
+    );
+  }
 
   if (authLoading) return <Loading />;
 
@@ -83,6 +102,8 @@ function AuthedApp() {
             <Route path="/settings" component={TeamSettings} />
             <Route path="/profile" component={Profile} />
             <Route path="/getting-started" component={GettingStartedPage} />
+            <Route path="/legal/privacy" component={PrivacyPolicyPage} />
+            <Route path="/legal/terms" component={TermsPage} />
             <Route path="/boards" component={Boards} />
             <Route path="/boards/:id" component={BoardEditor} />
             <Route path="/admin" component={Admin} />
