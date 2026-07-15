@@ -112,7 +112,6 @@
       max-width: 600px; margin-inline: auto; margin-bottom: 2.25rem;
     }
     .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-    .hero-note { margin-top: 1rem; font-size: .8rem; color: var(--muted); }
 
     /* ── App screenshot mockup ────────────────────────────────────────── */
     .mockup-wrap {
@@ -404,7 +403,6 @@
     .plan-btn-primary:hover { background: var(--sky-d); }
     .plan-btn-outline { background: transparent; border: 1.5px solid rgba(255,255,255,.2); color: var(--white); }
     .plan-btn-outline:hover { border-color: rgba(255,255,255,.4); }
-    .pricing-note { text-align: center; margin-top: 2rem; font-size: .82rem; color: var(--muted); }
 
     /* ── Billing toggle ───────────────────────────────────────────────── */
     .billing-toggle {
@@ -432,19 +430,6 @@
       border: 1px solid rgba(34,197,94,.25); border-radius: 999px;
       font-size: .72rem; font-weight: 700; padding: .15rem .55rem;
     }
-
-    /* ── Early adopter banner ────────────────────────────────────────── */
-    .early-banner {
-      background: linear-gradient(135deg, rgba(251,191,36,.12) 0%, rgba(251,191,36,.04) 100%);
-      border: 1px solid rgba(251,191,36,.3); border-radius: var(--radius);
-      padding: 1rem 1.5rem; margin-bottom: 2.5rem;
-    }
-    .early-banner-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-    .early-left { display: flex; align-items: center; gap: .6rem; font-size: .88rem; flex-wrap: wrap; }
-    .early-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0; animation: blink 1.4s infinite; }
-    .early-spots { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-    .early-count { font-size: 1.6rem; font-weight: 800; color: var(--amber); line-height: 1; }
-    .early-label { font-size: .7rem; color: var(--muted); white-space: nowrap; }
 
     /* ── Referral box ─────────────────────────────────────────────────── */
     .referral-box {
@@ -519,8 +504,6 @@
     <div class="hero-actions">
       <a href="#tactical" class="btn btn-outline btn-lg">Ver como funciona</a>
     </div>
-
-    <p class="hero-note">Sem cartão de crédito · 7 dias grátis com acesso completo</p>
 
     <!-- App mockup: Live Scout com painel IA -->
     <div class="mockup-wrap">
@@ -863,22 +846,6 @@
     <div class="section-head">
       <span class="badge badge-sky">Preços simples</span>
       <h2>Escolhe o plano certo para a tua equipa</h2>
-      <p>7 dias grátis com acesso completo. Sem cartão de crédito.</p>
-    </div>
-
-    <!-- Early adopter banner -->
-    <div class="early-banner">
-      <div class="early-banner-inner">
-        <div class="early-left">
-          <div class="early-dot"></div>
-          <strong>Oferta Early Adopter</strong>
-          <span>— Primeiros 50 treinadores a subscrever ficam com <strong>30% de desconto permanente</strong> em qualquer plano.</span>
-        </div>
-        <div class="early-spots">
-          <span class="early-count" id="early-count">—</span>
-          <span class="early-label">lugares restantes</span>
-        </div>
-      </div>
     </div>
 
     <!-- Billing toggle -->
@@ -949,8 +916,6 @@
       </div>
     </div>
 
-    <p class="pricing-note" id="pricing-note">7 dias grátis com acesso completo · Sem cartão de crédito · Cancela a qualquer momento</p>
-
     <!-- Referral -->
     <div class="referral-box">
       <div class="referral-icon">
@@ -966,21 +931,6 @@
 </section>
 
 <script>
-  // Contador early adopter — busca ao vivo da API
-  (async () => {
-    try {
-      const res = await fetch('https://app.volleyiq.pt/api/early-adopter');
-      if (!res.ok) return;
-      const { remaining } = await res.json();
-      const el = document.getElementById('early-count');
-      if (el) el.textContent = remaining;
-      if (remaining === 0) {
-        const banner = el?.closest('.early-banner');
-        if (banner) banner.innerHTML = '<div class="early-banner-inner"><div class="early-left"><strong>Oferta Early Adopter esgotada.</strong> <span>Subscreve na mesma e poupa 20% com o plano anual.</span></div></div>';
-      }
-    } catch { /* silencioso — o banner fica com "—" */ }
-  })();
-
   const toggle = document.getElementById('billing-toggle');
   const labelMonthly = document.getElementById('label-monthly');
   const labelAnnual = document.getElementById('label-annual');
@@ -990,7 +940,6 @@
   const billingIndividual = document.getElementById('billing-individual');
   const billingPro = document.getElementById('billing-pro');
   const billingClub = document.getElementById('billing-club');
-  const note = document.getElementById('pricing-note');
 
   toggle.addEventListener('change', () => {
     const annual = toggle.checked;
@@ -1004,7 +953,6 @@
       billingIndividual.textContent = 'Faturado €182/ano · poupas €46';
       billingPro.textContent = 'Faturado €470/ano · poupas €118';
       billingClub.textContent = 'Faturado €1140/ano · poupas €288';
-      note.textContent = '7 dias grátis · Faturação anual · Cancela a qualquer momento';
     } else {
       priceIndividual.innerHTML = '€19 <span>/mês</span>';
       pricePro.innerHTML = '€49 <span>/mês</span>';
@@ -1012,7 +960,6 @@
       billingIndividual.textContent = '';
       billingPro.textContent = '';
       billingClub.textContent = '';
-      note.textContent = '7 dias grátis com acesso completo · Sem cartão de crédito · Cancela a qualquer momento';
     }
   });
 </script>
