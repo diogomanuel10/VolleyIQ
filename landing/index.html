@@ -431,6 +431,17 @@
       font-size: .72rem; font-weight: 700; padding: .15rem .55rem;
     }
 
+    /* ── Promo banner ─────────────────────────────────────────────────── */
+    .promo-banner {
+      display: flex; align-items: center; gap: .6rem; justify-content: center;
+      flex-wrap: wrap; text-align: center;
+      background: linear-gradient(135deg, rgba(251,191,36,.12) 0%, rgba(251,191,36,.04) 100%);
+      border: 1px solid rgba(251,191,36,.3); border-radius: var(--radius);
+      padding: 1rem 1.5rem; margin-bottom: 2.5rem; font-size: .88rem;
+    }
+    .promo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0; animation: blink 1.4s infinite; }
+    .promo-banner strong { color: var(--white); }
+
     /* ── Referral box ─────────────────────────────────────────────────── */
     .referral-box {
       display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
@@ -846,6 +857,12 @@
     <div class="section-head">
       <span class="badge badge-sky">Preços simples</span>
       <h2>Escolhe o plano certo para a tua equipa</h2>
+    </div>
+
+    <!-- Promo banner -->
+    <div class="promo-banner">
+      <div class="promo-dot"></div>
+      <span><strong>Oferta de lançamento</strong> — os primeiros 10 utilizadores a subscrever ficam com <strong>30% de desconto permanente</strong> em qualquer plano.</span>
     </div>
 
     <!-- Billing toggle -->
