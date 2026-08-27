@@ -239,6 +239,10 @@ export default function Matches() {
             >
               <Card>
                 <CardContent className="p-4 flex flex-wrap items-center gap-4">
+                  <Link
+                    href={`/matches/${m.id}`}
+                    className="flex flex-1 flex-wrap items-center gap-4 min-w-0 -m-1 p-1 rounded-md transition-colors hover:bg-accent/50"
+                  >
                   <div className="h-12 w-12 rounded-lg bg-primary/10 text-primary grid place-items-center">
                     <Trophy className="h-5 w-5" />
                   </div>
@@ -276,6 +280,7 @@ export default function Matches() {
                     </div>
                     <div className="text-[11px] text-muted-foreground">{t("matches.sets")}</div>
                   </div>
+                  </Link>
                   <div className="flex gap-1 shrink-0">
                     <Button asChild variant="ghost" size="sm">
                       <Link href={`/scout/${m.id}`}>

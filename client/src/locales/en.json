@@ -1082,5 +1082,45 @@
     "game": "Match",
     "analysis": "Analysis",
     "team": "Team"
+  },
+  "matchDetail": {
+    "notFound": "Match not found.",
+    "backToMatches": "Back to matches",
+    "actionsLogged": "Actions logged",
+    "setsPlayed": "Sets logged",
+    "preparation": "Preparation",
+    "sections": "Match sections",
+    "matchDayDescription": "Checklist, tactical plan and match-day notes.",
+    "scoutDescription": "Log live actions, rotations and substitutions.",
+    "postMatchDescription": "Aggregated stats and AI-detected patterns.",
+    "needsActions": "Available once you log actions for this match.",
+    "secondScreen": "Second screen",
+    "secondScreenDescription": "Mirror the match to the bench or a monitor.",
+    "reportDescription": "Scouting report for this opponent.",
+    "video": "Video",
+    "videoDescription": "Open the match recording.",
+    "notes": "Notes",
+    "nextStep": {
+      "scheduled": {
+        "title": "Prepare the match",
+        "description": "Close the checklist and tactical plan before first whistle.",
+        "cta": "Prepare"
+      },
+      "live": {
+        "title": "Match in progress",
+        "description": "Pick the scout up where you left off.",
+        "cta": "Resume scout"
+      },
+      "finished": {
+        "title": "Match finished",
+        "description": "Review the post-match analysis and detected patterns.",
+        "cta": "View analysis"
+      },
+      "finishedNoData": {
+        "title": "Match finished, no data",
+        "description": "No actions logged yet, so there is nothing to analyse.",
+        "cta": "Log actions"
+      }
+    }
   }
 }

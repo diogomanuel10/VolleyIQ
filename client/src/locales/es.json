@@ -1079,5 +1079,45 @@
     "game": "Partido",
     "analysis": "Análisis",
     "team": "Equipo"
+  },
+  "matchDetail": {
+    "notFound": "Partido no encontrado.",
+    "backToMatches": "Volver a los partidos",
+    "actionsLogged": "Acciones registradas",
+    "setsPlayed": "Sets con registro",
+    "preparation": "Preparación",
+    "sections": "Secciones del partido",
+    "matchDayDescription": "Checklist, plan táctico y notas del día del partido.",
+    "scoutDescription": "Registrar acciones en vivo, rotaciones y cambios.",
+    "postMatchDescription": "Estadísticas agregadas y patrones detectados por IA.",
+    "needsActions": "Disponible cuando registres acciones en este partido.",
+    "secondScreen": "Segunda pantalla",
+    "secondScreenDescription": "Duplicar el partido en el banquillo o un monitor.",
+    "reportDescription": "Informe de scouting de este rival.",
+    "video": "Vídeo",
+    "videoDescription": "Abrir la grabación del partido.",
+    "notes": "Notas",
+    "nextStep": {
+      "scheduled": {
+        "title": "Prepara el partido",
+        "description": "Cierra el checklist y el plan táctico antes del silbato.",
+        "cta": "Preparar"
+      },
+      "live": {
+        "title": "Partido en curso",
+        "description": "Continúa el scout donde lo dejaste.",
+        "cta": "Continuar scout"
+      },
+      "finished": {
+        "title": "Partido terminado",
+        "description": "Consulta el análisis posterior y los patrones detectados.",
+        "cta": "Ver análisis"
+      },
+      "finishedNoData": {
+        "title": "Partido terminado, sin datos",
+        "description": "Todavía no hay acciones registradas para analizar.",
+        "cta": "Registrar acciones"
+      }
+    }
   }
 }

@@ -1079,5 +1079,45 @@
     "game": "Match",
     "analysis": "Analyse",
     "team": "Équipe"
+  },
+  "matchDetail": {
+    "notFound": "Match introuvable.",
+    "backToMatches": "Retour aux matchs",
+    "actionsLogged": "Actions enregistrées",
+    "setsPlayed": "Sets enregistrés",
+    "preparation": "Préparation",
+    "sections": "Sections du match",
+    "matchDayDescription": "Checklist, plan tactique et notes du jour de match.",
+    "scoutDescription": "Enregistrer actions, rotations et remplacements en direct.",
+    "postMatchDescription": "Statistiques agrégées et schémas détectés par IA.",
+    "needsActions": "Disponible une fois des actions enregistrées pour ce match.",
+    "secondScreen": "Second écran",
+    "secondScreenDescription": "Dupliquer le match sur le banc ou un moniteur.",
+    "reportDescription": "Rapport de scouting de cet adversaire.",
+    "video": "Vidéo",
+    "videoDescription": "Ouvrir l'enregistrement du match.",
+    "notes": "Notes",
+    "nextStep": {
+      "scheduled": {
+        "title": "Préparez le match",
+        "description": "Bouclez la checklist et le plan tactique avant le coup d’envoi.",
+        "cta": "Préparer"
+      },
+      "live": {
+        "title": "Match en cours",
+        "description": "Reprenez le scout là où vous vous êtes arrêté.",
+        "cta": "Reprendre le scout"
+      },
+      "finished": {
+        "title": "Match terminé",
+        "description": "Consultez l'analyse d'après-match et les schémas détectés.",
+        "cta": "Voir l'analyse"
+      },
+      "finishedNoData": {
+        "title": "Match terminé, sans données",
+        "description": "Aucune action enregistrée, il n'y a rien à analyser.",
+        "cta": "Enregistrer des actions"
+      }
+    }
   }
 }

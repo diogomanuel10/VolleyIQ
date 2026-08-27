@@ -1086,5 +1086,45 @@
     "game": "Jogo",
     "analysis": "An\u00e1lise",
     "team": "Equipa"
+  },
+  "matchDetail": {
+    "notFound": "Jogo n\u00e3o encontrado.",
+    "backToMatches": "Voltar aos jogos",
+    "actionsLogged": "Ac\u00e7\u00f5es registadas",
+    "setsPlayed": "Sets com registo",
+    "preparation": "Prepara\u00e7\u00e3o",
+    "sections": "Sec\u00e7\u00f5es do jogo",
+    "matchDayDescription": "Checklist, plano t\u00e1tico e notas para o dia do jogo.",
+    "scoutDescription": "Registar ac\u00e7\u00f5es ao vivo, rota\u00e7\u00f5es e substitui\u00e7\u00f5es.",
+    "postMatchDescription": "Estat\u00edsticas agregadas e padr\u00f5es detectados por IA.",
+    "needsActions": "Dispon\u00edvel depois de registares ac\u00e7\u00f5es neste jogo.",
+    "secondScreen": "Segundo ecr\u00e3",
+    "secondScreenDescription": "Espelhar o jogo para o banco ou para um monitor.",
+    "reportDescription": "Relat\u00f3rio de scouting deste advers\u00e1rio.",
+    "video": "V\u00eddeo",
+    "videoDescription": "Abrir a grava\u00e7\u00e3o do jogo.",
+    "notes": "Notas",
+    "nextStep": {
+      "scheduled": {
+        "title": "Prepara o jogo",
+        "description": "Fecha a checklist e o plano t\u00e1tico antes do apito.",
+        "cta": "Preparar"
+      },
+      "live": {
+        "title": "Jogo a decorrer",
+        "description": "Continua o scout de onde ficaste.",
+        "cta": "Continuar scout"
+      },
+      "finished": {
+        "title": "Jogo terminado",
+        "description": "V\u00ea a an\u00e1lise p\u00f3s-jogo e os padr\u00f5es detectados.",
+        "cta": "Ver an\u00e1lise"
+      },
+      "finishedNoData": {
+        "title": "Jogo terminado, sem dados",
+        "description": "Ainda n\u00e3o h\u00e1 ac\u00e7\u00f5es registadas para analisar este jogo.",
+        "cta": "Registar ac\u00e7\u00f5es"
+      }
+    }
   }
 }

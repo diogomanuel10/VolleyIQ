@@ -22,9 +22,16 @@ export function SearchInput({
     <div className={cn("relative w-full sm:w-64", className)}>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
-        type="search"
+        type="text"
+        role="searchbox"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && value) {
+            e.preventDefault();
+            onChange("");
+          }
+        }}
         placeholder={placeholder}
         aria-label={placeholder}
         className="pl-9 pr-9 h-9"
