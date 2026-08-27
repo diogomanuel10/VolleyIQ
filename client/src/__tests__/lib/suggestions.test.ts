@@ -40,6 +40,7 @@ function makePlayer(id: string, position: Player["position"] = "OH"): Player {
     position,
     heightCm: null,
     dominantHand: null,
+    photoUrl: null,
     birthDate: null,
     active: true,
     createdAt: new Date(),
