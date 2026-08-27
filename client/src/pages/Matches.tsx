@@ -18,11 +18,12 @@ import {
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { formatDate, matchesSearch } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,7 @@ import {
 import type { Match, OpponentTeam } from "@shared/schema";
 import { MatchImportDialog } from "@/components/MatchImportDialog";
 import { DvwImportDialog } from "@/components/DvwImportDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type Status = Match["status"];
 const STATUS_VARIANT: Record<Status, "secondary" | "success" | "warning"> = {
@@ -61,6 +63,7 @@ export default function Matches() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [dvwOpen, setDvwOpen] = useState(false);
@@ -74,10 +77,12 @@ export default function Matches() {
 
   const filtered = useMemo(() => {
     const all = matchesQuery.data ?? [];
-    return statusFilter === "all"
-      ? all
-      : all.filter((m) => m.status === statusFilter);
-  }, [matchesQuery.data, statusFilter]);
+    return all
+      .filter((m) => statusFilter === "all" || m.status === statusFilter)
+      .filter((m) =>
+        matchesSearch(search, m.opponent, m.competition, m.notes),
+      );
+  }, [matchesQuery.data, statusFilter, search]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
@@ -144,7 +149,13 @@ export default function Matches() {
         />
       )}
 
-      <div className="flex flex-wrap gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder={t("matches.searchPlaceholder")}
+          className="sm:order-last sm:ml-auto"
+        />
         {(["all", "scheduled", "live", "finished", "cancelled"] as const).map(
           (s) => (
             <button
@@ -195,9 +206,22 @@ export default function Matches() {
       ) : filtered.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="p-8 text-center text-muted-foreground text-sm">
-            <span dangerouslySetInnerHTML={{ __html: t("matches.noMatchesFilter", { status: t(`matches.status.${statusFilter}`).toLowerCase() }) }} />{" "}
+            {search ? (
+              <span>{t("matches.noMatchesSearch", { query: search })}</span>
+            ) : (
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: t("matches.noMatchesFilter", {
+                    status: t(`matches.status.${statusFilter}`).toLowerCase(),
+                  }),
+                }}
+              />
+            )}{" "}
             <button
-              onClick={() => setStatusFilter("all")}
+              onClick={() => {
+                setStatusFilter("all");
+                setSearch("");
+              }}
               className="text-primary hover:underline"
             >
               {t("matches.showAll")}
@@ -270,16 +294,25 @@ export default function Matches() {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (confirm(t("matches.deleteConfirm", { opponent: m.opponent })))
-                          deleteMutation.mutate(m.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <ConfirmDialog
+                      title={t("matches.deleteTitle")}
+                      description={
+                        <>
+                          {t("matches.deleteConfirm", { opponent: m.opponent })}{" "}
+                          {t("common.irreversible")}
+                        </>
+                      }
+                      onConfirm={() => deleteMutation.mutate(m.id)}
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t("common.delete")}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      }
+                    />
                   </div>
                 </CardContent>
               </Card>

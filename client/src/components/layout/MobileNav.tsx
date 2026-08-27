@@ -1,73 +1,28 @@
 import { Link, useLocation } from "wouter";
-import {
-  LayoutDashboard,
-  Radio,
-  Trophy,
-  Users,
-  ClipboardCheck,
-  UsersRound,
-  CalendarDays,
-  FileText,
-  Shuffle,
-  Settings,
-  UserCircle,
-  Menu,
-  X,
-  Building2,
-  LayoutPanelLeft,
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { usePlanGuard } from "@/hooks/usePlanGuard";
-
-const primaryNavKeys = [
-  { href: "/", icon: LayoutDashboard, key: "dashboard" },
-  { href: "/scout", icon: Radio, key: "liveScout" },
-  { href: "/matches", icon: Trophy, key: "matches" },
-  { href: "/players", icon: Users, key: "athletes" },
-  { href: "/matchday", icon: ClipboardCheck, key: "matchDay" },
-];
-
-const allNavKeys = [
-  { href: "/", icon: LayoutDashboard, key: "dashboard" },
-  { href: "/scout", icon: Radio, key: "liveScout" },
-  { href: "/matches", icon: Trophy, key: "matches" },
-  { href: "/players", icon: Users, key: "players" },
-  { href: "/opponents", icon: UsersRound, key: "opponents" },
-  { href: "/matchday", icon: ClipboardCheck, key: "matchDay" },
-  { href: "/reports", icon: FileText, key: "scoutingReport" },
-  { href: "/scenario", icon: Shuffle, key: "scenario" },
-  { href: "/boards", icon: LayoutPanelLeft, key: "boards" },
-  { href: "/post-match", icon: CalendarDays, key: "postMatch" },
-  { href: "/settings", icon: Settings, key: "settings" },
-  { href: "/profile", icon: UserCircle, key: "profile" },
-];
+import { isNavItemActive, useNavGroups, MOBILE_PRIMARY } from "@/lib/nav";
 
 export function MobileNav() {
   const [location] = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { t } = useTranslation();
-  const guard = usePlanGuard();
-  const clubNav = guard.meetsMinimum("club")
-    ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const, label: "Club Dashboard" }]
-    : [];
-  const extendedNav = [...allNavKeys, ...clubNav];
+  const groups = useNavGroups({ mobile: true });
 
   return (
     <>
       {/* Bottom tab bar */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 border-t bg-card/95 backdrop-blur">
         <ul className="grid grid-cols-6">
-          {primaryNavKeys.map((it) => {
-            const active =
-              it.href === "/"
-                ? location === "/"
-                : location === it.href || location.startsWith(it.href + "/");
+          {MOBILE_PRIMARY.map((it) => {
+            const active = isNavItemActive(it.href, location);
             return (
               <li key={it.href}>
                 <Link
                   href={it.href}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex flex-col items-center justify-center gap-0.5 py-2 text-[11px]",
                     active ? "text-primary" : "text-muted-foreground",
@@ -103,11 +58,11 @@ export function MobileNav() {
 
           {/* Drawer panel */}
           <div
-            className="absolute bottom-0 inset-x-0 bg-card rounded-t-2xl"
+            className="absolute bottom-0 inset-x-0 bg-card rounded-t-2xl max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b">
+            <div className="sticky top-0 bg-card flex items-center justify-between px-4 pt-4 pb-2 border-b">
               <span className="font-semibold text-sm">Menu</span>
               <button
                 onClick={() => setDrawerOpen(false)}
@@ -118,33 +73,41 @@ export function MobileNav() {
               </button>
             </div>
 
-            {/* All options */}
-            <ul className="p-3 grid grid-cols-1 gap-0.5 pb-8">
-              {extendedNav.map((it) => {
-                const active =
-                  it.href === "/"
-                    ? location === "/"
-                    : location === it.href || location.startsWith(it.href + "/");
-                const label = "label" in it ? String(it.label) : t(`nav.${it.key}`);
-                return (
-                  <li key={it.href}>
-                    <Link
-                      href={it.href}
-                      onClick={() => setDrawerOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-3 rounded-md text-sm transition-colors",
-                        active
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                      )}
-                    >
-                      <it.icon className="h-5 w-5 shrink-0" />
-                      {label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            {/* All options, grouped */}
+            <div className="p-3 pb-8 space-y-3">
+              {groups.map((group, gi) => (
+                <div key={group.key ?? `top-${gi}`}>
+                  {group.key && (
+                    <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                      {t(`navGroups.${group.key}`)}
+                    </div>
+                  )}
+                  <ul className="space-y-0.5">
+                    {group.items.map((it) => {
+                      const active = isNavItemActive(it.href, location);
+                      return (
+                        <li key={it.href}>
+                          <Link
+                            href={it.href}
+                            onClick={() => setDrawerOpen(false)}
+                            aria-current={active ? "page" : undefined}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-3 rounded-md text-sm transition-colors",
+                              active
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            <it.icon className="h-5 w-5 shrink-0" />
+                            {t(`nav.${it.key}`)}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

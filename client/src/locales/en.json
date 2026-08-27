@@ -17,7 +17,9 @@
     "saving": "Saving\u2026",
     "requiredField": "{{field}} is required",
     "players": "players",
-    "noData": "No data for this opponent."
+    "noData": "No data for this opponent.",
+    "irreversible": "This action cannot be undone.",
+    "clear": "Clear"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -36,7 +38,8 @@
     "livescout": "Live Scout",
     "reports": "Report",
     "profile": "Profile",
-    "boards": "Presentations"
+    "boards": "Presentations",
+    "clubDashboard": "Club"
   },
   "topbar": {
     "welcome": "Welcome back \u2014 let's read the game.",
@@ -208,7 +211,10 @@
     "statusLabel": {
       "won": "Win",
       "lost": "Loss"
-    }
+    },
+    "deleteTitle": "Delete match?",
+    "searchPlaceholder": "Search opponent, competition\u2026",
+    "noMatchesSearch": "No match found for \u201c{{query}}\u201d."
   },
   "players": {
     "title": "Players",
@@ -267,7 +273,9 @@
     },
     "notFound": "Player not found.",
     "backToRoster": "Back to roster",
-    "deleteConfirm": "Remove {{name}} from the roster?"
+    "deleteConfirm": "Remove {{name}} from the roster?",
+    "deleteTitle": "Delete player?",
+    "searchPlaceholder": "Search name or number\u2026"
   },
   "playerDetail": {
     "actions": "{{count}} actions in recent matches",
@@ -380,7 +388,10 @@
       "save": "Save",
       "create": "Create"
     },
-    "deleteConfirm": "Remove '{{name}}'? Match history is kept but loses the association."
+    "deleteConfirm": "Remove '{{name}}'? Match history is kept but loses the association.",
+    "deleteTitle": "Delete opponent?",
+    "searchPlaceholder": "Search opponent\u2026",
+    "noResults": "No opponent found for \u201c{{query}}\u201d."
   },
   "opponentDetail": {
     "title": "Opponent",
@@ -1066,5 +1077,10 @@
       "q5": "Can I use LiveScout on a tablet?",
       "a5": "Yes. Touch mode is optimised for tablets. On larger screens you get keyboard shortcuts."
     }
+  },
+  "navGroups": {
+    "game": "Match",
+    "analysis": "Analysis",
+    "team": "Team"
   }
 }

@@ -7,10 +7,12 @@ import { Camera, Plus, Trash2, Upload, UserCog, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
+import { matchesSearch } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,7 @@ import {
 import { POSITIONS, type Position } from "@shared/types";
 import type { Player } from "@shared/schema";
 import { PlayerImportDialog } from "@/components/PlayerImportDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Players() {
   const { team } = useTeam();
@@ -37,6 +40,7 @@ export default function Players() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Player | null>(null);
+  const [search, setSearch] = useState("");
 
   const playersQuery = useQuery({
     queryKey: ["players", team?.id],
@@ -51,8 +55,11 @@ export default function Players() {
       .filter(
         (p) => positionFilter === "all" || p.position === positionFilter,
       )
+      .filter((p) =>
+        matchesSearch(search, p.firstName, p.lastName, String(p.number)),
+      )
       .sort((a, b) => a.number - b.number);
-  }, [playersQuery.data, positionFilter, showInactive]);
+  }, [playersQuery.data, positionFilter, showInactive, search]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
@@ -116,6 +123,12 @@ export default function Players() {
       />
 
       <div className="flex flex-wrap gap-2 text-sm items-center">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder={t("players.searchPlaceholder")}
+          className="order-last w-full sm:w-56"
+        />
         <button
           onClick={() => setPositionFilter("all")}
           className={`rounded-full px-3 py-1 border transition-colors ${
@@ -233,21 +246,27 @@ export default function Players() {
                     >
                       <UserCog className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            t("players.deleteConfirm", { name: `${p.firstName} ${p.lastName}` }),
-                          )
-                        )
-                          deleteMutation.mutate(p.id);
-                      }}
-                      aria-label={t("common.delete")}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <ConfirmDialog
+                      title={t("players.deleteTitle")}
+                      description={
+                        <>
+                          {t("players.deleteConfirm", {
+                            name: `${p.firstName} ${p.lastName}`,
+                          })}{" "}
+                          {t("common.irreversible")}
+                        </>
+                      }
+                      onConfirm={() => deleteMutation.mutate(p.id)}
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t("common.delete")}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      }
+                    />
                   </div>
                 </CardContent>
               </Card>

@@ -17,7 +17,9 @@
     "saving": "Enregistrement…",
     "requiredField": "{{field}} est obligatoire",
     "players": "joueuses",
-    "noData": "Pas de données pour cet adversaire."
+    "noData": "Pas de données pour cet adversaire.",
+    "irreversible": "Cette action est irréversible.",
+    "clear": "Effacer"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -35,7 +37,9 @@
     "athletes": "Athlètes",
     "livescout": "Live Scout",
     "reports": "Rapport",
-    "profile": "Profil"
+    "profile": "Profil",
+    "clubDashboard": "Club",
+    "boards": "Présentations"
   },
   "topbar": {
     "welcome": "Bon retour — lisons le jeu.",
@@ -207,7 +211,10 @@
     "statusLabel": {
       "won": "Victoire",
       "lost": "Défaite"
-    }
+    },
+    "deleteTitle": "Supprimer le match ?",
+    "searchPlaceholder": "Rechercher adversaire, compétition…",
+    "noMatchesSearch": "Aucun match ne correspond à « {{query}} »."
   },
   "players": {
     "title": "Joueurs",
@@ -266,7 +273,9 @@
     },
     "notFound": "Joueur introuvable.",
     "backToRoster": "Retour à l'effectif",
-    "deleteConfirm": "Retirer {{name}} du roster ?"
+    "deleteConfirm": "Retirer {{name}} du roster ?",
+    "deleteTitle": "Supprimer la joueuse ?",
+    "searchPlaceholder": "Rechercher nom ou numéro…"
   },
   "playerDetail": {
     "actions": "{{count}} actions dans les matchs récents",
@@ -379,7 +388,10 @@
       "save": "Enregistrer",
       "create": "Créer"
     },
-    "deleteConfirm": "Supprimer '{{name}}' ? L'historique des matchs est conservé mais perd l'association."
+    "deleteConfirm": "Supprimer '{{name}}' ? L'historique des matchs est conservé mais perd l'association.",
+    "deleteTitle": "Supprimer l'adversaire ?",
+    "searchPlaceholder": "Rechercher un adversaire…",
+    "noResults": "Aucun adversaire ne correspond à « {{query}} »."
   },
   "opponentDetail": {
     "title": "Adversaire",
@@ -1062,5 +1074,10 @@
       "q5": "Puis-je utiliser LiveScout sur une tablette ?",
       "a5": "Oui. Le mode tactile est optimisé pour les tablettes. Sur les grands écrans, vous avez des raccourcis clavier."
     }
+  },
+  "navGroups": {
+    "game": "Match",
+    "analysis": "Analyse",
+    "team": "Équipe"
   }
 }
