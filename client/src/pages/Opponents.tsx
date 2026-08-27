@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,9 +7,11 @@ import { Plus, Trash2, Edit3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
+import { matchesSearch } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import type { OpponentTeam } from "@shared/schema";
 import { PlanGate } from "@/components/PlanGate";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Opponents() {
   const { team } = useTeam();
@@ -30,6 +33,7 @@ export default function Opponents() {
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<OpponentTeam | null>(null);
+  const [search, setSearch] = useState("");
 
   const listQuery = useQuery({
     queryKey: ["opponents", team?.id],
@@ -48,9 +52,17 @@ export default function Opponents() {
       toast.error(err instanceof Error ? err.message : t("opponents.deleteError")),
   });
 
+  const items = useMemo(
+    () =>
+      (listQuery.data ?? []).filter((o) =>
+        matchesSearch(search, o.name, o.notes),
+      ),
+    [listQuery.data, search],
+  );
+
   if (!team) return null;
 
-  const items = listQuery.data ?? [];
+  const all = listQuery.data ?? [];
 
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
@@ -88,17 +100,31 @@ export default function Opponents() {
         </Dialog>
       </header>
 
+      {all.length > 0 && (
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder={t("opponents.searchPlaceholder")}
+        />
+      )}
+
       {listQuery.isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
-      ) : items.length === 0 ? (
+      ) : all.length === 0 ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground">
             {t("opponents.empty.title")}{" "}
             <b>{t("opponents.newOpponent")}</b>.
+          </CardContent>
+        </Card>
+      ) : items.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center text-muted-foreground text-sm">
+            {t("opponents.noResults", { query: search })}
           </CardContent>
         </Card>
       ) : (
@@ -144,21 +170,25 @@ export default function Opponents() {
                     >
                       <Edit3 className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            t("opponents.deleteConfirm", { name: o.name }),
-                          )
-                        )
-                          deleteMutation.mutate(o.id);
-                      }}
-                      aria-label={t("common.delete")}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <ConfirmDialog
+                      title={t("opponents.deleteTitle")}
+                      description={
+                        <>
+                          {t("opponents.deleteConfirm", { name: o.name })}{" "}
+                          {t("common.irreversible")}
+                        </>
+                      }
+                      onConfirm={() => deleteMutation.mutate(o.id)}
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t("common.delete")}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      }
+                    />
                   </div>
                 </CardContent>
               </Card>

@@ -30,6 +30,7 @@ import type { Step } from "@/hooks/useScoutState";
 import type { Match, Player, Lineup } from "@shared/schema";
 import type { ScoutScope } from "@shared/types";
 import type { ScoutHelpTab } from "@/components/scout/KeyboardHelp";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 // ── Mode switch (Lite vs Complete) ───────────────────────────────────────
 function ModeSwitch({
@@ -361,18 +362,23 @@ export function ScoutHeader({
           </Button>
         )}
         {match.status === "live" && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-            onClick={() => {
-              if (confirm(t("livescout.confirmFinishMatch")))
-                updateMatch.mutate({ status: "finished" });
-            }}
-            disabled={updateMatch.isPending}
-          >
-            {t("livescout.finishMatch")}
-          </Button>
+          <ConfirmDialog
+            title={t("livescout.finishMatch")}
+            description={t("livescout.confirmFinishMatch")}
+            confirmLabel={t("livescout.finishMatch")}
+            destructive={false}
+            onConfirm={() => updateMatch.mutate({ status: "finished" })}
+            trigger={
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                disabled={updateMatch.isPending}
+              >
+                {t("livescout.finishMatch")}
+              </Button>
+            }
+          />
         )}
       </div>
     </header>

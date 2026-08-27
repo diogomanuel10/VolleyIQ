@@ -17,7 +17,9 @@
     "saving": "A gravar\u2026",
     "requiredField": "{{field}} \u00e9 obrigat\u00f3rio",
     "players": "jogadoras",
-    "noData": "Sem dados para este advers\u00e1rio."
+    "noData": "Sem dados para este advers\u00e1rio.",
+    "irreversible": "Esta ac\u00e7\u00e3o n\u00e3o pode ser desfeita.",
+    "clear": "Limpar"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -36,7 +38,8 @@
     "livescout": "Live Scout",
     "reports": "Relat\u00f3rio",
     "profile": "Perfil",
-    "boards": "Apresentacoes"
+    "boards": "Apresenta\u00e7\u00f5es",
+    "clubDashboard": "Clube"
   },
   "topbar": {
     "welcome": "Bem-vinda de volta \u2014 vamos ler o jogo.",
@@ -208,7 +211,10 @@
     "statusLabel": {
       "won": "Vit\u00f3ria",
       "lost": "Derrota"
-    }
+    },
+    "deleteTitle": "Apagar jogo?",
+    "searchPlaceholder": "Procurar advers\u00e1rio, prova\u2026",
+    "noMatchesSearch": "Nenhum jogo corresponde a \u201c{{query}}\u201d."
   },
   "players": {
     "title": "Jogadores",
@@ -267,7 +273,9 @@
     },
     "notFound": "Jogadora n\u00e3o encontrada.",
     "backToRoster": "Voltar ao roster",
-    "deleteConfirm": "Remover {{name}} do roster?"
+    "deleteConfirm": "Remover {{name}} do roster?",
+    "deleteTitle": "Apagar jogadora?",
+    "searchPlaceholder": "Procurar nome ou n\u00famero\u2026"
   },
   "playerDetail": {
     "actions": "{{count}} ac\u00e7\u00f5es nos \u00faltimos jogos",
@@ -380,7 +388,10 @@
       "save": "Guardar",
       "create": "Criar"
     },
-    "deleteConfirm": "Remover '{{name}}'? O hist\u00f3rico de jogos mant\u00e9m-se mas perde a associa\u00e7\u00e3o."
+    "deleteConfirm": "Remover '{{name}}'? O hist\u00f3rico de jogos mant\u00e9m-se mas perde a associa\u00e7\u00e3o.",
+    "deleteTitle": "Apagar advers\u00e1rio?",
+    "searchPlaceholder": "Procurar advers\u00e1rio\u2026",
+    "noResults": "Nenhum advers\u00e1rio corresponde a \u201c{{query}}\u201d."
   },
   "opponentDetail": {
     "title": "Advers\u00e1rio",
@@ -654,7 +665,10 @@
       "zoneTo": "Toca no campo no ponto exacto onde a bola caiu.",
       "zone": "Toca no campo onde a bola caiu (ou salta o passo).",
       "result": "Regista o resultado da ac\u00e7\u00e3o."
-    }
+    },
+    "unsavedActions_one": "{{count}} ac\u00e7\u00e3o n\u00e3o foi guardada. N\u00e3o feches este ecr\u00e3.",
+    "unsavedActions_other": "{{count}} ac\u00e7\u00f5es n\u00e3o foram guardadas. N\u00e3o feches este ecr\u00e3.",
+    "retrySync": "Tentar de novo"
   },
   "postMatch": {
     "title": "Post-Match",
@@ -1070,5 +1084,50 @@
   "boards": {
     "title": "Apresentacoes",
     "new": "Nova apresentacao"
+  },
+  "navGroups": {
+    "game": "Jogo",
+    "analysis": "An\u00e1lise",
+    "team": "Equipa"
+  },
+  "matchDetail": {
+    "notFound": "Jogo n\u00e3o encontrado.",
+    "backToMatches": "Voltar aos jogos",
+    "actionsLogged": "Ac\u00e7\u00f5es registadas",
+    "setsPlayed": "Sets com registo",
+    "preparation": "Prepara\u00e7\u00e3o",
+    "sections": "Sec\u00e7\u00f5es do jogo",
+    "matchDayDescription": "Checklist, plano t\u00e1tico e notas para o dia do jogo.",
+    "scoutDescription": "Registar ac\u00e7\u00f5es ao vivo, rota\u00e7\u00f5es e substitui\u00e7\u00f5es.",
+    "postMatchDescription": "Estat\u00edsticas agregadas e padr\u00f5es detectados por IA.",
+    "needsActions": "Dispon\u00edvel depois de registares ac\u00e7\u00f5es neste jogo.",
+    "secondScreen": "Segundo ecr\u00e3",
+    "secondScreenDescription": "Espelhar o jogo para o banco ou para um monitor.",
+    "reportDescription": "Relat\u00f3rio de scouting deste advers\u00e1rio.",
+    "video": "V\u00eddeo",
+    "videoDescription": "Abrir a grava\u00e7\u00e3o do jogo.",
+    "notes": "Notas",
+    "nextStep": {
+      "scheduled": {
+        "title": "Prepara o jogo",
+        "description": "Fecha a checklist e o plano t\u00e1tico antes do apito.",
+        "cta": "Preparar"
+      },
+      "live": {
+        "title": "Jogo a decorrer",
+        "description": "Continua o scout de onde ficaste.",
+        "cta": "Continuar scout"
+      },
+      "finished": {
+        "title": "Jogo terminado",
+        "description": "V\u00ea a an\u00e1lise p\u00f3s-jogo e os padr\u00f5es detectados.",
+        "cta": "Ver an\u00e1lise"
+      },
+      "finishedNoData": {
+        "title": "Jogo terminado, sem dados",
+        "description": "Ainda n\u00e3o h\u00e1 ac\u00e7\u00f5es registadas para analisar este jogo.",
+        "cta": "Registar ac\u00e7\u00f5es"
+      }
+    }
   }
 }

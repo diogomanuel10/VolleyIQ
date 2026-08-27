@@ -253,6 +253,8 @@ function Scout({
     rotationStats,
     pendingSync,
     offlineQueueSize,
+    unsavedCount,
+    retrySync,
     isOnline,
     videoRef,
     updateMatch,
@@ -574,6 +576,8 @@ function Scout({
                 pendingSync={pendingSync}
                 isOnline={isOnline}
                 offlineQueueSize={offlineQueueSize}
+                unsavedCount={unsavedCount}
+                onRetrySync={retrySync}
               />
             </div>
           </aside>
@@ -742,6 +746,8 @@ function Scout({
               pendingSync={pendingSync}
               isOnline={isOnline}
               offlineQueueSize={offlineQueueSize}
+              unsavedCount={unsavedCount}
+              onRetrySync={retrySync}
             />
           </div>
         </aside>

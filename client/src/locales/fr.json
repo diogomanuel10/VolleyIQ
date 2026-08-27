@@ -17,7 +17,9 @@
     "saving": "Enregistrement…",
     "requiredField": "{{field}} est obligatoire",
     "players": "joueuses",
-    "noData": "Pas de données pour cet adversaire."
+    "noData": "Pas de données pour cet adversaire.",
+    "irreversible": "Cette action est irréversible.",
+    "clear": "Effacer"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -35,7 +37,9 @@
     "athletes": "Athlètes",
     "livescout": "Live Scout",
     "reports": "Rapport",
-    "profile": "Profil"
+    "profile": "Profil",
+    "clubDashboard": "Club",
+    "boards": "Présentations"
   },
   "topbar": {
     "welcome": "Bon retour — lisons le jeu.",
@@ -207,7 +211,10 @@
     "statusLabel": {
       "won": "Victoire",
       "lost": "Défaite"
-    }
+    },
+    "deleteTitle": "Supprimer le match ?",
+    "searchPlaceholder": "Rechercher adversaire, compétition…",
+    "noMatchesSearch": "Aucun match ne correspond à « {{query}} »."
   },
   "players": {
     "title": "Joueurs",
@@ -266,7 +273,9 @@
     },
     "notFound": "Joueur introuvable.",
     "backToRoster": "Retour à l'effectif",
-    "deleteConfirm": "Retirer {{name}} du roster ?"
+    "deleteConfirm": "Retirer {{name}} du roster ?",
+    "deleteTitle": "Supprimer la joueuse ?",
+    "searchPlaceholder": "Rechercher nom ou numéro…"
   },
   "playerDetail": {
     "actions": "{{count}} actions dans les matchs récents",
@@ -379,7 +388,10 @@
       "save": "Enregistrer",
       "create": "Créer"
     },
-    "deleteConfirm": "Supprimer '{{name}}' ? L'historique des matchs est conservé mais perd l'association."
+    "deleteConfirm": "Supprimer '{{name}}' ? L'historique des matchs est conservé mais perd l'association.",
+    "deleteTitle": "Supprimer l'adversaire ?",
+    "searchPlaceholder": "Rechercher un adversaire…",
+    "noResults": "Aucun adversaire ne correspond à « {{query}} »."
   },
   "opponentDetail": {
     "title": "Adversaire",
@@ -650,7 +662,10 @@
       "zoneTo": "Touchez le terrain au point exact où le ballon est tombé.",
       "zone": "Touchez le terrain où le ballon est tombé (ou ignorez l'étape).",
       "result": "Enregistrez le résultat de l'action."
-    }
+    },
+    "unsavedActions_one": "{{count}} action n'a pas été enregistrée. Ne fermez pas cet écran.",
+    "unsavedActions_other": "{{count}} actions n'ont pas été enregistrées. Ne fermez pas cet écran.",
+    "retrySync": "Réessayer"
   },
   "postMatch": {
     "title": "Post-Match",
@@ -1061,6 +1076,51 @@
       "a4": "Vérifiez que le joueur est actif dans l'effectif. Si oui, définissez la composition du set actuel.",
       "q5": "Puis-je utiliser LiveScout sur une tablette ?",
       "a5": "Oui. Le mode tactile est optimisé pour les tablettes. Sur les grands écrans, vous avez des raccourcis clavier."
+    }
+  },
+  "navGroups": {
+    "game": "Match",
+    "analysis": "Analyse",
+    "team": "Équipe"
+  },
+  "matchDetail": {
+    "notFound": "Match introuvable.",
+    "backToMatches": "Retour aux matchs",
+    "actionsLogged": "Actions enregistrées",
+    "setsPlayed": "Sets enregistrés",
+    "preparation": "Préparation",
+    "sections": "Sections du match",
+    "matchDayDescription": "Checklist, plan tactique et notes du jour de match.",
+    "scoutDescription": "Enregistrer actions, rotations et remplacements en direct.",
+    "postMatchDescription": "Statistiques agrégées et schémas détectés par IA.",
+    "needsActions": "Disponible une fois des actions enregistrées pour ce match.",
+    "secondScreen": "Second écran",
+    "secondScreenDescription": "Dupliquer le match sur le banc ou un moniteur.",
+    "reportDescription": "Rapport de scouting de cet adversaire.",
+    "video": "Vidéo",
+    "videoDescription": "Ouvrir l'enregistrement du match.",
+    "notes": "Notes",
+    "nextStep": {
+      "scheduled": {
+        "title": "Préparez le match",
+        "description": "Bouclez la checklist et le plan tactique avant le coup d’envoi.",
+        "cta": "Préparer"
+      },
+      "live": {
+        "title": "Match en cours",
+        "description": "Reprenez le scout là où vous vous êtes arrêté.",
+        "cta": "Reprendre le scout"
+      },
+      "finished": {
+        "title": "Match terminé",
+        "description": "Consultez l'analyse d'après-match et les schémas détectés.",
+        "cta": "Voir l'analyse"
+      },
+      "finishedNoData": {
+        "title": "Match terminé, sans données",
+        "description": "Aucune action enregistrée, il n'y a rien à analyser.",
+        "cta": "Enregistrer des actions"
+      }
     }
   }
 }

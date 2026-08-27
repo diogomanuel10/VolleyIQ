@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -31,6 +31,9 @@ import {
   getOfflineQueue,
   removeFromQueue,
 } from "@/lib/scoutQueue";
+
+/** Intervalo entre tentativas de reenvio enquanto houver acções pendentes. */
+const RETRY_INTERVAL_MS = 20_000;
 
 export function useScoutSession({
   matchId,
@@ -112,6 +115,8 @@ export function useScoutSession({
   // Counts for the UI.
   const [pendingSync, setPendingSync] = useState(0);
   const [offlineQueueSize, setOfflineQueueSize] = useState(0);
+  /** Acções que não foi possível enviar nem guardar localmente. */
+  const [unsavedActions, setUnsavedActions] = useState<LoggedAction[]>([]);
 
   // Hydrate log + volatile state from API + localStorage.
   const hydratedRef = useRef(false);
@@ -222,6 +227,26 @@ export function useScoutSession({
     }
   }, [state.rotation, state.servingTeam, sessionKey]);
 
+  /**
+   * Guarda a acção na fila local. Se o localStorage recusar a escrita, a
+   * acção fica em memória em `unsavedActions` para o utilizador poder
+   * tentar de novo — nunca é descartada em silêncio.
+   */
+  const queueOffline = useCallback(
+    (a: LoggedAction) => {
+      if (enqueueOfflineAction(matchId, a)) {
+        offlineQueueIds.current.add(a.id);
+        setOfflineQueueSize((n) => n + 1);
+        return;
+      }
+      syncedIds.current.delete(a.id);
+      setUnsavedActions((prev) =>
+        prev.some((p) => p.id === a.id) ? prev : [...prev, a],
+      );
+    },
+    [matchId],
+  );
+
   // ── Sync new actions to server ─────────────────────────────────────────
   useEffect(() => {
     for (const a of state.log) {
@@ -232,9 +257,7 @@ export function useScoutSession({
 
       if (!navigator.onLine) {
         // Store locally — will be sent when we come back online.
-        enqueueOfflineAction(matchId, a);
-        offlineQueueIds.current.add(a.id);
-        setOfflineQueueSize((n) => n + 1);
+        queueOffline(a);
         continue;
       }
 
@@ -249,9 +272,7 @@ export function useScoutSession({
 
           if (!navigator.onLine) {
             // Network dropped after the mutation was fired.
-            enqueueOfflineAction(matchId, a);
-            offlineQueueIds.current.add(a.id);
-            setOfflineQueueSize((n) => n + 1);
+            queueOffline(a);
           } else {
             toast.error(t("livescout.actionSaveError"), {
               description: err?.message,
@@ -264,34 +285,76 @@ export function useScoutSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.log.length]);
 
-  // ── Flush offline queue when connectivity is restored ─────────────────
+  // ── Envio da fila offline ─────────────────────────────────────────────
+  /**
+   * Tenta enviar tudo o que está pendente: a fila em localStorage e as
+   * acções que nem sequer foi possível guardar localmente.
+   */
+  const flushQueue = useCallback(
+    (opts: { announce?: boolean } = {}) => {
+      if (!navigator.onLine) return;
+
+      // Acções sem sítio onde ficar: tenta primeiro guardá-las de novo.
+      if (unsavedActions.length > 0) {
+        const stillUnsaved: LoggedAction[] = [];
+        for (const a of unsavedActions) {
+          if (!enqueueOfflineAction(matchId, a)) {
+            stillUnsaved.push(a);
+            continue;
+          }
+          offlineQueueIds.current.add(a.id);
+          setOfflineQueueSize((n) => n + 1);
+        }
+        setUnsavedActions(stillUnsaved);
+      }
+
+      const queued = getOfflineQueue(matchId);
+      if (!queued.length) return;
+
+      if (opts.announce) {
+        toast.info(t("livescout.syncingQueue", { count: queued.length }));
+      }
+      setPendingSync((n) => n + queued.length);
+
+      for (const a of queued) {
+        createAction.mutate(a, {
+          onSuccess: () => {
+            removeFromQueue(matchId, [a.id]);
+            offlineQueueIds.current.delete(a.id);
+            setOfflineQueueSize((n) => Math.max(0, n - 1));
+            setPendingSync((n) => Math.max(0, n - 1));
+          },
+          onError: () => {
+            // Fica na fila — a próxima tentativa apanha-a.
+            setPendingSync((n) => Math.max(0, n - 1));
+          },
+        });
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [matchId, t, unsavedActions],
+  );
+
+  // Envia assim que a ligação volta.
   const prevOnline = useRef(isOnline);
   useEffect(() => {
     const wasOffline = !prevOnline.current;
     prevOnline.current = isOnline;
     if (!isOnline || !wasOffline) return;
+    flushQueue({ announce: true });
+  }, [isOnline, flushQueue]);
 
-    const queued = getOfflineQueue(matchId);
-    if (!queued.length) return;
-
-    toast.info(t("livescout.syncingQueue", { count: queued.length }));
-    setPendingSync((n) => n + queued.length);
-
-    for (const a of queued) {
-      createAction.mutate(a, {
-        onSuccess: () => {
-          removeFromQueue(matchId, [a.id]);
-          offlineQueueIds.current.delete(a.id);
-          setOfflineQueueSize((n) => Math.max(0, n - 1));
-          setPendingSync((n) => Math.max(0, n - 1));
-        },
-        onError: () => {
-          // Keep in queue — will retry on next reconnect.
-          setPendingSync((n) => Math.max(0, n - 1));
-        },
-      });
-    }
-  }, [isOnline, matchId, t]);
+  /**
+   * Recuperação periódica. O envio só acontecia na transição offline→online,
+   * por isso uma falha do servidor com a ligação de pé deixava as acções na
+   * fila até a rede voltar a cair — o que podia nunca acontecer.
+   */
+  useEffect(() => {
+    if (!isOnline) return;
+    if (offlineQueueSize === 0 && unsavedActions.length === 0) return;
+    const timer = setInterval(() => flushQueue(), RETRY_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [isOnline, offlineQueueSize, unsavedActions.length, flushQueue]);
 
   const activePlayers = useMemo(
     () => (playersQuery.data ?? []).filter((p) => p.active),
@@ -310,6 +373,9 @@ export function useScoutSession({
       offlineQueueIds.current.delete(last.id);
       removeFromQueue(matchId, [last.id]);
       setOfflineQueueSize((n) => Math.max(0, n - 1));
+    } else if (unsavedActions.some((a) => a.id === last.id)) {
+      // Nunca chegou a lado nenhum — basta esquecê-la.
+      setUnsavedActions((prev) => prev.filter((a) => a.id !== last.id));
     } else {
       deleteAction.mutate(last.id);
     }
@@ -491,6 +557,8 @@ export function useScoutSession({
     rotationStats: rotationStatsQuery.data ?? [],
     pendingSync,
     offlineQueueSize,
+    unsavedCount: unsavedActions.length,
+    retrySync: () => flushQueue({ announce: true }),
     videoRef,
     updateMatch,
     lineupsRefetch: () => { lineupsQuery.refetch(); },

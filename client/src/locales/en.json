@@ -17,7 +17,9 @@
     "saving": "Saving\u2026",
     "requiredField": "{{field}} is required",
     "players": "players",
-    "noData": "No data for this opponent."
+    "noData": "No data for this opponent.",
+    "irreversible": "This action cannot be undone.",
+    "clear": "Clear"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -36,7 +38,8 @@
     "livescout": "Live Scout",
     "reports": "Report",
     "profile": "Profile",
-    "boards": "Presentations"
+    "boards": "Presentations",
+    "clubDashboard": "Club"
   },
   "topbar": {
     "welcome": "Welcome back \u2014 let's read the game.",
@@ -208,7 +211,10 @@
     "statusLabel": {
       "won": "Win",
       "lost": "Loss"
-    }
+    },
+    "deleteTitle": "Delete match?",
+    "searchPlaceholder": "Search opponent, competition\u2026",
+    "noMatchesSearch": "No match found for \u201c{{query}}\u201d."
   },
   "players": {
     "title": "Players",
@@ -267,7 +273,9 @@
     },
     "notFound": "Player not found.",
     "backToRoster": "Back to roster",
-    "deleteConfirm": "Remove {{name}} from the roster?"
+    "deleteConfirm": "Remove {{name}} from the roster?",
+    "deleteTitle": "Delete player?",
+    "searchPlaceholder": "Search name or number\u2026"
   },
   "playerDetail": {
     "actions": "{{count}} actions in recent matches",
@@ -380,7 +388,10 @@
       "save": "Save",
       "create": "Create"
     },
-    "deleteConfirm": "Remove '{{name}}'? Match history is kept but loses the association."
+    "deleteConfirm": "Remove '{{name}}'? Match history is kept but loses the association.",
+    "deleteTitle": "Delete opponent?",
+    "searchPlaceholder": "Search opponent\u2026",
+    "noResults": "No opponent found for \u201c{{query}}\u201d."
   },
   "opponentDetail": {
     "title": "Opponent",
@@ -654,7 +665,10 @@
       "zoneTo": "Tap the court at the exact point where the ball landed.",
       "zone": "Tap the court where the ball landed (or skip the step).",
       "result": "Log the result of the action."
-    }
+    },
+    "unsavedActions_one": "{{count}} action was not saved. Do not close this screen.",
+    "unsavedActions_other": "{{count}} actions were not saved. Do not close this screen.",
+    "retrySync": "Retry"
   },
   "postMatch": {
     "title": "Post-Match",
@@ -1065,6 +1079,51 @@
       "a4": "Check that the player is marked as active in the roster. If so, set the lineup for the current set.",
       "q5": "Can I use LiveScout on a tablet?",
       "a5": "Yes. Touch mode is optimised for tablets. On larger screens you get keyboard shortcuts."
+    }
+  },
+  "navGroups": {
+    "game": "Match",
+    "analysis": "Analysis",
+    "team": "Team"
+  },
+  "matchDetail": {
+    "notFound": "Match not found.",
+    "backToMatches": "Back to matches",
+    "actionsLogged": "Actions logged",
+    "setsPlayed": "Sets logged",
+    "preparation": "Preparation",
+    "sections": "Match sections",
+    "matchDayDescription": "Checklist, tactical plan and match-day notes.",
+    "scoutDescription": "Log live actions, rotations and substitutions.",
+    "postMatchDescription": "Aggregated stats and AI-detected patterns.",
+    "needsActions": "Available once you log actions for this match.",
+    "secondScreen": "Second screen",
+    "secondScreenDescription": "Mirror the match to the bench or a monitor.",
+    "reportDescription": "Scouting report for this opponent.",
+    "video": "Video",
+    "videoDescription": "Open the match recording.",
+    "notes": "Notes",
+    "nextStep": {
+      "scheduled": {
+        "title": "Prepare the match",
+        "description": "Close the checklist and tactical plan before first whistle.",
+        "cta": "Prepare"
+      },
+      "live": {
+        "title": "Match in progress",
+        "description": "Pick the scout up where you left off.",
+        "cta": "Resume scout"
+      },
+      "finished": {
+        "title": "Match finished",
+        "description": "Review the post-match analysis and detected patterns.",
+        "cta": "View analysis"
+      },
+      "finishedNoData": {
+        "title": "Match finished, no data",
+        "description": "No actions logged yet, so there is nothing to analyse.",
+        "cta": "Log actions"
+      }
     }
   }
 }

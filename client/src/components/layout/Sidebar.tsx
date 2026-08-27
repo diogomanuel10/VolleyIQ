@@ -1,38 +1,10 @@
 import { Link, useLocation } from "wouter";
-import {
-  LayoutDashboard,
-  Radio,
-  Users,
-  UsersRound,
-  CalendarDays,
-  FileText,
-  Shuffle,
-  Trophy,
-  ClipboardCheck,
-  Settings,
-  Building2,
-  LayoutPanelLeft,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { usePlanGuard } from "@/hooks/usePlanGuard";
-
-const NAV_ITEMS = [
-  { href: "/", icon: LayoutDashboard, key: "dashboard" },
-  { href: "/scout", icon: Radio, key: "liveScout" },
-  { href: "/matches", icon: Trophy, key: "matches" },
-  { href: "/players", icon: Users, key: "players" },
-  { href: "/opponents", icon: UsersRound, key: "opponents" },
-  { href: "/matchday", icon: ClipboardCheck, key: "matchDay" },
-  { href: "/reports", icon: FileText, key: "scoutingReport" },
-  { href: "/scenario", icon: Shuffle, key: "scenario" },
-  { href: "/boards", icon: LayoutPanelLeft, key: "boards" },
-  { href: "/post-match", icon: CalendarDays, key: "postMatch" },
-  { href: "/settings", icon: Settings, key: "settings" },
-];
+import { isNavItemActive, useNavGroups } from "@/lib/nav";
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -40,14 +12,7 @@ export function Sidebar() {
   const [hovered, setHovered] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useTranslation();
-  const guard = usePlanGuard();
-
-  const navItems = [
-    ...NAV_ITEMS,
-    ...(guard.meetsMinimum("club")
-      ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const }]
-      : []),
-  ];
+  const groups = useNavGroups();
 
   // Expande se não estiver collapsed (pin) OU se estiver em hover
   const expanded = !collapsed || hovered;
@@ -98,38 +63,48 @@ export function Sidebar() {
         </div>
         <TeamSwitcher collapsed={!expanded} />
       </div>
-      <nav className={cn("flex-1 space-y-0.5", expanded ? "p-2" : "p-1.5")}>
-        {navItems.map((it) => {
-          const label =
-            it.key === "clubDashboard"
-              ? "Club Dashboard"
-              : it.key === "boards"
-              ? "Apresentações"
-              : t(`nav.${it.key}`);
-          const active =
-            it.href === "/"
-              ? location === "/"
-              : location === it.href || location.startsWith(it.href + "/");
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
-              title={!expanded ? label : undefined}
-              className={cn(
-                "flex items-center rounded-md text-sm transition-colors",
-                !expanded
-                  ? "justify-center h-10 w-full"
-                  : "gap-3 px-3 py-2",
-                active
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
-              )}
-            >
-              <it.icon className="h-4 w-4 shrink-0" />
-              {expanded && <span className="truncate">{label}</span>}
-            </Link>
-          );
-        })}
+      <nav
+        className={cn(
+          "flex-1 overflow-y-auto",
+          expanded ? "p-2 space-y-3" : "p-1.5 space-y-2",
+        )}
+      >
+        {groups.map((group, gi) => (
+          <div key={group.key ?? `top-${gi}`} className="space-y-0.5">
+            {group.key &&
+              (expanded ? (
+                <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  {t(`navGroups.${group.key}`)}
+                </div>
+              ) : (
+                <div className="mx-auto my-1.5 h-px w-6 bg-border" />
+              ))}
+            {group.items.map((it) => {
+              const label = t(`nav.${it.key}`);
+              const active = isNavItemActive(it.href, location);
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  title={!expanded ? label : undefined}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex items-center rounded-md text-sm transition-colors",
+                    !expanded
+                      ? "justify-center h-10 w-full"
+                      : "gap-3 px-3 py-2",
+                    active
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  <it.icon className="h-4 w-4 shrink-0" />
+                  {expanded && <span className="truncate">{label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
     </aside>
   );

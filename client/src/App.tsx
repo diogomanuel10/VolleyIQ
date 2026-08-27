@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const LiveScout = lazy(() => import("@/pages/LiveScout"));
 const Matches = lazy(() => import("@/pages/Matches"));
+const MatchDetail = lazy(() => import("@/pages/MatchDetail"));
 const Players = lazy(() => import("@/pages/Players"));
 const PlayerDetail = lazy(() => import("@/pages/PlayerDetail"));
 const MatchDay = lazy(() => import("@/pages/MatchDay"));
@@ -69,6 +70,7 @@ function AuthedApp() {
             <Route path="/" component={Dashboard} />
             <Route path="/scout/:matchId?" component={LiveScout} />
             <Route path="/matches" component={Matches} />
+            <Route path="/matches/:id" component={MatchDetail} />
             <Route path="/players" component={Players} />
             <Route path="/players/:id" component={PlayerDetail} />
             <Route path="/opponents" component={Opponents} />
