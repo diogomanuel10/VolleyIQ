@@ -59,6 +59,22 @@
   html, body, #root { min-height: 100%; }
 }
 
+@layer base {
+  /* Barras de scroll nativas fora do caminho.
+     Em Windows/Linux o chrome nativo é uma barra larga e opaca que ficava
+     colada à navegação e aos painéis do Live Scout, a cortar o layout. As
+     zonas continuam a fazer scroll (roda, trackpad, toque, teclado) — só
+     deixam de desenhar a barra. */
+  * {
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* Edge legado */
+  }
+  *::-webkit-scrollbar {            /* Chrome, Safari */
+    width: 0;
+    height: 0;
+  }
+}
+
 @layer utilities {
   /* Evita scroll/pull durante scouting ao vivo em tablets */
   .no-touch-callout {
