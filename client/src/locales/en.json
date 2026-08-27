@@ -665,7 +665,10 @@
       "zoneTo": "Tap the court at the exact point where the ball landed.",
       "zone": "Tap the court where the ball landed (or skip the step).",
       "result": "Log the result of the action."
-    }
+    },
+    "unsavedActions_one": "{{count}} action was not saved. Do not close this screen.",
+    "unsavedActions_other": "{{count}} actions were not saved. Do not close this screen.",
+    "retrySync": "Retry"
   },
   "postMatch": {
     "title": "Post-Match",

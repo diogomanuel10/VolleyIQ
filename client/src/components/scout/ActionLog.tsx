@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Undo2, WifiOff, CloudUpload } from "lucide-react";
+import { AlertTriangle, Loader2, Undo2, WifiOff, CloudUpload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { LoggedAction } from "@/hooks/useScoutState";
 import type { Player } from "@shared/schema";
@@ -18,6 +18,8 @@ export function ActionLog({
   pendingSync = 0,
   isOnline = true,
   offlineQueueSize = 0,
+  unsavedCount = 0,
+  onRetrySync,
 }: {
   log: LoggedAction[];
   players: Player[];
@@ -25,6 +27,9 @@ export function ActionLog({
   pendingSync?: number;
   isOnline?: boolean;
   offlineQueueSize?: number;
+  /** Acções que não foi possível enviar nem guardar localmente. */
+  unsavedCount?: number;
+  onRetrySync?: () => void;
 }) {
   const { t } = useTranslation();
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -51,6 +56,30 @@ export function ActionLog({
             </span>
           </motion.div>
         )}
+        {unsavedCount > 0 && (
+          <motion.div
+            key="unsaved-banner"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-2 flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+          >
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">
+              {t("livescout.unsavedActions", { count: unsavedCount })}
+            </span>
+            {onRetrySync && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-[11px]"
+                onClick={onRetrySync}
+              >
+                {t("livescout.retrySync")}
+              </Button>
+            )}
+          </motion.div>
+        )}
         {isOnline && offlineQueueSize > 0 && (
           <motion.div
             key="sync-banner"
@@ -60,7 +89,19 @@ export function ActionLog({
             className="mb-2 flex items-center gap-2 rounded-md border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs text-blue-700 dark:text-blue-300"
           >
             <CloudUpload className="h-3.5 w-3.5 shrink-0 animate-pulse" />
-            <span>{t("livescout.syncingQueue", { count: offlineQueueSize })}</span>
+            <span className="flex-1">
+              {t("livescout.syncingQueue", { count: offlineQueueSize })}
+            </span>
+            {onRetrySync && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-[11px]"
+                onClick={onRetrySync}
+              >
+                {t("livescout.retrySync")}
+              </Button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -662,7 +662,10 @@
       "zoneTo": "Touchez le terrain au point exact où le ballon est tombé.",
       "zone": "Touchez le terrain où le ballon est tombé (ou ignorez l'étape).",
       "result": "Enregistrez le résultat de l'action."
-    }
+    },
+    "unsavedActions_one": "{{count}} action n'a pas été enregistrée. Ne fermez pas cet écran.",
+    "unsavedActions_other": "{{count}} actions n'ont pas été enregistrées. Ne fermez pas cet écran.",
+    "retrySync": "Réessayer"
   },
   "postMatch": {
     "title": "Post-Match",

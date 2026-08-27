@@ -662,7 +662,10 @@
       "zoneTo": "Toca el campo en el punto exacto donde cayó el balón.",
       "zone": "Toca el campo donde cayó el balón (o salta el paso).",
       "result": "Registra el resultado de la acción."
-    }
+    },
+    "unsavedActions_one": "{{count}} acción no se guardó. No cierres esta pantalla.",
+    "unsavedActions_other": "{{count}} acciones no se guardaron. No cierres esta pantalla.",
+    "retrySync": "Reintentar"
   },
   "postMatch": {
     "title": "Post-Partido",

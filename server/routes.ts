@@ -123,7 +123,6 @@ router.post("/teams", async (req, res) => {
   res.status(201).json(team);
 });
 
-const updatePlanSchema = z.object({ plan: z.enum(["individual", "basic", "pro", "club"]) });
 const updateTeamBodySchema = z.object({
   name: z.string().min(1).max(100).optional(),
   club: z.string().max(100).optional(),
@@ -140,15 +139,10 @@ router.patch("/teams/:id", async (req: any, res) => {
   res.json(team);
 });
 
-router.patch("/teams/:id/plan", async (req, res) => {
-  const parsed = updatePlanSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
-  const team = await storage.updateTeamPlan(req.params.id, parsed.data.plan);
-  if (!team) return res.status(404).json({ error: "not found" });
-  res.json(team);
-});
+// O plano de uma equipa só muda por duas vias: o webhook de pagamento
+// (`POST /payments/webhook`) e o backoffice (`PATCH /api/admin/teams/:id`).
+// Havia aqui um `PATCH /teams/:id/plan` que qualquer membro da equipa podia
+// chamar para se colocar no plano "club" sem pagar — nenhum cliente o usava.
 
 // Pré-visualiza a equipa associada a um código de convite (sem aderir).
 router.get("/teams/join/:code", async (req, res) => {

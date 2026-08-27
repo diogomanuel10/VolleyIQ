@@ -219,19 +219,6 @@ export async function listRecentMatchesForTeam(teamId: string, limit: number) {
     .limit(limit);
 }
 
-export async function updateTeamPlan(
-  teamId: string,
-  plan: "individual" | "basic" | "pro" | "club",
-) {
-  // Activar subscrição ao mudar de plano (mock — será substituído por webhook EasyPay)
-  await db
-    .update(teams)
-    .set({ plan, subscribedAt: new Date() })
-    .where(eq(teams.id, teamId));
-  const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
-  return row;
-}
-
 export async function updateTeam(
   teamId: string,
   data: { name?: string; club?: string; category?: string; primaryColor?: string | null },

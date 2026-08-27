@@ -665,7 +665,10 @@
       "zoneTo": "Toca no campo no ponto exacto onde a bola caiu.",
       "zone": "Toca no campo onde a bola caiu (ou salta o passo).",
       "result": "Regista o resultado da ac\u00e7\u00e3o."
-    }
+    },
+    "unsavedActions_one": "{{count}} ac\u00e7\u00e3o n\u00e3o foi guardada. N\u00e3o feches este ecr\u00e3.",
+    "unsavedActions_other": "{{count}} ac\u00e7\u00f5es n\u00e3o foram guardadas. N\u00e3o feches este ecr\u00e3.",
+    "retrySync": "Tentar de novo"
   },
   "postMatch": {
     "title": "Post-Match",
