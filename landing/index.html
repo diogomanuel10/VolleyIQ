@@ -371,7 +371,7 @@
     .testi-role { font-size: .78rem; color: var(--muted); }
 
     /* ── Pricing ──────────────────────────────────────────────────────── */
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; align-items: start; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; align-items: start; max-width: 720px; margin-inline: auto; }
     .plan-card {
       background: var(--slate); border: 1px solid rgba(255,255,255,.09); border-radius: var(--radius);
       padding: 2rem; transition: border-color .2s; position: relative;
@@ -564,7 +564,7 @@
         </div>
         <h3>Assistente Táctico ao Vivo</h3>
         <p>Durante o scouting, a IA analisa o contexto do jogo e sugere alvos de serviço, substituições e padrões do adversário — em tempo real.</p>
-        <span class="feature-tag feature-tag-amber">Club</span>
+        <span class="feature-tag feature-tag-amber">Clube</span>
       </div>
 
       <div class="feature-card">
@@ -589,7 +589,6 @@
         </div>
         <h3>Scouting de Adversários</h3>
         <p>Catálogo completo de equipas e atletas adversários. Regista hábitos, padrões de serviço e zonas preferidas para preparar cada jogo.</p>
-        <span class="feature-tag feature-tag-sky">Pro+</span>
       </div>
 
       <div class="feature-card">
@@ -622,7 +621,7 @@
         </div>
         <h3>API Pública e Webhooks</h3>
         <p>Liga o VolleyIQ ao site do clube ou às tuas próprias ferramentas. Chaves de API com tokens revogáveis e webhooks para reagir a cada jogo registado.</p>
-        <span class="feature-tag feature-tag-sky">Pro+</span>
+        <span class="feature-tag feature-tag-amber">Clube</span>
       </div>
 
       <div class="feature-card">
@@ -631,7 +630,7 @@
         </div>
         <h3>Dashboard de Clube</h3>
         <p>Vê todas as equipas do clube num só ecrã: volume de jogos, evolução por escalão e quem está a usar a plataforma. Para directores técnicos.</p>
-        <span class="feature-tag feature-tag-amber">Club</span>
+        <span class="feature-tag feature-tag-amber">Clube</span>
       </div>
     </div>
   </div>
@@ -887,59 +886,44 @@
     </div>
 
     <div class="pricing-grid">
-      <!-- Individual -->
+      <!-- Treinador -->
       <div class="plan-card">
-        <div class="plan-name">Individual</div>
-        <div class="plan-price" id="price-individual">€14 <span>/mês</span></div>
+        <div class="plan-name">Treinador</div>
+        <div class="plan-price" id="price-individual">€19 <span>/mês</span></div>
         <div class="plan-billing" id="billing-individual"></div>
-        <div class="plan-blurb">Para treinadores individuais</div>
-        <ul class="plan-features" aria-label="Funcionalidades do plano Individual">
+        <div class="plan-blurb">Para quem treina uma equipa</div>
+        <ul class="plan-features" aria-label="Funcionalidades do plano Treinador">
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>1 equipa · 1 utilizador</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Live scouting completo</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Analytics completo</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Match Day</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Jogos ilimitados</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>10 relatórios PDF / mês</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Scouting de adversários</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Scenario modeling</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI pattern detection</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Relatórios PDF ilimitados</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Export CSV</li>
         </ul>
         <a href="mailto:hello@volleyiq.pt" class="plan-btn plan-btn-outline">Contactar-nos</a>
       </div>
 
-      <!-- Pro (featured) -->
+      <!-- Clube (featured) -->
       <div class="plan-card featured">
         <div class="plan-badge">Mais popular</div>
-        <div class="plan-name">Pro</div>
-        <div class="plan-price" id="price-pro">€29 <span>/mês</span></div>
-        <div class="plan-billing" id="billing-pro"></div>
-        <div class="plan-blurb">Para treinadores com múltiplas equipas</div>
-        <ul class="plan-features" aria-label="Funcionalidades do plano Pro">
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>5 equipas · 1 utilizador / equipa</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Scouting de adversários</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Analytics completo</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI pattern detection</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Scenario modeling</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Relatórios PDF ilimitados</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Export CSV</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>API pública + webhooks</li>
-        </ul>
-        <a href="mailto:hello@volleyiq.pt" class="plan-btn plan-btn-primary">Contactar-nos</a>
-      </div>
-
-      <!-- Club -->
-      <div class="plan-card">
-        <div class="plan-name">Club</div>
-        <div class="plan-price" id="price-club">€69 <span>/mês</span></div>
+        <div class="plan-name">Clube</div>
+        <div class="plan-price" id="price-club">€49 <span>/mês</span></div>
         <div class="plan-billing" id="billing-club"></div>
-        <div class="plan-blurb">Para clubes com múltiplas equipas</div>
-        <ul class="plan-features" aria-label="Funcionalidades do plano Club">
+        <div class="plan-blurb">Para clubes com várias equipas</div>
+        <ul class="plan-features" aria-label="Funcionalidades do plano Clube">
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Equipas ilimitadas</li>
-          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Tudo do Pro</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Tudo do Treinador</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Assistente táctico ao vivo</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>AI training plans</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Dashboard de clube</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Logótipo do clube nos relatórios</li>
+          <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>API pública + webhooks</li>
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Suporte prioritário</li>
         </ul>
-        <a href="mailto:hello@volleyiq.pt" class="plan-btn plan-btn-outline">Contactar-nos</a>
+        <a href="mailto:hello@volleyiq.pt" class="plan-btn plan-btn-primary">Contactar-nos</a>
       </div>
     </div>
 
@@ -962,10 +946,8 @@
   const labelMonthly = document.getElementById('label-monthly');
   const labelAnnual = document.getElementById('label-annual');
   const priceIndividual = document.getElementById('price-individual');
-  const pricePro = document.getElementById('price-pro');
   const priceClub = document.getElementById('price-club');
   const billingIndividual = document.getElementById('billing-individual');
-  const billingPro = document.getElementById('billing-pro');
   const billingClub = document.getElementById('billing-club');
 
   toggle.addEventListener('change', () => {
@@ -974,18 +956,14 @@
     labelAnnual.classList.toggle('active', annual);
 
     if (annual) {
-      priceIndividual.innerHTML = '€11 <span>/mês</span>';
-      pricePro.innerHTML = '€23 <span>/mês</span>';
-      priceClub.innerHTML = '€55 <span>/mês</span>';
-      billingIndividual.textContent = 'Faturado €132/ano · poupas €36';
-      billingPro.textContent = 'Faturado €276/ano · poupas €72';
-      billingClub.textContent = 'Faturado €660/ano · poupas €168';
+      priceIndividual.innerHTML = '€15 <span>/mês</span>';
+      priceClub.innerHTML = '€39 <span>/mês</span>';
+      billingIndividual.textContent = 'Faturado €180/ano · poupas €48';
+      billingClub.textContent = 'Faturado €468/ano · poupas €120';
     } else {
-      priceIndividual.innerHTML = '€14 <span>/mês</span>';
-      pricePro.innerHTML = '€29 <span>/mês</span>';
-      priceClub.innerHTML = '€69 <span>/mês</span>';
+      priceIndividual.innerHTML = '€19 <span>/mês</span>';
+      priceClub.innerHTML = '€49 <span>/mês</span>';
       billingIndividual.textContent = '';
-      billingPro.textContent = '';
       billingClub.textContent = '';
     }
   });

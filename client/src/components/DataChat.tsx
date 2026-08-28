@@ -19,13 +19,7 @@ const SUGGESTIONS = [
   "Como está a nossa receção nas últimas partidas?",
 ];
 
-export function DataChat({
-  teamId,
-  isPro,
-}: {
-  teamId: string;
-  isPro: boolean;
-}) {
+export function DataChat({ teamId }: { teamId: string }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -60,7 +54,7 @@ export function DataChat({
     },
     onError: (err: any) => {
       if (err?.status === 403 && err?.body?.error === "plan_required") {
-        toast.error("Funcionalidade disponível nos planos Pro e Club.");
+        toast.error("Funcionalidade indisponível no teu plano.");
       } else {
         toast.error("Erro ao contactar o analista IA. Tente novamente.");
       }
@@ -127,130 +121,112 @@ export function DataChat({
 
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
-            {/* Plan gate */}
-            {!isPro && (
-              <div className="rounded-md border border-dashed p-4 text-sm text-center text-muted-foreground">
-                Disponível nos planos{" "}
-                <span className="font-semibold text-foreground">Pro</span> e{" "}
-                <span className="font-semibold text-foreground">Club</span>.{" "}
-                <a href="/pricing" className="underline text-primary">
-                  Ver planos
-                </a>
+            {messages.length === 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Sugestões:</p>
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTIONS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => sendQuestion(s)}
+                      disabled={mutation.isPending}
+                      className="rounded-full border px-3 py-1 text-xs hover:bg-accent transition-colors disabled:opacity-50"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            {isPro && (
-              <>
-                {messages.length === 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Sugestões:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {SUGGESTIONS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => sendQuestion(s)}
-                          disabled={mutation.isPending}
-                          className="rounded-full border px-3 py-1 text-xs hover:bg-accent transition-colors disabled:opacity-50"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex gap-2",
+                  msg.role === "user" ? "justify-end" : "justify-start",
+                )}
+              >
+                {msg.role === "assistant" && (
+                  <div className="mt-0.5 shrink-0">
+                    <Bot className="h-4 w-4 text-muted-foreground" />
                   </div>
                 )}
+                <div
+                  className={cn(
+                    "rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            ))}
 
-                {messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "flex gap-2",
-                      msg.role === "user" ? "justify-end" : "justify-start",
-                    )}
-                  >
-                    {msg.role === "assistant" && (
-                      <div className="mt-0.5 shrink-0">
-                        <Bot className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div
-                      className={cn(
-                        "rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap",
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground",
-                      )}
-                    >
-                      {msg.content}
-                    </div>
-                  </div>
-                ))}
-
-                {mutation.isPending && (
-                  <div className="flex gap-2 justify-start">
-                    <div className="mt-0.5 shrink-0">
-                      <Bot className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="bg-muted rounded-lg px-3 py-2">
-                      <Skeleton className="h-4 w-32" />
-                      <p className="text-xs text-muted-foreground mt-1">A analisar...</p>
-                    </div>
-                  </div>
-                )}
-
-                {messages.length > 0 && !mutation.isPending && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {SUGGESTIONS.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => sendQuestion(s)}
-                        disabled={mutation.isPending}
-                        className="rounded-full border px-3 py-1 text-xs hover:bg-accent transition-colors disabled:opacity-50"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div ref={bottomRef} />
-              </>
+            {mutation.isPending && (
+              <div className="flex gap-2 justify-start">
+                <div className="mt-0.5 shrink-0">
+                  <Bot className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="bg-muted rounded-lg px-3 py-2">
+                  <Skeleton className="h-4 w-32" />
+                  <p className="text-xs text-muted-foreground mt-1">A analisar...</p>
+                </div>
+              </div>
             )}
+
+            {messages.length > 0 && !mutation.isPending && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => sendQuestion(s)}
+                    disabled={mutation.isPending}
+                    className="rounded-full border px-3 py-1 text-xs hover:bg-accent transition-colors disabled:opacity-50"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
           </div>
 
           {/* Input */}
-          {isPro && (
-            <form
-              onSubmit={handleSubmit}
-              className="flex gap-2 items-end px-4 py-3 border-t shrink-0"
+          <form
+            onSubmit={handleSubmit}
+            className="flex gap-2 items-end px-4 py-3 border-t shrink-0"
+          >
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendQuestion(input);
+                }
+              }}
+              placeholder="Escreve a tua pergunta..."
+              rows={2}
+              maxLength={1000}
+              disabled={mutation.isPending}
+              className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!input.trim() || mutation.isPending}
+              className="shrink-0"
             >
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendQuestion(input);
-                  }
-                }}
-                placeholder="Escreve a tua pergunta..."
-                rows={2}
-                maxLength={1000}
-                disabled={mutation.isPending}
-                className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-              />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!input.trim() || mutation.isPending}
-                className="shrink-0"
-              >
-                <Send className="h-4 w-4" />
-                <span className="ml-1">Enviar</span>
-              </Button>
-            </form>
-          )}
+              <Send className="h-4 w-4" />
+              <span className="ml-1">Enviar</span>
+            </Button>
+          </form>
         </div>
       )}
     </>

@@ -486,8 +486,8 @@ function Summary({
   ];
 
   async function handlePrint() {
-    // Pro+ e trial têm PDFs ilimitados
-    if (guard.meetsMinimum("pro")) {
+    // Planos com PDFs ilimitados não passam pelo contador
+    if (guard.features.maxPdfsPerMonth === -1) {
       window.print();
       return;
     }
@@ -582,7 +582,7 @@ function Summary({
           >
             <Printer className="h-4 w-4" /> {t("postMatch.print")}
           </Button>
-          <PlanGate minimumPlan="pro">
+          <PlanGate feature="exportCsv">
             <Button variant="outline" size="sm" className="gap-1.5 print-hide" onClick={exportCsv}>
               <Download className="h-4 w-4" />
               CSV

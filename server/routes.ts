@@ -649,8 +649,8 @@ router.get(
 router.post("/ai/patterns", async (req, res) => {
   const parsed = patternsInputSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
-  // AI patterns — requer plano Pro ou superior
-  if (!(await guardPlanForTeam(req, res, parsed.data.teamId, "pro"))) return;
+  // Detecção de padrões — disponível em qualquer plano; valida só a pertença.
+  if (!(await guardPlanForTeam(req, res, parsed.data.teamId, "individual"))) return;
   try {
     const patterns = await detectPatterns(parsed.data as PatternDetectionInput);
     res.json({ patterns });
@@ -664,8 +664,8 @@ router.post("/ai/patterns", async (req, res) => {
 router.post("/ai/chat", async (req: any, res) => {
   const { teamId, question, history = [] } = req.body;
   if (!teamId || !question) return res.status(400).json({ error: "missing_fields" });
-  // Chat sobre os dados — requer plano Pro ou superior
-  if (!(await guardPlanForTeam(req, res, teamId, "pro"))) return;
+  // Chat sobre os dados — disponível em qualquer plano; valida só a pertença.
+  if (!(await guardPlanForTeam(req, res, teamId, "individual"))) return;
   if (typeof question !== "string" || question.length > 1000) {
     return res.status(400).json({ error: "question_too_long" });
   }
@@ -683,8 +683,9 @@ router.post("/ai/chat", async (req: any, res) => {
 router.post("/ai/tactical", async (req: any, res) => {
   const { teamId, context } = req.body;
   if (!teamId || !context) return res.status(400).json({ error: "missing_fields" });
-  // Sugestões tácticas ao vivo — exclusivo do plano Club (aiLiveSuggestions)
-  if (!(await guardPlanForTeam(req, res, teamId, "club"))) return;
+  // Sugestões tácticas ao vivo — escalão de clube. O mínimo é "pro" e não
+  // "club" para que as subscrições antigas em `pro` continuem a passar.
+  if (!(await guardPlanForTeam(req, res, teamId, "pro"))) return;
   try {
     const suggestions = await getTacticalSuggestions(context);
     res.json({ suggestions });
@@ -698,7 +699,6 @@ router.post("/ai/tactical", async (req: any, res) => {
 router.get(
   "/scouting/:opponent",
   requireTeamAccess,
-  requirePlan("pro"),
   async (req: any, res) => {
     const opp = decodeURIComponent(req.params.opponent);
     const report = await buildScoutingReport(req.teamId, opp);
@@ -752,7 +752,7 @@ router.get(
 router.post(
   "/ai/training/:playerId",
   requireTeamAccess,
-  requirePlan("club"),
+  requirePlan("pro"), // escalão de clube — ver nota em /ai/tactical
   async (req: any, res) => {
     const summary = await buildPlayerSummary(req.teamId, req.params.playerId);
     if (!summary) return res.status(404).json({ error: "not found" });
@@ -781,7 +781,7 @@ router.post(
 );
 
 // ── Opponent teams — requer plano Pro ou superior ──────────────────────────────────────────
-router.get("/opponents", requireTeamAccess, requirePlan("pro"), async (req: any, res) => {
+router.get("/opponents", requireTeamAccess, async (req: any, res) => {
   res.json(await storage.listOpponentTeams(req.teamId));
 });
 

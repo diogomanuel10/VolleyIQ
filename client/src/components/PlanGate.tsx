@@ -20,7 +20,9 @@ export function PlanGate({ feature, minimumPlan, children, overlay = false }: Pl
 
   if (allowed) return <>{children}</>;
 
-  const requiredPlan: Plan = minimumPlan ?? (feature === "aiTrainingPlans" || feature === "clubDashboard" ? "club" : "pro");
+  // Só há um escalão acima do Treinador, portanto tudo o que está bloqueado
+  // por funcionalidade exige o Clube.
+  const requiredPlan: Plan = minimumPlan ?? "club";
   const upgradeLabel = PLAN_UPGRADE_LABEL[plan];
 
   const lockBadge = (

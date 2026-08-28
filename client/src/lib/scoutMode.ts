@@ -24,9 +24,15 @@ function getStored(teamId: string): ScoutMode | null {
 }
 
 /**
- * Planos que permitem o modo completo. Alterar aqui se as regras mudarem.
+ * Planos que permitem o modo completo. Desde 2026/27 são todos — o scouting
+ * completo é o núcleo do produto e não faz parte da diferenciação de plano.
  */
-const COMPLETE_PLANS: ReadonlySet<Plan> = new Set<Plan>(["pro", "club"]);
+const COMPLETE_PLANS: ReadonlySet<Plan> = new Set<Plan>([
+  "individual",
+  "basic",
+  "pro",
+  "club",
+]);
 
 export function isCompleteAllowed(plan: Plan | undefined | null): boolean {
   return !!plan && COMPLETE_PLANS.has(plan);

@@ -17,39 +17,10 @@ export interface PlanLimits {
 }
 
 export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
-  // Plano individual — 1 equipa, jogos ilimitados, sem IA, sem adversários
+  // Treinador — 1 equipa, tudo o que serve uma equipa: adversários,
+  // scenario modeling, detecção de padrões e chat sobre os dados.
   individual: {
     maxTeams: 1,
-    maxMatchesPerTeam: -1,
-    maxPdfsPerMonth: 10,
-    opponents: false,
-    scenarioModeling: false,
-    fullAnalytics: true,
-    exportCsv: false,
-    aiPatterns: false,
-    aiTrainingPlans: false,
-    aiLiveSuggestions: false,
-    clubDashboard: false,
-    customBranding: false,
-  },
-  // Alias de basic → mesmo que individual (retrocompatibilidade)
-  basic: {
-    maxTeams: 1,
-    maxMatchesPerTeam: -1,
-    maxPdfsPerMonth: 10,
-    opponents: false,
-    scenarioModeling: false,
-    fullAnalytics: true,
-    exportCsv: false,
-    aiPatterns: false,
-    aiTrainingPlans: false,
-    aiLiveSuggestions: false,
-    clubDashboard: false,
-    customBranding: false,
-  },
-  // Pro — 5 equipas, adversários, analytics, AI patterns
-  pro: {
-    maxTeams: 5,
     maxMatchesPerTeam: -1,
     maxPdfsPerMonth: -1,
     opponents: true,
@@ -62,7 +33,38 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
     clubDashboard: false,
     customBranding: false,
   },
-  // Club — tudo ilimitado + IA completa
+  // Alias de basic → mesmo que individual (retrocompatibilidade)
+  basic: {
+    maxTeams: 1,
+    maxMatchesPerTeam: -1,
+    maxPdfsPerMonth: -1,
+    opponents: true,
+    scenarioModeling: true,
+    fullAnalytics: true,
+    exportCsv: true,
+    aiPatterns: true,
+    aiTrainingPlans: false,
+    aiLiveSuggestions: false,
+    clubDashboard: false,
+    customBranding: false,
+  },
+  // `pro` é o nome antigo do escalão de clube. Mantém-se no enum para não
+  // partir subscrições anteriores, com as 5 equipas que tinha na altura.
+  pro: {
+    maxTeams: 5,
+    maxMatchesPerTeam: -1,
+    maxPdfsPerMonth: -1,
+    opponents: true,
+    scenarioModeling: true,
+    fullAnalytics: true,
+    exportCsv: true,
+    aiPatterns: true,
+    aiTrainingPlans: true,
+    aiLiveSuggestions: true,
+    clubDashboard: true,
+    customBranding: true,
+  },
+  // Clube — equipas ilimitadas e tudo activo.
   club: {
     maxTeams: -1,
     maxMatchesPerTeam: -1,
@@ -105,15 +107,15 @@ export function planMeetsMinimum(plan: Plan, minimum: Plan): boolean {
 }
 
 export const PLAN_LABELS: Record<Plan, string> = {
-  individual: "Individual",
-  basic: "Individual",
-  pro: "Pro",
-  club: "Club",
+  individual: "Treinador",
+  basic: "Treinador",
+  pro: "Clube",
+  club: "Clube",
 };
 
 export const PLAN_UPGRADE_LABEL: Record<Plan, string> = {
-  individual: "Fazer upgrade para Pro",
-  basic: "Fazer upgrade para Pro",
-  pro: "Fazer upgrade para Club",
+  individual: "Fazer upgrade para Clube",
+  basic: "Fazer upgrade para Clube",
+  pro: "",
   club: "",
 };

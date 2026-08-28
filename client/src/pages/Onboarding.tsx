@@ -18,26 +18,14 @@ import { TRIAL_DAYS, monthlyEquivalent } from "@shared/planPricing";
 const PLANS_CONFIG = [
   {
     id: "individual" as Plan,
-    name: "Individual",
-    blurb: "Para treinadores individuais",
+    name: "Treinador",
+    blurb: "Para quem treina uma equipa",
     features: [
       "1 equipa",
       "Live scouting completo",
       "Analytics completo",
       "Match Day",
-      "Jogos ilimitados",
-      "10 PDFs / mês",
-    ],
-  },
-  {
-    id: "pro" as Plan,
-    name: "Pro",
-    blurb: "Para treinadores com múltiplas equipas",
-    popular: true,
-    features: [
-      "5 equipas",
       "Scouting de adversários",
-      "Analytics completo",
       "Scenario modeling",
       "AI pattern detection",
       "Relatórios PDF ilimitados",
@@ -46,15 +34,17 @@ const PLANS_CONFIG = [
   },
   {
     id: "club" as Plan,
-    name: "Club",
-    blurb: "Para clubes com múltiplas equipas",
+    name: "Clube",
+    blurb: "Para clubes com várias equipas",
+    popular: true,
     features: [
       "Equipas ilimitadas",
-      "Tudo do Pro",
+      "Tudo do Treinador",
+      "Assistente táctico ao vivo",
       "AI training plans",
-      "Sugestões IA em tempo real",
       "Dashboard de clube",
       "Logótipo do clube nos relatórios",
+      "API pública + webhooks",
       "Suporte prioritário",
     ],
   },
@@ -83,7 +73,7 @@ const INITIAL: FormState = {
 export default function Onboarding() {
   const { t } = useTranslation();
   const [step, setStep] = useState<"plan" | "team">("plan");
-  const [selectedPlan, setSelectedPlan] = useState<Plan>("pro");
+  const [selectedPlan, setSelectedPlan] = useState<Plan>("club");
   const [mode, setMode] = useState<"create" | "join">("create");
 
   return (
@@ -232,7 +222,7 @@ function PlanStep({
       </div>
 
       {/* Cards de plano */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
         {PLANS_CONFIG.map((plan) => {
           const price = monthlyEquivalent(plan.id, annual);
           const isSelected = selected === plan.id;

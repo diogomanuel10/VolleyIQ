@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       {team && (
         <div className="print-hide">
-          <DataChat teamId={team.id} isPro={guard.meetsMinimum("pro")} />
+          <DataChat teamId={team.id} />
         </div>
       )}
       <div className="print-hide">

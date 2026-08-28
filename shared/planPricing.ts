@@ -19,10 +19,13 @@ export interface PlanPrice {
 }
 
 export const PLAN_PRICING: Record<Plan, PlanPrice> = {
-  individual: { monthly: 14, annual: 11 },
-  basic: { monthly: 14, annual: 11 }, // alias retrocompatível de individual
-  pro: { monthly: 29, annual: 23 },
-  club: { monthly: 69, annual: 55 },
+  // Treinador — uma equipa
+  individual: { monthly: 19, annual: 15 },
+  basic: { monthly: 19, annual: 15 }, // alias legado de individual
+  // Clube — equipas ilimitadas. `pro` é o nome antigo deste escalão e
+  // mantém-se no enum para não partir quem subscreveu antes de 2026/27.
+  pro: { monthly: 49, annual: 39 },
+  club: { monthly: 49, annual: 39 },
 };
 
 /** Preço a mostrar por mês, conforme a periodicidade escolhida. */

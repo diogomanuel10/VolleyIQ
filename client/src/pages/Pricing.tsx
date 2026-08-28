@@ -18,31 +18,19 @@ import { TRIAL_DAYS, monthlyEquivalent } from "@shared/planPricing";
 type Period = "monthly" | "annual";
 type PayMethod = "multibanco" | "mb_way" | "cc";
 
-const PLAN_ORDER: Plan[] = ["individual", "pro", "club"];
+const PLAN_ORDER: Plan[] = ["individual", "club"];
 
 const PLANS_CONFIG = [
   {
     id: "individual" as Plan,
-    name: "Individual",
-    blurb: "Para treinadores individuais",
+    name: "Treinador",
+    blurb: "Para quem treina uma equipa",
     features: [
-      "1 equipa · 1 utilizador",
+      "1 equipa",
       "Live scouting completo",
       "Analytics completo",
       "Match Day",
-      "Jogos ilimitados",
-      "10 relatórios PDF / mês",
-    ],
-  },
-  {
-    id: "pro" as Plan,
-    name: "Pro",
-    blurb: "Para treinadores com múltiplas equipas",
-    popular: true,
-    features: [
-      "5 equipas · 1 utilizador / equipa",
       "Scouting de adversários",
-      "Analytics completo",
       "Scenario modeling",
       "AI pattern detection",
       "Relatórios PDF ilimitados",
@@ -51,15 +39,17 @@ const PLANS_CONFIG = [
   },
   {
     id: "club" as Plan,
-    name: "Club",
-    blurb: "Para clubes com múltiplas equipas",
+    name: "Clube",
+    blurb: "Para clubes com várias equipas",
+    popular: true,
     features: [
-      "Equipas ilimitadas · 1 utilizador / equipa",
-      "Tudo do Pro",
+      "Equipas ilimitadas",
+      "Tudo do Treinador",
+      "Assistente táctico ao vivo",
       "AI training plans",
-      "Sugestões IA em tempo real",
       "Dashboard de clube",
       "Logótipo do clube nos relatórios",
+      "API pública + webhooks",
       "Suporte prioritário",
     ],
   },
@@ -72,7 +62,8 @@ const PAY_METHODS: { id: PayMethod; label: string; icon: typeof CreditCard }[] =
 ];
 
 function planRank(plan: Plan): number {
-  const p = plan === "basic" ? "individual" : plan;
+  // `basic` é o nome antigo do Treinador e `pro` o do Clube.
+  const p = plan === "basic" ? "individual" : plan === "pro" ? "club" : plan;
   return PLAN_ORDER.indexOf(p as Plan);
 }
 
@@ -200,7 +191,7 @@ export default function Pricing() {
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 max-w-3xl mx-auto w-full">
         {PLANS_CONFIG.map((p) => {
           const isCurrent = planRank(current) === planRank(p.id) && isSubscribed;
           const price = monthlyEquivalent(p.id, annual);
