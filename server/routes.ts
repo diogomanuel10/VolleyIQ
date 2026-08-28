@@ -236,6 +236,46 @@ function requirePlan(minimum: Plan) {
   };
 }
 
+// Plano efectivo de uma equipa. Durante o trial (sem subscrição activa) vale
+// "club", para o treinador poder experimentar tudo.
+async function effectivePlan(teamId: string): Promise<Plan> {
+  const team = await storage.getTeamById(teamId);
+  const onTrial = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
+  return onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
+}
+
+// Guarda de plano para rotas que recebem o teamId no corpo do pedido.
+// Devolve o plano efectivo, ou null se já respondeu 403.
+async function guardPlanForTeam(
+  req: any,
+  res: any,
+  teamId: string,
+  minimum: Plan,
+): Promise<Plan | null> {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
+  if (!ok) {
+    res.status(403).json({ error: "forbidden" });
+    return null;
+  }
+  const plan = await effectivePlan(teamId);
+  if (!planMeetsMinimum(plan, minimum)) {
+    res.status(403).json({ error: "plan_required", requiredPlan: minimum, currentPlan: plan });
+    return null;
+  }
+  return plan;
+}
+
+// Middleware para rotas /teams/:id/* — valida pertença e plano mínimo de uma vez.
+function requireTeamPlanById(minimum: Plan) {
+  return async (req: any, res: any, next: any) => {
+    const plan = await guardPlanForTeam(req, res, req.params.id, minimum);
+    if (!plan) return;
+    req.teamId = req.params.id;
+    req.teamPlan = plan;
+    next();
+  };
+}
+
 // Middleware: verifica que o matchId pertence a uma equipa do utilizador.
 // Popula req.match, req.teamId e req.teamPlan.
 async function requireMatchAccess(req: any, res: any, next: any) {
@@ -580,15 +620,8 @@ router.get(
 router.post("/ai/patterns", async (req, res) => {
   const parsed = patternsInputSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
-  const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
   // AI patterns — requer plano Pro ou superior
-  const team = await storage.getTeamById(parsed.data.teamId);
-  const onTrial = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
-  const plan: Plan = onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
-  if (!planMeetsMinimum(plan, "pro")) {
-    return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: plan });
-  }
+  if (!(await guardPlanForTeam(req, res, parsed.data.teamId, "pro"))) return;
   try {
     const patterns = await detectPatterns(parsed.data as PatternDetectionInput);
     res.json({ patterns });
@@ -602,16 +635,8 @@ router.post("/ai/patterns", async (req, res) => {
 router.post("/ai/chat", async (req: any, res) => {
   const { teamId, question, history = [] } = req.body;
   if (!teamId || !question) return res.status(400).json({ error: "missing_fields" });
-  const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
-
-  const team = await storage.getTeamById(teamId);
-  const basePlan = (team?.plan ?? "individual") as Plan;
-  const onTrial = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
-  const effectivePlan: Plan = onTrial ? "club" : basePlan;
-  if (!planMeetsMinimum(effectivePlan, "pro")) {
-    return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: basePlan });
-  }
+  // Chat sobre os dados — requer plano Pro ou superior
+  if (!(await guardPlanForTeam(req, res, teamId, "pro"))) return;
   if (typeof question !== "string" || question.length > 1000) {
     return res.status(400).json({ error: "question_too_long" });
   }
@@ -629,8 +654,8 @@ router.post("/ai/chat", async (req: any, res) => {
 router.post("/ai/tactical", async (req: any, res) => {
   const { teamId, context } = req.body;
   if (!teamId || !context) return res.status(400).json({ error: "missing_fields" });
-  const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
+  // Sugestões tácticas ao vivo — exclusivo do plano Club (aiLiveSuggestions)
+  if (!(await guardPlanForTeam(req, res, teamId, "club"))) return;
   try {
     const suggestions = await getTacticalSuggestions(context);
     res.json({ suggestions });
@@ -644,6 +669,7 @@ router.post("/ai/tactical", async (req: any, res) => {
 router.get(
   "/scouting/:opponent",
   requireTeamAccess,
+  requirePlan("pro"),
   async (req: any, res) => {
     const opp = decodeURIComponent(req.params.opponent);
     const report = await buildScoutingReport(req.teamId, opp);
@@ -1081,23 +1107,13 @@ router.patch("/user/preferences", async (req, res) => {
 });
 
 // ── API Keys ──────────────────────────────────────────────────────────────────
-router.get("/teams/:id/api-keys", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
+router.get("/teams/:id/api-keys", requireTeamPlanById("pro"), async (req: any, res) => {
   const keys = await storage.listApiKeys(req.params.id);
   // never return keyHash
   res.json(keys.map(({ keyHash: _, ...rest }) => rest));
 });
 
-router.post("/teams/:id/api-keys", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
-  const team = await storage.getTeamById(req.params.id);
-  const onTrialApiKey = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
-  const apiKeyPlan: Plan = onTrialApiKey ? "club" : ((team?.plan ?? "individual") as Plan);
-  if (!planMeetsMinimum(apiKeyPlan, "pro")) {
-    return res.status(403).json({ error: "plan_required", requiredPlan: "pro" });
-  }
+router.post("/teams/:id/api-keys", requireTeamPlanById("pro"), async (req: any, res) => {
   const name = z.string().min(1).max(60).safeParse(req.body.name);
   if (!name.success) return res.status(400).json({ error: "invalid_name" });
   const existing = await storage.listApiKeys(req.params.id);
@@ -1107,17 +1123,13 @@ router.post("/teams/:id/api-keys", async (req: any, res) => {
   res.status(201).json({ key, record: safe }); // key shown only once
 });
 
-router.delete("/teams/:id/api-keys/:keyId", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
+router.delete("/teams/:id/api-keys/:keyId", requireTeamPlanById("pro"), async (req: any, res) => {
   await storage.revokeApiKey(req.params.keyId, req.params.id);
   res.status(204).send();
 });
 
 // ── Webhooks ──────────────────────────────────────────────────────────────
-router.get("/teams/:id/webhooks", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
+router.get("/teams/:id/webhooks", requireTeamPlanById("pro"), async (req: any, res) => {
   const hooks = await storage.listWebhooks(req.params.id);
   res.json(hooks);
 });
@@ -1128,15 +1140,7 @@ const webhookBodySchema = z.object({
   secret: z.string().max(256).optional(),
 });
 
-router.post("/teams/:id/webhooks", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
-  const team = await storage.getTeamById(req.params.id);
-  const onTrialWebhook = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
-  const webhookPlan: Plan = onTrialWebhook ? "club" : ((team?.plan ?? "individual") as Plan);
-  if (!planMeetsMinimum(webhookPlan, "pro")) {
-    return res.status(403).json({ error: "plan_required", requiredPlan: "pro" });
-  }
+router.post("/teams/:id/webhooks", requireTeamPlanById("pro"), async (req: any, res) => {
   const parsed = webhookBodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
   const existing = await storage.listWebhooks(req.params.id);
@@ -1145,24 +1149,18 @@ router.post("/teams/:id/webhooks", async (req: any, res) => {
   res.status(201).json(hook);
 });
 
-router.delete("/teams/:id/webhooks/:hookId", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
+router.delete("/teams/:id/webhooks/:hookId", requireTeamPlanById("pro"), async (req: any, res) => {
   await storage.deleteWebhook(req.params.hookId, req.params.id);
   res.status(204).send();
 });
 
-router.patch("/teams/:id/webhooks/:hookId/toggle", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
+router.patch("/teams/:id/webhooks/:hookId/toggle", requireTeamPlanById("pro"), async (req: any, res) => {
   const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
   const hook = await storage.toggleWebhook(req.params.hookId, req.params.id, enabled);
   res.json(hook);
 });
 
-router.post("/teams/:id/webhooks/:hookId/test", async (req: any, res) => {
-  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
-  if (!ok) return res.status(403).json({ error: "forbidden" });
+router.post("/teams/:id/webhooks/:hookId/test", requireTeamPlanById("pro"), async (req: any, res) => {
   const hooks = await storage.listWebhooks(req.params.id);
   const hook = hooks.find((h) => h.id === req.params.hookId);
   if (!hook) return res.status(404).json({ error: "not_found" });
