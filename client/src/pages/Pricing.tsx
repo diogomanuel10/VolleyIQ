@@ -28,7 +28,7 @@ const PLANS_CONFIG = [
     features: [
       "1 equipa · 1 utilizador",
       "Live scouting completo",
-      "Analytics básico",
+      "Analytics completo",
       "Match Day",
       "Jogos ilimitados",
       "10 relatórios PDF / mês",
