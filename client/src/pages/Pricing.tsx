@@ -13,6 +13,7 @@ import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
 import type { Team } from "@shared/schema";
 import type { Plan } from "@shared/types";
+import { TRIAL_DAYS, monthlyEquivalent } from "@shared/planPricing";
 
 type Period = "monthly" | "annual";
 type PayMethod = "multibanco" | "mb_way" | "cc";
@@ -23,21 +24,19 @@ const PLANS_CONFIG = [
   {
     id: "individual" as Plan,
     name: "Individual",
-    monthlyPrice: 19,
     blurb: "Para treinadores individuais",
     features: [
       "1 equipa · 1 utilizador",
       "Live scouting completo",
       "Analytics básico",
       "Match Day",
-      "Até 20 jogos",
-      "3 relatórios PDF / mês",
+      "Jogos ilimitados",
+      "10 relatórios PDF / mês",
     ],
   },
   {
     id: "pro" as Plan,
     name: "Pro",
-    monthlyPrice: 49,
     blurb: "Para treinadores com múltiplas equipas",
     popular: true,
     features: [
@@ -53,7 +52,6 @@ const PLANS_CONFIG = [
   {
     id: "club" as Plan,
     name: "Club",
-    monthlyPrice: 119,
     blurb: "Para clubes com múltiplas equipas",
     features: [
       "Equipas ilimitadas · 1 utilizador / equipa",
@@ -71,10 +69,6 @@ const PAY_METHODS: { id: PayMethod; label: string; icon: typeof CreditCard }[] =
   { id: "mb_way", label: "MB WAY", icon: Smartphone },
   { id: "cc", label: "Cartão de crédito", icon: CreditCard },
 ];
-
-function annualPrice(monthly: number) {
-  return Math.round(monthly * 0.85);
-}
 
 function planRank(plan: Plan): number {
   const p = plan === "basic" ? "individual" : plan;
@@ -171,7 +165,7 @@ export default function Pricing() {
           Escolhe o plano certo para a tua equipa
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          7 dias grátis em qualquer plano. Sem compromisso.
+          {TRIAL_DAYS} dias grátis em qualquer plano, sem cartão. Sem compromisso.
         </p>
         {team && (
           <p className="text-xs text-muted-foreground">
@@ -208,7 +202,7 @@ export default function Pricing() {
       <section className="grid gap-4 md:grid-cols-3">
         {PLANS_CONFIG.map((p) => {
           const isCurrent = planRank(current) === planRank(p.id) && isSubscribed;
-          const price = annual ? annualPrice(p.monthlyPrice) : p.monthlyPrice;
+          const price = monthlyEquivalent(p.id, annual);
           const isUpgrade = planRank(p.id) > currentRank;
 
           return (
@@ -286,9 +280,7 @@ export default function Pricing() {
               Subscrever {PLANS_CONFIG.find((p) => p.id === checkout?.plan)?.name}
             </DialogTitle>
             <DialogDescription>
-              €{checkout && (checkout.period === "annual"
-                ? annualPrice(PLANS_CONFIG.find((p) => p.id === checkout.plan)!.monthlyPrice)
-                : PLANS_CONFIG.find((p) => p.id === checkout.plan)!.monthlyPrice)}/mês
+              €{checkout && monthlyEquivalent(checkout.plan, checkout.period === "annual")}/mês
               {checkout?.period === "annual" ? " · faturado anualmente" : " · faturado mensalmente"}
             </DialogDescription>
           </DialogHeader>

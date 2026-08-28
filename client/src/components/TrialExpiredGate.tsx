@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeam } from "@/hooks/useTeam";
+import { TRIAL_DAYS } from "@shared/planPricing";
 
 export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
   const { isTrialExpired, isSubscribed, isLoading } = useTeam();
@@ -18,7 +19,7 @@ export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
         <div className="space-y-2">
           <h2 className="text-xl font-bold tracking-tight">Trial expirado</h2>
           <p className="text-sm text-muted-foreground">
-            O teu período de 7 dias gratuitos terminou. Subscreve um plano para continuar a usar o VolleyIQ.
+            O teu período de {TRIAL_DAYS} dias gratuitos terminou. Subscreve um plano para continuar a usar o VolleyIQ.
           </p>
         </div>
 

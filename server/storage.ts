@@ -2,6 +2,7 @@ import { eq, and, desc, inArray, isNull, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { db } from "./db";
+import { TRIAL_DAYS } from "@shared/planPricing";
 import {
   teams,
   memberships,
@@ -70,7 +71,7 @@ export async function listTeamsForUser(uid: string) {
 export async function createTeam(uid: string, data: InsertTeam) {
   const id = newId();
   const inviteCode = newInviteCode();
-  const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
   await db.insert(teams).values({ ...data, id, ownerUid: uid, inviteCode, trialEndsAt });
   await db.insert(memberships).values({
     id: newId(),

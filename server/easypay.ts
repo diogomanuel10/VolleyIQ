@@ -4,6 +4,8 @@
  * Supports: MB WAY, Multibanco reference, credit card.
  */
 
+import { PLAN_PRICING } from "@shared/planPricing";
+
 const EASYPAY_BASE = process.env.EASYPAY_SANDBOX === "true"
   ? "https://api.test.easypay.pt/2.0"
   : "https://api.prod.easypay.pt/2.0";
@@ -125,9 +127,6 @@ export function isConfigured(): boolean {
   return Boolean(ACCOUNT_ID && API_KEY);
 }
 
-// Plan prices in EUR
-export const PLAN_PRICES: Record<string, { monthly: number; annual: number }> = {
-  individual: { monthly: 19, annual: 16 },
-  pro: { monthly: 49, annual: 41 },
-  club: { monthly: 119, annual: 101 },
-};
+// Preços em EUR — reexportados de @shared/planPricing para que servidor, app
+// e checkout usem sempre exactamente os mesmos valores.
+export const PLAN_PRICES = PLAN_PRICING;

@@ -11,6 +11,7 @@ import { logout } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import type { Team } from "@shared/schema";
 import type { Plan } from "@shared/types";
+import { TRIAL_DAYS, monthlyEquivalent } from "@shared/planPricing";
 
 // ── Dados dos planos ──────────────────────────────────────────────────────────
 
@@ -18,21 +19,19 @@ const PLANS_CONFIG = [
   {
     id: "individual" as Plan,
     name: "Individual",
-    monthlyPrice: 19,
     blurb: "Para treinadores individuais",
     features: [
       "1 equipa",
       "Live scouting completo",
       "Analytics básico",
       "Match Day",
-      "Até 20 jogos",
-      "3 PDFs / mês",
+      "Jogos ilimitados",
+      "10 PDFs / mês",
     ],
   },
   {
     id: "pro" as Plan,
     name: "Pro",
-    monthlyPrice: 49,
     blurb: "Para treinadores com múltiplas equipas",
     popular: true,
     features: [
@@ -48,7 +47,6 @@ const PLANS_CONFIG = [
   {
     id: "club" as Plan,
     name: "Club",
-    monthlyPrice: 119,
     blurb: "Para clubes com múltiplas equipas",
     features: [
       "Equipas ilimitadas",
@@ -196,16 +194,12 @@ function PlanStep({
 }) {
   const [annual, setAnnual] = useState(false);
 
-  function annualPrice(monthly: number) {
-    return Math.round(monthly * 0.85);
-  }
-
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-bold tracking-tight">Escolhe o teu plano</h1>
         <p className="mt-1.5 text-muted-foreground text-sm">
-          7 dias grátis com acesso completo · Sem cartão de crédito
+          {TRIAL_DAYS} dias grátis com acesso completo · Sem cartão de crédito
         </p>
       </div>
 
@@ -239,7 +233,7 @@ function PlanStep({
       {/* Cards de plano */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PLANS_CONFIG.map((plan) => {
-          const price = annual ? annualPrice(plan.monthlyPrice) : plan.monthlyPrice;
+          const price = monthlyEquivalent(plan.id, annual);
           const isSelected = selected === plan.id;
 
           return (
@@ -301,7 +295,7 @@ function PlanStep({
       </div>
 
       <Button className="w-full" size="lg" onClick={onContinue}>
-        Continuar com {PLANS_CONFIG.find(p => p.id === selected)?.name} — trial de 7 dias
+        Continuar com {PLANS_CONFIG.find(p => p.id === selected)?.name} — trial de {TRIAL_DAYS} dias
         <ArrowRight className="h-4 w-4 ml-1" />
       </Button>
 
