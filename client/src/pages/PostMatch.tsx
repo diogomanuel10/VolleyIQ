@@ -33,6 +33,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useTeam } from "@/hooks/useTeam";
 import { usePlanGuard } from "@/hooks/usePlanGuard";
+import { ReportLetterhead } from "@/components/ReportLetterhead";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -281,6 +282,7 @@ function Summary({
 }) {
   const { t } = useTranslation();
   const guard = usePlanGuard();
+  const { team } = useTeam();
   const videoRef = useRef<VideoPanelHandle>(null);
   const qc = useQueryClient();
 
@@ -546,6 +548,14 @@ function Summary({
 
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
+      {team && (
+        <ReportLetterhead
+          team={team}
+          title="Relatório pós-jogo"
+          subtitle={`vs. ${s.opponent}`}
+        />
+      )}
+
       <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
         <ArrowLeft className="h-4 w-4" /> {t("common.back")}
       </Button>

@@ -59,6 +59,7 @@ const PLANS_CONFIG = [
       "AI training plans",
       "Sugestões IA em tempo real",
       "Dashboard de clube",
+      "Logótipo do clube nos relatórios",
       "Suporte prioritário",
     ],
   },

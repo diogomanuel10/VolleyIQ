@@ -32,7 +32,12 @@ import {
   buildTeamPlayerAggregates,
 } from "./stats";
 import type { PatternDetectionInput } from "@shared/types";
-import { PLAN_FEATURES, planMeetsMinimum } from "@shared/planFeatures";
+import {
+  PLAN_FEATURES,
+  planMeetsMinimum,
+  planHasFeature,
+  parseFeatureOverrides,
+} from "@shared/planFeatures";
 import type { Plan } from "@shared/types";
 import * as easypay from "./easypay";
 import { fireMatchFinishedWebhooks, testWebhook } from "./webhooks";
@@ -128,6 +133,16 @@ const updateTeamBodySchema = z.object({
   club: z.string().max(100).optional(),
   category: z.string().max(100).optional(),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+  // Só aceitamos http(s) — um `javascript:` ou `data:` aqui acabaria dentro
+  // de um <img src> nos relatórios de toda a equipa.
+  logoUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .url()
+    .refine((u) => /^https?:\/\//i.test(u), { message: "url_must_be_http" })
+    .nullable()
+    .optional(),
 });
 
 router.patch("/teams/:id", async (req: any, res) => {
@@ -135,6 +150,20 @@ router.patch("/teams/:id", async (req: any, res) => {
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
   const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
   if (!ok) return res.status(403).json({ error: "forbidden" });
+  // O logótipo do clube faz parte do branding dos relatórios — só planos com
+  // `customBranding`. O resto da informação da equipa é livre.
+  if (parsed.data.logoUrl !== undefined) {
+    const team = await storage.getTeamById(req.params.id);
+    const plan = await effectivePlan(req.params.id);
+    if (!planHasFeature(plan, "customBranding", parseFeatureOverrides(team?.featureOverrides))) {
+      return res.status(403).json({
+        error: "plan_required",
+        requiredPlan: "club",
+        currentPlan: plan,
+        feature: "customBranding",
+      });
+    }
+  }
   const team = await storage.updateTeam(req.params.id, parsed.data);
   res.json(team);
 });

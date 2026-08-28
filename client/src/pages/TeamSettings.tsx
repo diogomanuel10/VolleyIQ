@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { Bell, BellOff, Copy, RefreshCw, Users, Check, Palette, Loader2 } from "lucide-react";
+import {
+  Bell, BellOff, Copy, RefreshCw, Users, Check, Palette, Loader2,
+  Image as ImageIcon,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { useTeam } from "@/hooks/useTeam";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -11,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlanGate } from "@/components/PlanGate";
 import type { Team } from "@shared/schema";
 
 interface Membership {
@@ -38,6 +42,7 @@ export default function TeamSettings() {
       </header>
 
       <TeamInfoCard team={team} />
+      <BrandingCard team={team} />
       <InviteCodeCard team={team} />
       <MembersCard teamId={team.id} />
       <NotificationsCard teamId={team.id} />
@@ -119,6 +124,108 @@ function TeamInfoCard({ team }: { team: Team }) {
       >
         {save.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> A guardar…</> : "Guardar alterações"}
       </Button>
+    </section>
+  );
+}
+
+/** Logótipo do clube no cabeçalho dos relatórios impressos. Plano Club. */
+function BrandingCard({ team }: { team: Team }) {
+  const qc = useQueryClient();
+  const [logoUrl, setLogoUrl] = useState(team.logoUrl ?? "");
+  const [preview, setPreview] = useState<"ok" | "erro" | null>(null);
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch<Team>(`/api/teams/${team.id}`, {
+        logoUrl: logoUrl.trim() === "" ? null : logoUrl.trim(),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teams"] });
+      toast.success("Branding actualizado.");
+    },
+    onError: (err: any) =>
+      toast.error(
+        err?.body?.error === "plan_required"
+          ? "O branding personalizado está disponível no plano Club."
+          : "URL inválido. Usa um endereço http(s) directo para a imagem.",
+      ),
+  });
+
+  const isDirty = logoUrl.trim() !== (team.logoUrl ?? "");
+
+  return (
+    <section className="rounded-xl border bg-card p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+        <h2 className="font-semibold">Branding dos relatórios</h2>
+      </div>
+
+      <PlanGate feature="customBranding">
+        <p className="text-sm text-muted-foreground">
+          O logótipo e a cor principal do clube aparecem no topo de cada relatório
+          exportado em PDF. Sem isto, os relatórios saem com a marca VolleyIQ.
+        </p>
+
+        <div className="space-y-1">
+          <Label htmlFor="ts-logo">URL do logótipo</Label>
+          <Input
+            id="ts-logo"
+            value={logoUrl}
+            placeholder="https://o-teu-clube.pt/logo.png"
+            onChange={(e) => {
+              setLogoUrl(e.target.value);
+              setPreview(null);
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Endereço directo para a imagem (PNG ou SVG, fundo transparente de
+            preferência). Deixa vazio para remover.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="h-16 w-16 rounded-md border flex items-center justify-center bg-background overflow-hidden shrink-0">
+            {logoUrl.trim() ? (
+              <img
+                src={logoUrl.trim()}
+                alt="Pré-visualização do logótipo"
+                className="max-h-full max-w-full object-contain"
+                onLoad={() => setPreview("ok")}
+                onError={() => setPreview("erro")}
+              />
+            ) : (
+              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            )}
+          </div>
+          <div className="text-xs">
+            {preview === "erro" && (
+              <span className="text-destructive">
+                Não foi possível carregar esta imagem.
+              </span>
+            )}
+            {preview === "ok" && (
+              <span className="text-muted-foreground">
+                Assim aparecerá no cabeçalho, com a cor{" "}
+                <span className="font-mono">{team.primaryColor ?? "#0ea5e9"}</span>.
+              </span>
+            )}
+          </div>
+        </div>
+
+        <Button
+          size="sm"
+          disabled={!isDirty || save.isPending}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> A guardar…
+            </>
+          ) : (
+            "Guardar branding"
+          )}
+        </Button>
+      </PlanGate>
     </section>
   );
 }

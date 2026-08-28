@@ -222,7 +222,13 @@ export async function listRecentMatchesForTeam(teamId: string, limit: number) {
 
 export async function updateTeam(
   teamId: string,
-  data: { name?: string; club?: string; category?: string; primaryColor?: string | null },
+  data: {
+    name?: string;
+    club?: string;
+    category?: string;
+    primaryColor?: string | null;
+    logoUrl?: string | null;
+  },
 ) {
   const [row] = await db
     .update(teams)

@@ -36,6 +36,9 @@ export const teams = pgTable("teams", {
   division: text("division"),
   // Hex string incluindo `#` (ex: `#0ea5e9`).
   primaryColor: text("primary_color"),
+  // URL do logótipo do clube, usado no cabeçalho dos relatórios impressos.
+  // Só editável em planos com a funcionalidade `customBranding`.
+  logoUrl: text("logo_url"),
   plan: text("plan", { enum: PLANS }).notNull().default("basic"),
   ownerUid: text("owner_uid").notNull(),
   inviteCode: text("invite_code"),

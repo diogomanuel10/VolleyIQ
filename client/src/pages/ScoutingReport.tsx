@@ -33,6 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Match } from "@shared/schema";
 import type { DetectedPattern, PatternDetectionInput } from "@shared/types";
 import { PlanGate } from "@/components/PlanGate";
+import { ReportLetterhead } from "@/components/ReportLetterhead";
 
 interface ScoutingAggregation {
   opponent: string;
@@ -158,6 +159,7 @@ function Report({
   onBack: () => void;
 }) {
   const { t } = useTranslation();
+  const { team } = useTeam();
   const reportQuery = useQuery({
     queryKey: ["scouting", teamId, opponent],
     queryFn: () =>
@@ -183,6 +185,10 @@ function Report({
 
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
+      {team && (
+        <ReportLetterhead team={team} title="Relatório de scouting" subtitle={opponent} />
+      )}
+
       <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
         <ArrowLeft className="h-4 w-4" /> {t("common.back")}
       </Button>

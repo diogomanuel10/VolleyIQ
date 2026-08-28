@@ -12,6 +12,8 @@ export interface PlanLimits {
   aiTrainingPlans: boolean;
   aiLiveSuggestions: boolean;
   clubDashboard: boolean;
+  /** Logótipo e cor do clube no cabeçalho dos relatórios impressos. */
+  customBranding: boolean;
 }
 
 export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
@@ -28,6 +30,7 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
     aiTrainingPlans: false,
     aiLiveSuggestions: false,
     clubDashboard: false,
+    customBranding: false,
   },
   // Alias de basic → mesmo que individual (retrocompatibilidade)
   basic: {
@@ -42,6 +45,7 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
     aiTrainingPlans: false,
     aiLiveSuggestions: false,
     clubDashboard: false,
+    customBranding: false,
   },
   // Pro — 5 equipas, adversários, analytics, AI patterns
   pro: {
@@ -56,6 +60,7 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
     aiTrainingPlans: false,
     aiLiveSuggestions: false,
     clubDashboard: false,
+    customBranding: false,
   },
   // Club — tudo ilimitado + IA completa
   club: {
@@ -70,6 +75,7 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
     aiTrainingPlans: true,
     aiLiveSuggestions: true,
     clubDashboard: true,
+    customBranding: true,
   },
 };
 

@@ -85,6 +85,9 @@
   }
 }
 
+/* Só visível na impressão — ver o bloco @media print abaixo. */
+.print-only { display: none; }
+
 /* ── Print / PDF export ────────────────────────────────────────────────
    O fluxo "Exportar PDF" dos relatórios usa window.print() com estas
    regras para compactar cabeçalhos, esconder navegação e forçar uma
@@ -120,6 +123,8 @@
   }
 
   .print-hide { display: none !important; }
+  /* Cabeçalho de marca dos relatórios: só existe no papel. */
+  .print-only { display: block !important; }
   .print-break-before { break-before: page; }
   .print-avoid-break { break-inside: avoid; }
 

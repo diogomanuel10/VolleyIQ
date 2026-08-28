@@ -47,6 +47,7 @@ const BOOLEAN_FEATURES: { key: keyof PlanLimits; label: string }[] = [
   { key: "aiTrainingPlans", label: "AI · Planos de Treino" },
   { key: "aiLiveSuggestions", label: "AI · Sugestões ao Vivo" },
   { key: "clubDashboard", label: "Dashboard de Clube" },
+  { key: "customBranding", label: "Branding Personalizado" },
 ];
 
 function parseOverrides(raw: string | null): FeatureOverrides {
