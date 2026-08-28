@@ -16,11 +16,11 @@ export interface PlanLimits {
 }
 
 export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
-  // Plano individual — 1 equipa, sem IA, sem adversários
+  // Plano individual — 1 equipa, jogos ilimitados, sem IA, sem adversários
   individual: {
     maxTeams: 1,
-    maxMatchesPerTeam: 20,
-    maxPdfsPerMonth: 3,
+    maxMatchesPerTeam: -1,
+    maxPdfsPerMonth: 10,
     opponents: false,
     scenarioModeling: false,
     fullAnalytics: true,
@@ -34,8 +34,8 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
   // Alias de basic → mesmo que individual (retrocompatibilidade)
   basic: {
     maxTeams: 1,
-    maxMatchesPerTeam: 20,
-    maxPdfsPerMonth: 3,
+    maxMatchesPerTeam: -1,
+    maxPdfsPerMonth: 10,
     opponents: false,
     scenarioModeling: false,
     fullAnalytics: true,
